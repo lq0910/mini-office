@@ -1,11 +1,57 @@
 /** 功能：验证 Word / Excel 打印分页的页数、跨页切分与纸张规则；时间：2026-10-29；作者：lq。 */
 import { describe, expect, it } from 'vitest';
-import { createBlankDoc, createBlankWorkbook, type DocTable } from '@mini-office/document-model';
+import { createBlankDoc, createBlankWorkbook, type DocTable, type ParagraphStyle } from '@mini-office/document-model';
 import { createPrintRoot, renderPrintPreview, resolvePrintPaper } from '../packages/platform-adapter/src/print';
-import { paginateBlocks, sliceTable } from '../packages/editor-word/src/pagination';
-import { makeParagraph } from '../packages/editor-word/src/doc-utils';
+import { paginateBlocks, sliceTable, type ParagraphBreaker } from '../packages/editor-word/src/pagination';
+import { makeParagraph, mergeFragmentRuns, splitRunsAtOffset } from '../packages/editor-word/src/doc-utils';
+import { runsPlainText } from '../packages/editor-word/src/editing';
 import { buildSheetPrintPages, sheetPageSize } from '../packages/editor-sheet/src/print';
 import { defaultSheetPageSetup } from '@mini-office/document-model';
+
+/**
+ * 功能：模拟真实断页器——每字 20px，按本页容量切分；段内分页符作为强制断点并让续片另起一页；
+ * 时间：2026-10-30；作者：lq。
+ */
+function capacityBreaker(): ParagraphBreaker {
+  const perChar = 20;
+  const continuation = (style: ParagraphStyle) => ({ ...style, firstLineIndentPx: 0, spaceBeforePx: 0, spaceAfterPx: 0 });
+  return {
+    needsBreak: (paragraph) => paragraph.runs.some((run) => run.pageBreak),
+    split: (paragraph, maxHeight) => {
+      const total = runsPlainText(paragraph.runs).length;
+      let forced = -1;
+      let acc = 0;
+      for (const run of paragraph.runs) {
+        if (run.pageBreak) { forced = acc; break; }
+        acc += run.image || run.tab || run.lineBreak || run.mergeField ? 1 : (run.text?.length ?? 0);
+      }
+      const capacity = Math.floor(maxHeight / perChar);
+      // 功能：强制断点在本页放得下时优先按它断开；时间：2026-10-30；作者：lq。
+      if (forced >= 0 && forced < total && forced <= capacity) {
+        const [headRuns] = splitRunsAtOffset(paragraph.runs, forced, {});
+        const [, tailRuns] = splitRunsAtOffset(paragraph.runs, forced + 1, {});
+        return {
+          head: { ...paragraph, runs: headRuns },
+          tail: { ...paragraph, runs: tailRuns, style: continuation(paragraph.style), list: undefined },
+          headEnd: forced,
+          forceNewPage: true,
+          headHeight: forced * perChar,
+          tailHeight: (total - forced - 1) * perChar,
+        };
+      }
+      if (capacity >= total) return null;
+      const offset = Math.max(1, capacity);
+      const [headRuns, tailRuns] = splitRunsAtOffset(paragraph.runs, offset, {});
+      return {
+        head: { ...paragraph, runs: headRuns },
+        tail: { ...paragraph, runs: tailRuns, style: continuation(paragraph.style), list: undefined },
+        headEnd: offset,
+        headHeight: offset * perChar,
+        tailHeight: (total - offset) * perChar,
+      };
+    },
+  };
+}
 
 /** 功能：构造带表头、可指定行数的表格；时间：2026-10-29；作者：lq。 */
 function tableFixture(rowCount: number, headerRows = 1, columnCount = 2): DocTable {
@@ -129,6 +175,46 @@ describe('Word 分页', () => {
     const pages = paginateBlocks(blocks, heights, 500);
     expect(pages).toHaveLength(2);
     expect(doc.blocks.length).toBeGreaterThan(0);
+  });
+
+  it('长段落按行跨页切分，首片沿用原 id 可编辑、续页片段只读', () => {
+    const p = makeParagraph([{ text: '一二三四五六七八九十', style: {} }]);
+    const heights = new Map([[p.id, 200]]);
+    const breaker = capacityBreaker();
+    const pages = paginateBlocks([p], heights, 100, undefined, breaker);
+    expect(pages.length).toBeGreaterThanOrEqual(2);
+    const first = pages[0];
+    expect(first.blocks[0].id).toBe(p.id);
+    expect(first.fragments).toContain(p.id);
+    expect(first.locked).toBeUndefined();
+    // 功能：首片的模型边界必须记录下来，编辑回写据此保留续页尾部；时间：2026-10-30；作者：lq。
+    expect(first.fragmentEnds?.[p.id]).toBe(5);
+    const cont = pages.find((page) => page.locked && page.locked.length > 0);
+    expect(cont).toBeDefined();
+    expect(cont!.blocks[0].id).toContain('-cont');
+    expect(heights.get(cont!.blocks[0].id)).toBe(100);
+  });
+
+  it('段内分页符是强制断点，即使整段放得下也要断开', () => {
+    const p = makeParagraph([
+      { text: '前半', style: {} },
+      { text: '', style: {}, pageBreak: true },
+      { text: '后半', style: {} },
+    ]);
+    const heights = new Map([[p.id, 40]]);
+    const breaker = capacityBreaker();
+    const pages = paginateBlocks([p], heights, 100, undefined, breaker);
+    // 功能：分页符后的内容必须落到下一页，不能留在本页；时间：2026-10-30；作者：lq。
+    expect(pages.length).toBe(2);
+    expect(pages[0].blocks[0].id).toBe(p.id);
+    expect(pages[1].locked).toBeDefined();
+    expect(runsPlainText(pages[1].blocks[0].type === 'paragraph' ? pages[1].blocks[0].runs : [])).toBe('后半');
+  });
+
+  it('跨页首片编辑回写时保留续页尾部', () => {
+    const p = makeParagraph([{ text: '前半', style: {} }, { text: '后半', style: {} }]);
+    const merged = mergeFragmentRuns(p.runs, 2, [{ text: '新前半', style: {} }], {});
+    expect(runsPlainText(merged)).toBe('新前半后半');
   });
 });
 

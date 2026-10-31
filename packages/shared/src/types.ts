@@ -116,6 +116,10 @@ export interface AppSettings {
   defaultZoom: number;
   restoreSession: boolean;
   fontSize: 'small' | 'default' | 'large';
+  /** 护眼模式：编辑区纸张/表面切换为护眼色。 */
+  eyeProtection?: boolean;
+  /** 高亮当前行/列（表格编辑时）。 */
+  highlightRowCol?: boolean;
 }
 
 export const DEFAULT_ACCENT_HEX = '#2E7D72';
@@ -133,6 +137,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultZoom: 1,
   restoreSession: true,
   fontSize: 'default',
+  eyeProtection: false,
+  highlightRowCol: false,
 };
 
 export interface DocumentStats {

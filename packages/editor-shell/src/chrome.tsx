@@ -4,6 +4,8 @@ import {
   AlertTriangle,
   AppWindow,
   Download,
+  Eye,
+  EyeOff,
   Home,
   FileText,
   FolderOpen,
@@ -14,6 +16,7 @@ import {
   Palette,
   Plus,
   Presentation,
+  Grid3x3,
   Search,
   Settings,
   Sun,
@@ -452,6 +455,7 @@ export function StatusBar() {
   const sessions = useWorkspaceStore((state) => state.sessions);
   const activeId = useWorkspaceStore((state) => state.activeId);
   const settings = useWorkspaceStore((state) => state.settings);
+  const updateSettings = useWorkspaceStore((state) => state.updateSettings);
   const session = activeId ? sessions[activeId] : undefined;
 
   const saveLabel = !session
@@ -512,6 +516,27 @@ export function StatusBar() {
         <span>Mini Office · 离线优先的办公套件</span>
       )}
       <div className="ml-auto flex shrink-0 items-center gap-3">
+        {/* 功能：护眼模式与高亮行列开关；时间：2026-10-30；作者：hou0。 */}
+        <button
+          type="button"
+          title="护眼模式"
+          onClick={() => updateSettings({ eyeProtection: !settings.eyeProtection })}
+          className={`inline-flex h-4 items-center justify-center rounded px-1 hover:bg-[var(--mo-surface-2)] ${
+            settings.eyeProtection ? 'text-[var(--mo-accent)]' : ''
+          }`}
+        >
+          {settings.eyeProtection ? <EyeOff size={12} /> : <Eye size={12} />}
+        </button>
+        <button
+          type="button"
+          title="高亮行列"
+          onClick={() => updateSettings({ highlightRowCol: !settings.highlightRowCol })}
+          className={`inline-flex h-4 items-center justify-center rounded px-1 hover:bg-[var(--mo-surface-2)] ${
+            settings.highlightRowCol ? 'text-[var(--mo-accent)]' : ''
+          }`}
+        >
+          <Grid3x3 size={12} />
+        </button>
         <span className="hidden md:inline">自动恢复 {settings.autoSave ? '开启' : '关闭'}</span>
         <span className="hidden sm:inline">UTF-8 · OOXML</span>
         <span className="inline-flex items-center gap-1">

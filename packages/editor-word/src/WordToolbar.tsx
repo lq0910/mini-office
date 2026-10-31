@@ -1,5 +1,6 @@
 import type { DocParagraph, DocModel, ParagraphStyle, RunStyle } from '@mini-office/document-model';
 import { FONT_CHOICES } from '@mini-office/design-system';
+import { mergeFontChoices } from './use-system-fonts';
 // 功能：按操作系统展示 Word 缩放快捷键，并使用统一比例上下限；时间：2026-10-24；作者：lq。
 import { MOD_KEY } from '@mini-office/shared';
 import { WORD_ZOOM_MIN, WORD_ZOOM_MAX } from './zoom-shortcuts';
@@ -8,30 +9,33 @@ import {
   AlignJustify,
   AlignLeft,
   AlignRight,
+  Baseline,
   Bold,
   Download,
+  FileDiff,
   FileWarning,
+  Highlighter,
   ImagePlus,
   IndentDecrease,
   IndentIncrease,
   Italic,
   List,
+  Mails,
+  MessageSquarePlus,
   MoreHorizontal,
+  Paintbrush,
+  PanelRight,
+  PanelTop,
+  Pilcrow,
   Printer,
   Redo2,
+  Ruler,
+  Scissors,
   Search,
   Strikethrough,
   Underline,
   Undo2,
   ZoomIn,
-  PanelRight,
-  Scissors,
-  Highlighter,
-  Baseline,
-  PanelTop,
-  Mails,
-  Paintbrush,
-  Pilcrow,
 } from 'lucide-react';
 import { ColorField, Dropdown, IconButton, Kbd, Select, Tooltip } from '@mini-office/ui';
 import type { MenuItem } from '@mini-office/ui';
@@ -43,6 +47,8 @@ import { StylePicker, type StylePickerProps } from './StylePicker';
 
 export interface WordToolbarProps {
   doc: DocModel;
+  /** 功能：系统字体列表（平台枚举），与内置列表合并进字体下拉框；时间：2026-10-30；作者：hou0。 */
+  systemFonts?: string[];
   readonly: boolean;
   activeParagraph?: DocParagraph;
   activeStyle: RunStyle;
@@ -71,6 +77,13 @@ export interface WordToolbarProps {
   onFitWidth: () => void;
   onToggleFind: () => void;
   onToggleProperties: () => void;
+  /** 功能：Word 标尺显示开关；时间：2026-10-30；作者：hou0。 */
+  showRuler: boolean;
+  onToggleRuler: () => void;
+  /** 功能：审阅面板（批注与修订）开关与新建批注入口；时间：2026-10-31。 */
+  reviewOpen?: boolean;
+  onToggleReview?: () => void;
+  onAddComment?: () => void;
   onExport: () => void;
   onPrint: () => void;
   onShowCompatibility: () => void;
@@ -163,7 +176,7 @@ export function WordToolbar(props: WordToolbarProps) {
           props.onFontFormat({ fontFamily: value === '默认' ? undefined : value });
         }}
       >
-        {FONT_CHOICES.map((font) => (
+        {mergeFontChoices(props.systemFonts ?? [], activeStyle.fontFamily, props.doc.defaultFont).map((font) => (
           <option key={font} value={font}>
             {font}
           </option>
@@ -380,6 +393,20 @@ export function WordToolbar(props: WordToolbarProps) {
       <IconButton label="布局与属性" active={props.propertiesOpen} onClick={props.onToggleProperties}>
         <PanelRight size={15} />
       </IconButton>
+      {/* 功能：Word 标尺显示开关；时间：2026-10-30；作者：hou0。 */}
+      <IconButton label="标尺" active={props.showRuler} onClick={props.onToggleRuler}>
+        <Ruler size={15} />
+      </IconButton>
+      {props.onAddComment ? (
+        <IconButton label="新建批注" onClick={props.onAddComment}>
+          <MessageSquarePlus size={15} />
+        </IconButton>
+      ) : null}
+      {props.onToggleReview ? (
+        <IconButton label="审阅（批注与修订）" active={props.reviewOpen} onClick={props.onToggleReview}>
+          <FileDiff size={15} />
+        </IconButton>
+      ) : null}
       <Tooltip label="打印 ⌘P">
         <IconButton label="打印" onClick={props.onPrint}>
           <Printer size={15} />

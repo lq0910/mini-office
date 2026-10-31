@@ -112,6 +112,39 @@ export function computeDocStats(doc: DocModel): { words: number; characters: num
   return { words, characters };
 }
 
+/**
+ * 功能：run 的模型长度口径——图片/制表符/换行/分页符/合并域各计 1，其余按字符数；
+ * 与 splitRunsAtOffset 保持一致，供分页器二分断点使用；时间：2026-10-30；作者：lq。
+ */
+export function runLength(run: DocRun): number {
+  if (run.image || run.tab || run.lineBreak || run.mergeField || run.pageBreak) return 1;
+  return run.text?.length ?? 0;
+}
+
+/** 功能：模型 runs 的总长度；时间：2026-10-30；作者：lq。 */
+export function runsLength(runs: DocRun[]): number {
+  return runs.reduce((sum, run) => sum + runLength(run), 0);
+}
+
+/** 功能：段落是否含有可见内容；空首片表示"此处仅断页"；时间：2026-10-30；作者：lq。 */
+export function paragraphHasContent(paragraph: DocParagraph): boolean {
+  return paragraph.runs.some((run) => Boolean(run.text || run.image || run.tab || run.lineBreak || run.pageBreak));
+}
+
+/**
+ * 功能：跨页首片编辑回写模型——用片段中的新内容替换模型段落的前缀，保留被切到续页的尾部；
+ * 没有边界信息时退化为整体替换；时间：2026-10-30；作者：lq。
+ */
+export function mergeFragmentRuns(
+  modelRuns: DocRun[],
+  headEnd: number,
+  headRuns: DocRun[],
+  fallback: RunStyle,
+): DocRun[] {
+  const [, after] = splitRunsAtOffset(modelRuns, headEnd, fallback);
+  return [...headRuns, ...after];
+}
+
 export function splitRunsAtOffset(
   runs: DocRun[],
   offset: number,
@@ -121,7 +154,7 @@ export function splitRunsAtOffset(
   const after: DocRun[] = [];
   let consumed = 0;
   for (const run of runs) {
-    if (run.image || run.tab || run.lineBreak || run.mergeField) {
+    if (run.image || run.tab || run.lineBreak || run.mergeField || run.pageBreak) {
       if (consumed < offset) before.push(run);
       else after.push(run);
       consumed += 1;

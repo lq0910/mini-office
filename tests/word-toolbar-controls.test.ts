@@ -50,6 +50,8 @@ function props(overrides: Partial<WordToolbarProps> = {}): WordToolbarProps {
     onFitWidth: vi.fn(),
     onToggleFind: vi.fn(),
     onToggleProperties: vi.fn(),
+    showRuler: false,
+    onToggleRuler: vi.fn(),
     onExport: vi.fn(),
     onPrint: vi.fn(),
     onShowCompatibility: vi.fn(),

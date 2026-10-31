@@ -8,11 +8,13 @@ import {
   type DocStyleDefinition,
   type DocTable,
   type DocTableCell,
+  type FieldMarker,
   type PageSetup,
   type ParagraphStyle,
   type RunStyle,
   type TableBorderSide,
   type TableBorders,
+  type HeaderFooter,
 } from '@mini-office/document-model';
 import {
   escapeXml,
@@ -35,6 +37,10 @@ import { collectUsedStyleDefinitions, resolveStyleRun } from './styles';
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 const XMLNS_NS = 'http://www.w3.org/2000/xmlns/';
+/** 功能：VML 命名空间声明——v:rect 浮层需要，缺省会让 Word 判定部件非法；时间：2026-10-30。 */
+const VML_NS_DECL = ' xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w10="urn:schemas-microsoft-com:office:word"';
+/** 功能：页眉页脚部件额外声明 w14（复选框控件需要），正文部件已在根元素声明；时间：2026-10-30。 */
+const CONTROL_NS_DECL = ' xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"';
 const WP_NS = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
 const A_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
 const PIC_NS = 'http://schemas.openxmlformats.org/drawingml/2006/picture';
@@ -58,6 +64,8 @@ interface SerializeState {
   imageCounter: number;
   /** 功能：图形对象 ID 必须全文档唯一，独立计数避免复用关系时产生重复 docPr id；时间：2026-10-29；作者：lq。 */
   drawingCounter: number;
+  /** 功能：书签 id 计数器——写回书签时保证 id 唯一；时间：2026-10-30。 */
+  bookmarkCounter: number;
   hasNumbering: boolean;
   sectPrXml?: string;
 }
@@ -103,9 +111,12 @@ function boolTag(tag: string, value: boolean | undefined, valueAttribute = true)
  */
 function runProperties(style: RunStyle): string {
   const parts: string[] = [];
-  if (style.fontFamily) {
+  if (style.fontFamily || style.eastAsiaFont) {
+    // 功能：中西文字体分槽写回（w:ascii / w:eastAsia），保存后 Word/WPS 显示不变；时间：2026-10-30。
+    const latin = escapeXml(style.fontFamily ?? style.eastAsiaFont!);
+    const eastAsia = escapeXml(style.eastAsiaFont ?? style.fontFamily!);
     parts.push(
-      `<w:rFonts w:ascii="${escapeXml(style.fontFamily)}" w:hAnsi="${escapeXml(style.fontFamily)}" w:eastAsia="${escapeXml(style.fontFamily)}" w:cs="${escapeXml(style.fontFamily)}"/>`,
+      `<w:rFonts w:ascii="${latin}" w:hAnsi="${latin}" w:eastAsia="${eastAsia}" w:cs="${latin}"/>`,
     );
   }
   if (style.bold !== undefined) parts.push(`<w:b${style.bold ? '' : ' w:val="0"'}/>`);
@@ -162,6 +173,18 @@ function paragraphProperties(
   if (background) {
     parts.push(`<w:shd w:val="clear" w:color="auto" w:fill="${background}"/>`);
   }
+  if (style.tabStops?.length) {
+    // 功能：写出制表位前导符（w:leader），Word/WPS 打开后目录仍显示「标题……页码」点线；时间：2026-10-30。
+    const tabXml = style.tabStops
+      .map(
+        (t) =>
+          `<w:tab w:val="${t.kind}" w:pos="${Math.round(t.posPx * 15)}"${
+            t.leader && t.leader !== 'none' ? ` w:leader="${t.leader}"` : ''
+          }/>`,
+      )
+      .join('');
+    parts.push(`<w:tabs>${tabXml}</w:tabs>`);
+  }
   const spacingParts: string[] = [];
   if (style.spaceBeforePx !== undefined) spacingParts.push(`w:before="${Math.round(style.spaceBeforePx * 15)}"`);
   if (style.spaceAfterPx !== undefined) spacingParts.push(`w:after="${Math.round(style.spaceAfterPx * 15)}"`);
@@ -193,6 +216,8 @@ function paragraphProperties(
     parts.push(`<w:jc w:val="${map[style.alignment] ?? 'left'}"/>`);
   }
   if (style.outlineLevel !== undefined) parts.push(`<w:outlineLvl w:val="${style.outlineLevel}"/>`);
+  // 功能：段落关闭「对齐到网格」时写回 w:snapToGrid=0，Word 打开后行高不再按网格取整；时间：2026-10-30。
+  if (style.snapToGrid === false) parts.push('<w:snapToGrid w:val="0"/>');
   return parts.length ? `<w:pPr>${parts.join('')}</w:pPr>` : '';
 }
 
@@ -343,7 +368,71 @@ function drawingXml(image: DocImage, relId: string, drawingId: number): string {
   return `<w:drawing>${drawing}</w:drawing>`;
 }
 
+/**
+ * 功能：把内容控件写回标准 w:sdt——复选框用 w14:checkbox 记录勾选，下拉/组合框写候选，日期写格式；
+ * 子元素顺序遵循 CT_SdtPr（alias/tag/lock 在前，控件类型在后），否则 Word 会判定部件非法；时间：2026-10-30。
+ */
+function sdtPrXml(control: NonNullable<DocRun['control']>): string {
+  const parts: string[] = [];
+  if (control.alias) parts.push(`<w:alias w:val="${escapeXml(control.alias)}"/>`);
+  if (control.tag) parts.push(`<w:tag w:val="${escapeXml(control.tag)}"/>`);
+  if (control.locked) parts.push('<w:lock w:val="sdtContentLocked"/>');
+  if (control.kind === 'checkbox') {
+    parts.push(`<w14:checkbox><w14:checked w14:val="${control.checked ? 1 : 0}"/></w14:checkbox>`);
+  } else if (control.kind === 'dropdown' || control.kind === 'comboBox') {
+    const tag = control.kind === 'dropdown' ? 'w:dropDownList' : 'w:comboBox';
+    const items = (control.choices ?? [])
+      .map((choice) => `<w:listItem w:displayText="${escapeXml(choice)}" w:value="${escapeXml(choice)}"/>`)
+      .join('');
+    parts.push(`<${tag}>${items}</${tag}>`);
+  } else if (control.kind === 'date') {
+    parts.push(`<w:date><w:dateFormat w:val="${escapeXml(control.dateFormat ?? 'yyyy年M月d日')}"/><w:lid w:val="zh-CN"/></w:date>`);
+  } else {
+    parts.push('<w:text/>');
+  }
+  return `<w:sdtPr>${parts.join('')}</w:sdtPr>`;
+}
+
 async function runXml(run: DocRun, state: SerializeState): Promise<string> {
+  // 功能：文本框写回为 VML v:shape + v:textbox，Word/WPS 打开仍是文本框；时间：2026-10-31。
+  if (run.textbox) {
+    const box = run.textbox;
+    const style = [
+      'position:absolute',
+      `margin-left:${(box.left * 0.75).toFixed(2)}pt`,
+      `margin-top:${(box.top * 0.75).toFixed(2)}pt`,
+      `width:${(box.width * 0.75).toFixed(2)}pt`,
+      `height:${(box.height * 0.75).toFixed(2)}pt`,
+      box.xRelative === 'page' ? 'mso-position-horizontal-relative:page' : 'mso-position-horizontal-relative:text',
+      'mso-position-vertical-relative:paragraph',
+    ].join(';');
+    let body = '';
+    for (const block of box.blocks) body += block.type === 'paragraph' ? await paragraphXml(block, state) : '';
+    return `<w:r><w:pict><v:shape id="_x0000_s${Math.floor(Math.random() * 100000)}" type="#_x0000_t202" style="${style}" filled="t" stroked="t"><v:textbox><w:txbxContent>${body}</w:txbxContent></v:textbox></v:shape></w:pict></w:r>`;
+  }
+  // 功能：VML 浮层（复选框等）按原样式写回，保证另存后在 Word/WPS 中位置与描边不变；时间：2026-10-30。
+  if (run.image?.vmlRect) {
+    const rect = run.image.vmlRect;
+    const stroke = rect ? (run.image.strokeWidthPx ?? 1) : 1;
+    const color = run.image.strokeColor ?? '#000000';
+    const style = [
+      'position:absolute',
+      `margin-left:${(rect.left * 0.75).toFixed(2)}pt`,
+      `margin-top:${(rect.top * 0.75).toFixed(2)}pt`,
+      `width:${(rect.width * 0.75).toFixed(2)}pt`,
+      `height:${(rect.height * 0.75).toFixed(2)}pt`,
+      `mso-position-horizontal-relative:${rect.xRelative === 'page' ? 'page' : 'text'}`,
+      'mso-position-vertical-relative:paragraph',
+    ].join(';');
+    const strokeweight = `${(stroke * 0.75).toFixed(2)}pt`;
+    // 功能：勾选状态写回 v:textbox 里的 ✓（Word 里显示为框内打勾），重新打开可再读回；时间：2026-10-30。
+    const textbox = rect.checked
+      ? '<v:textbox inset="0,0,0,0"><w:txbxContent><w:p><w:pPr><w:spacing w:after="0"/><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:t>✓</w:t></w:r></w:p></w:txbxContent></v:textbox>'
+      : '';
+    const openTag = `<v:rect style="${style}" filled="false" stroked="true" strokecolor="${color}" strokeweight="${strokeweight}"`;
+    const rectXml = textbox ? `${openTag}>${textbox}</v:rect>` : `${openTag}/>`;
+    return `<w:r><w:pict>${rectXml}</w:pict></w:r>`;
+  }
   if (run.image) {
     const relId = await ensureImageRelationship(state, run.image);
     if (!relId) return '';
@@ -354,10 +443,21 @@ async function runXml(run: DocRun, state: SerializeState): Promise<string> {
   const properties = runProperties(run.style);
   let content = '';
   if (run.tab) content += '<w:tab/>';
-  if (run.lineBreak) content += '<w:br/>';
-  if (run.text) content += `<w:t xml:space="preserve">${escapeXml(run.text)}</w:t>`;
+  // 功能：删除修订的文本写回为 w:delText；时间：2026-10-31。
+  // 功能：分栏符写回 w:br w:type="column"，多栏节另存后栏序不变；时间：2026-10-30。
+  if (run.columnBreak) content += '<w:br w:type="column"/>';
+  // 功能：段内分页符写回 w:br w:type="page"，保证 docx 往返不丢分页位置；时间：2026-10-30；作者：lq。
+  if (run.pageBreak) content += '<w:br w:type="page"/>';
+  else if (run.lineBreak) content += '<w:br/>';
+  if (run.text) content += run.revision?.type === 'delete' ? `<w:delText xml:space="preserve">${escapeXml(run.text)}</w:delText>` : `<w:t xml:space="preserve">${escapeXml(run.text)}</w:t>`;
   if (!content && !properties) content = '<w:t xml:space="preserve"></w:t>';
   const core = `<w:r>${properties}${content}</w:r>`;
+  if (run.revision) {
+    // 功能：修订写回 w:ins/w:del（作者与时间保留，Word 打开仍是待审修订）；时间：2026-10-31。
+    const attrs = `${run.revision.author ? ` w:author="${escapeXml(run.revision.author)}"` : ''}${run.revision.date ? ` w:date="${escapeXml(run.revision.date)}"` : ''}`;
+    if (run.revision.type === 'insert') return `<w:ins${attrs}>${core}</w:ins>`;
+    if (run.revision.type === 'delete') return `<w:del${attrs}>${core}</w:del>`;
+  }
   // 功能：模板字段保存为原生 MERGEFIELD，字段名安全转义；格式串仅由外层 instr 统一转义，避免 &amp;quot; 双重转义；时间：2026-10-24；作者：lq。
   if (run.mergeField) {
     const name = run.mergeField.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -390,7 +490,30 @@ async function runXml(run: DocRun, state: SerializeState): Promise<string> {
     const instruction = ` ${run.field} \\* MERGEFORMAT `;
     return `<w:fldSimple w:instr="${instruction}">${core}</w:fldSimple>`;
   }
+  // 功能：内容控件包住该 run 的内容，另存后 Word 里仍是可勾选/可选控件；复选框用 ☑/☐ 字符呈现勾选态；时间：2026-10-30。
+  if (run.control) {
+    const inner = run.control.kind === 'checkbox'
+      ? `<w:r>${properties}<w:t>${run.control.checked ? '☑' : '☐'}</w:t></w:r>`
+      : core;
+    return `<w:sdt>${sdtPrXml(run.control)}<w:sdtContent>${inner}</w:sdtContent></w:sdt>`;
+  }
   return core;
+}
+
+/**
+ * 功能：复杂域标记写回为 fldChar/instrText——保住 TOC 等域结构，Word 打开后仍可"更新目录"；
+ * 时间：2026-10-30。
+ */
+function fieldMarkerXml(marker: FieldMarker): string {
+  if (marker.role === 'begin') {
+    const instr = marker.instr?.trim();
+    const instruction = instr
+      ? `<w:r><w:instrText xml:space="preserve">${escapeXml(instr)}</w:instrText></w:r>`
+      : '';
+    return `<w:r><w:fldChar w:fldCharType="begin"/></w:r>${instruction}`;
+  }
+  if (marker.role === 'separate') return `<w:r><w:fldChar w:fldCharType="separate"/></w:r>`;
+  return `<w:r><w:fldChar w:fldCharType="end"/></w:r>`;
 }
 
 async function paragraphXml(
@@ -408,7 +531,74 @@ async function paragraphXml(
     prefix = `<w:r><w:t xml:space="preserve">${escapeXml(paragraph.list.marker)} </w:t></w:r>`;
   }
   const runs = await Promise.all(paragraph.runs.map((run) => runXml(run, state)));
-  return `<w:p>${pPr}${prefix}${runs.join('')}</w:p>`;
+  // 功能：段首分栏符写回为前缀 run（不插入 runs 数组，避免打乱域标记的 run 序号）；时间：2026-10-30。
+  if (paragraph.style.columnBreakBefore) prefix = `<w:r><w:br w:type="column"/></w:r>${prefix}`;
+  // 功能：写回段落书签（目录项的锚点目标），保存后 Word 里目录才能真正跳转；时间：2026-10-30。
+  const bookmarkNames = [...new Set(paragraph.bookmarks ?? [])];
+  const bookmarkIds: number[] = [];
+  let bookmarkStartXml = '';
+  for (const name of bookmarkNames) {
+    state.bookmarkCounter += 1;
+    bookmarkIds.push(state.bookmarkCounter);
+    bookmarkStartXml += `<w:bookmarkStart w:id="${state.bookmarkCounter}" w:name="${escapeXml(name)}"/>`;
+  }
+  const bookmarkEndXml = bookmarkIds.map((id) => `<w:bookmarkEnd w:id="${id}"/>`).join('');
+  // 功能：域标记按段内位置插回 run 之间，保证域结构与条目顺序一致；时间：2026-10-30。
+  const markers = (paragraph.fieldMarkers ?? [])
+    .filter((marker) => !marker.skip)
+    .slice()
+    .sort((a, b) => a.afterRun - b.afterRun);
+  const parts: string[] = [];
+  let groupAnchor: string | undefined;
+  let group: string[] = [];
+  const flushGroup = () => {
+    if (!group.length) return;
+    const xml = group.join('');
+    // 功能：目录项等内部书签链接写回 w:hyperlink，保存后 Word 仍可点击跳转；时间：2026-10-30。
+    parts.push(
+      groupAnchor
+        ? `<w:hyperlink w:anchor="${escapeXml(groupAnchor)}" w:history="1">${xml}</w:hyperlink>`
+        : xml,
+    );
+    group = [];
+  };
+  // 功能：批注范围标记——首个携带 id 的 run 前开范围，末个 run 后关范围并挂引用；时间：2026-10-31。
+  const openComments = new Set<string>();
+  const lastRunWith = new Map<string, number>();
+  paragraph.runs.forEach((run, index) => {
+    for (const id of run.commentIds ?? []) lastRunWith.set(id, index);
+  });
+  for (let index = 0; index <= runs.length; index += 1) {
+    for (const marker of markers) {
+      if (marker.afterRun !== index) continue;
+      flushGroup();
+      parts.push(fieldMarkerXml(marker));
+    }
+    if (index === runs.length) break;
+    const run = paragraph.runs[index];
+    for (const id of run.commentIds ?? []) {
+      if (!openComments.has(id)) {
+        flushGroup();
+        parts.push(`<w:commentRangeStart w:id="${escapeXml(id)}"/>`);
+        openComments.add(id);
+      }
+    }
+    for (const id of [...openComments]) {
+      if ((run.commentIds ?? []).includes(id)) continue;
+      flushGroup();
+      parts.push(`<w:commentRangeEnd w:id="${escapeXml(id)}"/><w:r><w:commentReference w:id="${escapeXml(id)}"/></w:r>`);
+      openComments.delete(id);
+    }
+    if (group.length && run.anchor !== groupAnchor) flushGroup();
+    groupAnchor = run.anchor;
+    group.push(runs[index]);
+  }
+  for (const id of openComments) {
+    flushGroup();
+    parts.push(`<w:commentRangeEnd w:id="${escapeXml(id)}"/><w:r><w:commentReference w:id="${escapeXml(id)}"/></w:r>`);
+  }
+  flushGroup();
+  return `<w:p>${pPr}${prefix}${bookmarkStartXml}${parts.join('')}${bookmarkEndXml}</w:p>`;
 }
 
 async function cellXml(
@@ -561,6 +751,22 @@ function insertInSequence(parent: Element, child: Element, order: string[]): voi
   parent.insertBefore(child, reference);
 }
 
+/** 功能：生成 w:cols——不等宽栏写出每栏 w:w/w:space 并标记 equalWidth=0；时间：2026-10-30。 */
+function columnsXml(page: PageSetup): string {
+  if (!page.columns || page.columns <= 1) return '';
+  const widths = page.columnWidthsPx;
+  if (!widths?.length || widths.length !== page.columns) {
+    return `<w:cols w:num="${page.columns}"/>`;
+  }
+  const cols = widths
+    .map((width, index) => {
+      const space = page.columnSpacePx?.[index];
+      return `<w:col w:w="${Math.round(pxToTwips(width))}"${space !== undefined ? ` w:space="${Math.round(pxToTwips(space))}"` : ''}/>`;
+    })
+    .join('');
+  return `<w:cols w:num="${page.columns}" w:equalWidth="0">${cols}</w:cols>`;
+}
+
 function buildSectPr(page: PageSetup, state: SerializeState): string {
   const width = Math.round(pxToTwips(page.widthPx));
   const height = Math.round(pxToTwips(page.heightPx));
@@ -595,24 +801,68 @@ function buildSectPr(page: PageSetup, state: SerializeState): string {
           numbering.setAttribute('w:start', String(page.pageNumberStart));
           if (!numbering.parentNode) insertInSequence(sectPr, numbering, SECT_PR_ORDER);
         }
+        // 功能：把栏数/栏宽、分节类型与网格行距同步进原有 sectPr，避免改版后写回丢失；时间：2026-10-30。
+        const typeElement = firstChild(sectPr, 'w:type');
+        if (page.type) {
+          const typeNode = typeElement ?? doc.createElementNS(W_NS, 'w:type');
+          typeNode.setAttribute('w:val', page.type);
+          if (!typeNode.parentNode) insertInSequence(sectPr, typeNode, SECT_PR_ORDER);
+        }
+        const existingCols = firstChild(sectPr, 'w:cols');
+        const freshCols = page.columns && page.columns > 1
+          ? firstDescendant(parseXmlDom(`<w:root xmlns:w="${W_NS}">${columnsXml(page)}</w:root>`), 'w:cols')
+          : null;
+        if (existingCols && freshCols) {
+          const parent = existingCols.parentNode!;
+          parent.replaceChild(doc.importNode(freshCols, true), existingCols);
+        } else if (existingCols) {
+          existingCols.parentNode?.removeChild(existingCols);
+        } else if (freshCols) {
+          insertInSequence(sectPr, doc.importNode(freshCols, true), SECT_PR_ORDER);
+        }
+        if (page.linePitchPx !== undefined) {
+          const grid = firstChild(sectPr, 'w:docGrid') ?? doc.createElementNS(W_NS, 'w:docGrid');
+          grid.setAttribute('w:linePitch', String(Math.round(pxToTwips(page.linePitchPx))));
+          if (!grid.parentNode) insertInSequence(sectPr, grid, SECT_PR_ORDER);
+        }
+        // 功能：首页不同写回 w:titlePg；时间：2026-10-31。
+        if (page.titlePage && !firstChild(sectPr, 'w:titlePg')) {
+          insertInSequence(sectPr, doc.createElementNS(W_NS, 'w:titlePg'), SECT_PR_ORDER);
+        }
         return new XMLSerializer().serializeToString(sectPr);
       }
     } catch {
       // Fall back to a generated section.
     }
   }
-  return `<w:sectPr>${pgSz}${pgMar}${page.pageNumberStart !== undefined ? `<w:pgNumType w:start="${page.pageNumberStart}"/>` : ''}${page.columns && page.columns > 1 ? `<w:cols w:num="${page.columns}"/>` : ''}</w:sectPr>`;
+  // 功能：写回分节类型、栏宽间距与文档网格，保证不等宽多栏与网格行距在 Word/WPS 中保持原样；时间：2026-10-30。
+  const sectType = `<w:type w:val="${page.type ?? 'nextPage'}"/>`;
+  const titlePgXml = page.titlePage ? '<w:titlePg/>' : '';
+  const colsXml = columnsXml(page);
+  const docGridXml = page.linePitchPx !== undefined
+    ? `<w:docGrid w:type="lines" w:linePitch="${Math.round(pxToTwips(page.linePitchPx))}"/>`
+    : '';
+  return `<w:sectPr>${sectType}${pgSz}${pgMar}${titlePgXml}${page.pageNumberStart !== undefined ? `<w:pgNumType w:start="${page.pageNumberStart}"/>` : ''}${colsXml}${docGridXml}</w:sectPr>`;
 }
 
 /** 功能：保存新增/编辑后的默认页眉页脚，写入独立部件、关系和内容类型；时间：2026-10-24；作者：lq。 */
 async function writeHeaderFooters(model: DocModel, state: SerializeState, suffix = ''): Promise<void> {
   const sectionDoc = parseXmlDom(`<w:root xmlns:w="${W_NS}" xmlns:r="${R_NS}">${state.sectPrXml ?? buildSectPr(model.page, state)}</w:root>`);
   const section = firstDescendant(sectionDoc, 'w:sectPr')!;
-  for (const kind of ['header', 'footer'] as const) {
-    const value = model[kind];
+  // 功能：支持首页/奇偶页页眉页脚变体——独立部件文件与对应 type 的引用；时间：2026-10-31。
+  const variantEntries: Array<{ kind: 'header' | 'footer'; variant: 'default' | 'first' | 'even'; value?: HeaderFooter }> = [
+    { kind: 'header', variant: 'default', value: model.header },
+    { kind: 'footer', variant: 'default', value: model.footer },
+    { kind: 'header', variant: 'first', value: model.headerFirst },
+    { kind: 'header', variant: 'even', value: model.headerEven },
+    { kind: 'footer', variant: 'first', value: model.footerFirst },
+    { kind: 'footer', variant: 'even', value: model.footerEven },
+  ];
+  for (const { kind, variant, value } of variantEntries) {
     if (!value || (state.sourceExists && !value.edited)) continue;
     // 每个部件拥有独立关系作用域；新建文本内容不复用原图片关系；时间：2026-10-24；作者：lq。
-    const target = `mini-${kind}${suffix}.xml`;
+    const variantSuffix = variant === 'default' ? '' : `-${variant}`;
+    const target = `mini-${kind}${variantSuffix}${suffix}.xml`;
     const part = `word/${target}`;
     const sourceRelPath = value.sourcePart ? `word/_rels/${value.sourcePart.split('/').at(-1)}.rels` : '';
     const partRels = sourceRelPath ? await state.zip.file(sourceRelPath)?.async('text') : undefined;
@@ -622,7 +872,7 @@ async function writeHeaderFooters(model: DocModel, state: SerializeState, suffix
     state.imageCounter = partState.imageCounter;
     state.drawingCounter = partState.drawingCounter;
     const root = kind === 'header' ? 'hdr' : 'ftr';
-    state.zip.file(part, `${xmlDeclaration()}<w:${root} xmlns:w="${W_NS}" xmlns:r="${R_NS}" xmlns:wp="${WP_NS}" xmlns:a="${A_NS}" xmlns:pic="${PIC_NS}">${body || '<w:p/>'}</w:${root}>`);
+    state.zip.file(part, `${xmlDeclaration()}<w:${root} xmlns:w="${W_NS}" xmlns:r="${R_NS}" xmlns:wp="${WP_NS}" xmlns:a="${A_NS}" xmlns:pic="${PIC_NS}"${VML_NS_DECL}${CONTROL_NS_DECL}>${body || '<w:p/>'}</w:${root}>`);
     if (partState.documentRels.length) state.zip.file(`word/_rels/${target}.rels`, documentRelsXml(partState.documentRels));
     let rel = state.documentRels.find((item) => item.target === target && item.type.endsWith(`/${kind}`));
     if (!rel) {
@@ -630,10 +880,10 @@ async function writeHeaderFooters(model: DocModel, state: SerializeState, suffix
       state.documentRels.push(rel);
     }
     state.relsChanged = true;
-    const references = Array.from(section.children).filter((element) => element.tagName === `w:${kind}Reference` && element.getAttribute('w:type') === 'default');
+    const references = Array.from(section.children).filter((element) => element.tagName === `w:${kind}Reference` && (element.getAttribute('w:type') ?? 'default') === variant);
     references.forEach((element) => element.remove());
     const reference = sectionDoc.createElementNS(W_NS, `w:${kind}Reference`);
-    reference.setAttribute('w:type', 'default');
+    reference.setAttribute('w:type', variant);
     reference.setAttributeNS(R_NS, 'r:id', rel.id);
     insertInSequence(section, reference, SECT_PR_ORDER);
     const ct = parseXmlDom(state.contentTypesXml ?? contentTypesXml(false, false, false));
@@ -651,7 +901,7 @@ async function writeHeaderFooters(model: DocModel, state: SerializeState, suffix
 }
 
 function buildDocumentXml(body: string, page: PageSetup, state: SerializeState): string {
-  return `${xmlDeclaration()}<w:document xmlns:w="${W_NS}" xmlns:r="${R_NS}" xmlns:wp="${WP_NS}" xmlns:a="${A_NS}" xmlns:pic="${PIC_NS}" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" mc:Ignorable="w14 wp14"><w:body>${body}${buildSectPr(page, state)}</w:body></w:document>`;
+  return `${xmlDeclaration()}<w:document xmlns:w="${W_NS}" xmlns:r="${R_NS}" xmlns:wp="${WP_NS}" xmlns:a="${A_NS}" xmlns:pic="${PIC_NS}"${VML_NS_DECL} xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" mc:Ignorable="w14 wp14"><w:body>${body}${buildSectPr(page, state)}</w:body></w:document>`;
 }
 
 function defaultStylesXml(doc: DocModel): string {
@@ -837,6 +1087,7 @@ export async function serializeDocx(
     addedImages: new Map(),
     imageCounter: 0,
     drawingCounter: 0,
+    bookmarkCounter: 0,
     hasNumbering: sourceExists && zip.file('word/numbering.xml') !== null,
     sectPrXml: collectSectPrXml(documentXml),
   };
@@ -858,7 +1109,8 @@ export async function serializeDocx(
       const sectionDom = parseXmlDom(`<w:root xmlns:w="${W_NS}" xmlns:r="${R_NS}">${buildSectPr(current.page, state)}</w:root>`);
       const section = firstDescendant(sectionDom, 'w:sectPr')!;
       const type = firstChild(section, 'w:type') ?? sectionDom.createElementNS(W_NS, 'w:type');
-      type.setAttribute('w:val', 'nextPage');
+      // 功能：保留原节的分隔类型，continuous 节写回后仍在同一页接续；时间：2026-10-30。
+      type.setAttribute('w:val', current.page.type ?? 'nextPage');
       if (!type.parentNode) insertInSequence(section, type, SECT_PR_ORDER);
       const sectionXml = new XMLSerializer().serializeToString(section);
       // 在正文段落内附加节属性；末块为表格时使用零高度节标记，避免额外空白页。
@@ -873,6 +1125,35 @@ export async function serializeDocx(
   }
   const documentContent = buildDocumentXml(body, sections.at(-1)?.page ?? doc.page, state);
   zip.file('word/document.xml', documentContent);
+
+  // 功能：批注部件（word/comments.xml）——含内容类型与关系；时间：2026-10-31。
+  if (doc.comments?.length) {
+    let commentsXml = '';
+    for (const comment of doc.comments) {
+      let commentBody = '';
+      const blocks = comment.blocks?.length
+        ? comment.blocks
+        : [{ type: 'paragraph' as const, id: uid('p'), style: {}, runs: [{ text: comment.text, style: {} }] }];
+      for (const block of blocks) commentBody += block.type === 'paragraph' ? await paragraphXml(block, state) : '';
+      commentsXml += `<w:comment w:id="${escapeXml(comment.id)}" w:author="${escapeXml(comment.author || '用户')}"${comment.date ? ` w:date="${escapeXml(comment.date)}"` : ''}${comment.resolved ? ' w:resolved="1"' : ''}>${commentBody || '<w:p/>'}</w:comment>`;
+    }
+    const commentsPart = 'word/comments.xml';
+    state.zip.file(commentsPart, `${xmlDeclaration()}<w:comments xmlns:w="${W_NS}">${commentsXml}</w:comments>`);
+    if (!state.documentRels.some((item) => item.target === 'comments.xml')) {
+      state.documentRels.push({ id: uid('rIdComments'), type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments', target: 'comments.xml' });
+      state.relsChanged = true;
+    }
+    const ct = parseXmlDom(state.contentTypesXml ?? contentTypesXml(false, false, false));
+    const types = ct.documentElement;
+    if (!Array.from(types.children).some((element) => element.getAttribute('PartName') === '/word/comments.xml')) {
+      const override = ct.createElementNS(types.namespaceURI, 'Override');
+      override.setAttribute('PartName', '/word/comments.xml');
+      override.setAttribute('ContentType', 'application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml');
+      types.appendChild(override);
+    }
+    state.contentTypesXml = updateContentTypes(new XMLSerializer().serializeToString(ct), new Set());
+    state.contentTypesChanged = true;
+  }
 
   if (!sourceExists) {
     zip.file('[Content_Types].xml', contentTypesXml(false, false, false));

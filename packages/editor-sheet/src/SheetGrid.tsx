@@ -78,6 +78,8 @@ export interface SheetGridProps {
   onImageChange?: (id: string, patch: Partial<SheetImage>) => void;
   onImageDelete?: (id: string) => void;
   onFill: (source: CellRange, target: CellRange) => void;
+  /** 高亮当前行/列（对应活动单元格）。 */
+  highlightRowCol?: boolean;
 }
 
 // 功能：单个引用显示 B1，矩形引用显示 B1:C3，与 Excel 输入习惯一致；时间：2026-10-24；作者：lq。
@@ -144,6 +146,7 @@ export function SheetGrid(props: SheetGridProps) {
     onHeaderContextMenu,
     onAction,
     onFill,
+    highlightRowCol,
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -951,6 +954,24 @@ export function SheetGrid(props: SheetGridProps) {
                   return renderCell(row, col, { left, top, width, height });
                 }),
               )}
+
+              {/* 功能：高亮当前行/列（十字架样式，行带与列带加边缘线）；时间：2026-10-30；作者：hou0。 */}
+              {highlightRowCol && active.row >= 0 && active.col >= 0 ? (
+                <>
+                  <div style={{ position: 'absolute', left: 0, top: rowOffsets[active.row] ?? 0, width: totalWidth,
+                    height: (rowOffsets[active.row + 1] ?? 0) - (rowOffsets[active.row] ?? 0),
+                    background: 'color-mix(in srgb, var(--mo-accent) 12%, transparent)',
+                    borderTop: '1px solid color-mix(in srgb, var(--mo-accent) 45%, transparent)',
+                    borderBottom: '1px solid color-mix(in srgb, var(--mo-accent) 45%, transparent)',
+                    boxSizing: 'border-box', pointerEvents: 'none', zIndex: 4 }} />
+                  <div style={{ position: 'absolute', left: colOffsets[active.col] ?? 0, top: 0,
+                    width: (colOffsets[active.col + 1] ?? 0) - (colOffsets[active.col] ?? 0), height: totalHeight,
+                    background: 'color-mix(in srgb, var(--mo-accent) 12%, transparent)',
+                    borderLeft: '1px solid color-mix(in srgb, var(--mo-accent) 45%, transparent)',
+                    borderRight: '1px solid color-mix(in srgb, var(--mo-accent) 45%, transparent)',
+                    boxSizing: 'border-box', pointerEvents: 'none', zIndex: 4 }} />
+                </>
+              ) : null}
 
               {/* 功能：以蓝色边框显示正在点选或拖选的公式引用区域；时间：2026-10-24；作者：lq。 */}
               {referenceRange ? <div data-formula-reference={referenceAddress(referenceRange)} style={{ position: 'absolute', left: colOffsets[referenceRange.c1] ?? 0, top: rowOffsets[referenceRange.r1] ?? 0,

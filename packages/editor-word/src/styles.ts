@@ -293,6 +293,29 @@ export const BUILTIN_STYLES: ReadonlyArray<DocStyleDefinition> = [
     },
     run: { fontFamily: 'Courier New', fontSizePt: 9 },
   },
+  // 功能：内置 TOC1~TOC9 目录样式（右对齐制表位 + 点前导符），与 Word/WPS 默认一致；时间：2026-10-30；作者：hou0。
+  ...(() => {
+    const tocStyles: DocStyleDefinition[] = [];
+    for (let i = 1; i <= 9; i++) {
+      tocStyles.push({
+        id: `TOC${i}`,
+        name: `目录 ${i}`,
+        builtinName: `TOC ${i}`,
+        origin: 'preset',
+        paragraph: {
+          alignment: 'left',
+          lineHeight: 1.2,
+          spaceBeforePx: 0,
+          spaceAfterPx: pt(2),
+          firstLineIndentPx: 0,
+          indentLeftPx: i * 18,
+          tabStops: [{ posPx: 400, kind: 'right', leader: 'dot' }],
+        },
+        run: {},
+      });
+    }
+    return tocStyles;
+  })(),
 ];
 
 /** 常驻展示的预设数量，其余收在「显示更多样式」里，与 WPS 的折叠策略一致。 */

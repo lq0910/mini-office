@@ -97,7 +97,7 @@
 
 /* Ensure printed/exported pages keep exact white paper regardless of theme. */
 .mo-paper {
-  background: #ffffff;
+  background: var(--mo-paper, #ffffff);
   color: #1d2939;
 }
 
@@ -105,6 +105,10 @@
   body {
     overflow: visible;
     background: #fff;
+  }
+  /* 功能：护眼模式只在屏幕生效，打印/导出始终纯白；时间：2026-10-30；作者：hou0。 */
+  .mo-paper {
+    background: #ffffff !important;
   }
   .mo-no-print {
     display: none !important;

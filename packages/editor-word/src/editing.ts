@@ -1,5 +1,6 @@
-import type { DocImage, DocParagraph, DocRun, RunStyle } from '@mini-office/document-model';
+import type { DocBlock, DocImage, DocParagraph, DocRun, RunStyle } from '@mini-office/document-model';
 import { FONT_CHOICES, fontStackFor } from '@mini-office/design-system';
+import { uid } from '@mini-office/shared';
 
 const NAMED_COLORS: Record<string, string> = {
   black: '#000000',
@@ -105,10 +106,16 @@ function mergeTextRuns(runs: DocRun[]): DocRun[] {
       !previous.tab &&
       !previous.lineBreak &&
       !previous.field && !previous.mergeField &&
+      // 功能：内容控件是独立整体，不能被相邻同样式文本合并掉；时间：2026-10-30。
+      !previous.control &&
       !run.image &&
       !run.tab &&
       !run.lineBreak &&
       !run.field && !run.mergeField &&
+      !run.control &&
+      // 功能：批注范围与修订边界不能被合并掉（高亮与接受/拒绝依赖 run 边界）；时间：2026-10-31。
+      (previous.commentIds?.join(',') ?? '') === (run.commentIds?.join(',') ?? '') &&
+      previous.revision?.type === run.revision?.type &&
       styleIsEqual(previous.style, run.style)
     ) {
       previous.text = (previous.text ?? '') + (run.text ?? '');
@@ -119,6 +126,68 @@ function mergeTextRuns(runs: DocRun[]): DocRun[] {
   return result;
 }
 
+/** 功能：从 DOM 属性还原候选列表（JSON），解析失败时退回按分隔符拆分；时间：2026-10-30。 */
+function parseControlChoices(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item));
+  } catch {
+    // 回退到旧格式
+  }
+  return raw.split('');
+}
+
+/**
+ * 功能：在 [start,end) 处插入一个制表符 run——折叠光标即插入，选区则整体替换为一个 Tab；
+ * Word 标准：正文 Tab 跳到下一个制表位而不是插入空格；时间：2026-10-30。
+ */
+export function insertTabAt(runs: DocRun[], start: number, end: number, style: RunStyle): DocRun[] {
+  const total = runs.reduce((sum, run) => sum + (run.tab || run.image || run.lineBreak || run.mergeField ? 1 : (run.text ?? '').length), 0);
+  const safeStart = Math.max(0, Math.min(start, total));
+  const safeEnd = Math.max(safeStart, Math.min(end, total));
+  const tabRun: DocRun = { text: '', style: { ...style }, tab: true };
+  const consumed = (run: DocRun) => (run.tab || run.image || run.lineBreak || run.mergeField ? 1 : (run.text ?? '').length);
+  const output: DocRun[] = [];
+  let position = 0;
+  let inserted = false;
+  for (const run of runs) {
+    const runEnd = position + consumed(run);
+    if (!inserted && runEnd > safeStart) {
+      // 功能：插入点落在本 run 内或起点——保留删除区间前的尾部，插入 Tab，再保留删除区间后的头部；时间：2026-10-30。
+      if (position < safeStart) output.push(sliceRunText(run, 0, safeStart - position));
+      output.push(tabRun);
+      inserted = true;
+      if (runEnd > safeEnd) output.push(sliceRunText(run, safeEnd - position, (run.text ?? '').length));
+    } else if (inserted && position < safeEnd && runEnd > safeEnd) {
+      // 删除区间跨到本 run：只留区间之后的部分
+      output.push(sliceRunText(run, safeEnd - position, (run.text ?? '').length));
+    } else if (inserted && runEnd <= safeEnd) {
+      // 完整落在删除区间内：丢弃
+    } else {
+      output.push(run);
+    }
+    position = runEnd;
+  }
+  if (!inserted) output.push(tabRun);
+  return output;
+}
+
+/** 功能：按文本区间截取 run；原子 run（tab/图片/换行）原样返回；时间：2026-10-30。 */
+function sliceRunText(run: DocRun, from: number, to: number): DocRun {
+  if (run.tab || run.image || run.lineBreak || run.mergeField) return { ...run };
+  return { ...run, text: (run.text ?? '').slice(from, to) };
+}
+
+function elementBoxWidth(node: Element): number {
+  const width = parseFloat((node as HTMLElement).style.width ?? '');
+  return Number.isFinite(width) ? width : 0;
+}
+
+function elementBoxHeight(node: Element): number {
+  const height = parseFloat((node as HTMLElement).style.height ?? '');
+  return Number.isFinite(height) ? height : 0;
+}
+
 export function serializeDomRuns(
   root: HTMLElement,
   fallback: RunStyle,
@@ -126,14 +195,101 @@ export function serializeDomRuns(
 ): DocRun[] {
   const runs: DocRun[] = [];
 
-  const walk = (node: Node, style: RunStyle) => {
+  const walk = (node: Node, style: RunStyle, commentIds?: string[], revision?: DocRun['revision']) => {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent ?? '';
-      if (text) runs.push({ text, style: { ...style } });
+      if (text) runs.push({ text, style: { ...style }, ...(commentIds?.length ? { commentIds } : {}), ...(revision ? { revision } : {}) });
       return;
     }
     if (!(node instanceof Element)) return;
+    // 功能：批注范围与修订标记沿 DOM 继承到子文本；时间：2026-10-31。
+    const nodeComments = node.getAttribute('data-comment-ids');
+    const nodeRevision = node.getAttribute('data-revision');
+    const nextComments = nodeComments ? nodeComments.split(',') : commentIds;
+    let nextRevision = revision;
+    if (nodeRevision === 'insert' || nodeRevision === 'delete') {
+      nextRevision = { type: nodeRevision, ...(node.getAttribute('data-revision-author') ? { author: node.getAttribute('data-revision-author') as string } : {}) };
+    }
     if (node.getAttribute('data-list-marker') === '1') return;
+    // 功能：VML 浮层方框在编辑回读时还原为图片 run（含勾选状态），避免编辑段落时丢失复选框；时间：2026-10-30。
+    if (node.hasAttribute('data-vml-rect')) {
+      const number = (name: string, fallback: number) => {
+        const value = Number(node.getAttribute(name));
+        return Number.isFinite(value) && node.getAttribute(name) !== null ? value : fallback;
+      };
+      const xRelative = node.getAttribute('data-vml-xrel') === 'page' ? 'page' as const : 'text' as const;
+      const width = number('data-vml-width', 0) || elementBoxWidth(node);
+      const height = number('data-vml-height', 0) || elementBoxHeight(node);
+      runs.push({
+        text: '',
+        style: { ...style },
+        image: {
+          id: node.getAttribute('data-vml-id') ?? undefined,
+          src: '',
+          widthPx: width,
+          heightPx: height,
+          wrap: 'none',
+          vmlRect: {
+            left: number('data-vml-left', 0),
+            top: number('data-vml-top', 0),
+            width,
+            height,
+            xRelative,
+            ...(node.getAttribute('data-vml-checked') === '1' ? { checked: true } : {}),
+          },
+          strokeColor: node.getAttribute('data-vml-stroke') ?? undefined,
+          strokeWidthPx: number('data-vml-stroke-width', 1),
+        },
+      });
+      return;
+    }
+    // 功能：文本框在编辑回读时还原为带 textbox 的 run，内层段落按块重建；时间：2026-10-31。
+    if (node.hasAttribute('data-textbox')) {
+      const number = (name: string): number => {
+        const value = Number(node.getAttribute(name));
+        return Number.isFinite(value) && value !== 0 ? value : 0;
+      };
+      const width = number('data-textbox-width') || 100;
+      const height = number('data-textbox-height') || 60;
+      const blocks: DocBlock[] = Array.from(node.querySelectorAll('[data-textbox-block]')).map((blockEl) => {
+        const inner = blockEl as HTMLElement;
+        const runs = serializeDomRuns(inner, style, imagesById);
+        return { type: 'paragraph' as const, id: uid('p'), runs, style: {} };
+      });
+      runs.push({
+        text: '',
+        style: { ...style },
+        textbox: {
+          left: number('data-textbox-left'),
+          top: number('data-textbox-top'),
+          width,
+          height,
+          xRelative: node.getAttribute('data-textbox-xrel') === 'page' ? 'page' as const : 'text' as const,
+          blocks,
+        },
+      });
+      return;
+    }
+    // 功能：内容控件 chip 在编辑回读时还原为带 control 的 run，保存后仍是可交互控件；时间：2026-10-30。
+    const controlKind = node.getAttribute('data-control');
+    if (controlKind) {
+      const kind = controlKind as NonNullable<DocRun['control']>['kind'];
+      const text = node.getAttribute('data-control-value') ?? '';
+      const choices = node.getAttribute('data-control-choices');
+      const format = node.getAttribute('data-control-format');
+      runs.push({
+        text,
+        style: { ...style },
+        control: {
+          kind,
+          ...(kind === 'checkbox' ? { checked: node.getAttribute('data-control-checked') === '1' } : {}),
+          ...(choices ? { choices: parseControlChoices(choices) } : {}),
+          ...(format ? { dateFormat: format } : {}),
+          ...(node.getAttribute('data-control-placeholder') === '1' || !text ? { placeholder: true } : {}),
+        },
+      });
+      return;
+    }
     if (node.hasAttribute('data-tab')) { runs.push({ text: '', style: { ...style }, tab: true }); return; }
     const tag = node.tagName;
     if (tag === 'BR') {
@@ -224,7 +380,12 @@ export function serializeDomRuns(
       runs.push({ text: `«${name}»`, mergeField: name, style: next });
       return;
     }
-    for (const child of Array.from(node.childNodes)) walk(child, next);
+    // 功能：段内分页符标记还原为 pageBreak run，保证编辑后不丢分页位置；时间：2026-10-30；作者：lq。
+    if (node.getAttribute('data-page-break') === '1') {
+      runs.push({ text: '', style: next, pageBreak: true });
+      return;
+    }
+    for (const child of Array.from(node.childNodes)) walk(child, next, nextComments, nextRevision);
   };
 
   for (const child of Array.from(root.childNodes)) walk(child, fallback);
@@ -237,7 +398,9 @@ function isAtomicElement(element: Element): boolean {
   return (
     element.tagName === 'IMG' ||
     element.tagName === 'BR' ||
-    element.getAttribute('data-tab') === '1' || element.hasAttribute('data-merge-field')
+    element.getAttribute('data-tab') === '1' ||
+    element.getAttribute('data-page-break') === '1' ||
+    element.hasAttribute('data-merge-field')
   );
 }
 
@@ -360,6 +523,11 @@ export function getParagraphPlainTextFromDom(root: HTMLElement): string {
       text += '\t';
       return;
     }
+    // 功能：段内分页符在 DOM 纯文本中按一个换行计；时间：2026-10-30；作者：lq。
+    if (node.getAttribute('data-page-break') === '1') {
+      text += '\n';
+      return;
+    }
     for (const child of Array.from(node.childNodes)) walk(child);
   };
   for (const child of Array.from(root.childNodes)) walk(child);
@@ -372,6 +540,8 @@ export function runsPlainText(runs: DocRun[]): string {
       if (run.image || run.mergeField) return '￼';
       if (run.tab) return '\t';
       if (run.lineBreak) return '\n';
+      // 功能：段内分页符在纯文本中按一个换行计，与 offset 口径一致；时间：2026-10-30；作者：lq。
+      if (run.pageBreak) return '\n';
       return run.text ?? '';
     })
     .join('');
@@ -532,3 +702,4 @@ export function selectedParagraphSlices(root: HTMLElement, range: Range): Array<
   });
   return slices;
 }
+

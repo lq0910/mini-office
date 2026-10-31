@@ -312,3 +312,26 @@ describe('DOCX 往返', () => {
     expect(reopened.styles?.some((style) => style.id === 'Heading1')).toBe(true);
   });
 });
+
+describe('docx 下划线解析回归', () => {
+  // 回归：<w:u> 存在但缺省 w:val（如 <w:u w:color="000000"/>）按 OOXML 不产生下划线；
+  // Word/WPS 不显示，mini-office 此前误判为下划线。时间：2026-10-30；作者：hou0。
+  it('w:u 缺省 w:val 时视为无下划线，与 Word/WPS 一致', async () => {
+    const doc = createBlankDoc();
+    doc.blocks = [
+      { type: 'paragraph', id: 'p1', runs: [{ text: '字段值', style: { underline: true } }], style: {} },
+    ];
+    const bytes = await serializeDocx(doc, { name: 'u.docx' });
+    const zip = await JSZip.loadAsync(bytes);
+    const docXml = (await zip.file('word/document.xml')!.async('text')).replace(
+      '<w:u w:val="single"/>',
+      '<w:u w:color="000000"/>',
+    );
+    zip.file('word/document.xml', docXml);
+    const reopened = await parseDocx(await zip.generateAsync({ type: 'uint8array' }), { fileName: 'u.docx' });
+    const run = reopened.blocks[0];
+    expect(run.type).toBe('paragraph');
+    if (run.type !== 'paragraph') return;
+    expect(run.runs[0].style.underline).toBe(false);
+  });
+});

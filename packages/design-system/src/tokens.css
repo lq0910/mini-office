@@ -7,6 +7,7 @@
   --mo-surface-2: #eef2f9;
   --mo-surface-3: #e4eaf4;
   --mo-canvas: #e9edf5;
+  --mo-paper: #ffffff;
   /* Default "mist" palette. Runtime accents override these four variables. */
   --mo-accent: #2e7d72;
   --mo-accent-hover: #25665d;
@@ -228,3 +229,17 @@ textarea {
 .mo-selectable {
   user-select: text;
 }
+
+/* 功能：护眼模式——编辑区表面切换为护眼米绿；时间：2026-10-30；作者：hou0。 */
+/* specificity 0,2,0 覆盖浅色与深色主题的 --mo-surface 系列 */
+:root[data-eye-protection='on'] {
+  --mo-surface: #eaf4e9;
+  --mo-surface-2: #dfeede;
+  --mo-surface-3: #d5e8d4;
+  --mo-bg: #eef6ee;
+  --mo-canvas: #e6f1e5;
+  --mo-paper: #eef6ee;
+  --mo-line: #cddfcc;
+  --mo-line-strong: #bcd4ba;
+}
+

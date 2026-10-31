@@ -134,6 +134,11 @@ export function AppShell() {
     document.documentElement.dataset.fontSize = settings.fontSize;
   }, [settings.fontSize]);
 
+  // 功能：护眼模式——编辑区表面切换为护眼色；时间：2026-10-30；作者：hou0。
+  useEffect(() => {
+    document.documentElement.dataset.eyeProtection = settings.eyeProtection ? 'on' : 'off';
+  }, [settings.eyeProtection]);
+
   useEffect(() => {
     document.title = activeSession ? `${activeSession.displayName} — Mini Office` : 'Mini Office';
   }, [activeSession]);

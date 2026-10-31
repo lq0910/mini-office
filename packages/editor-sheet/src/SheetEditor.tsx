@@ -1062,6 +1062,7 @@ export function SheetEditor({ session }: { session: SheetSession }) {
             readonly={readonly} zoom={zoom}
             onImageChange={(id, patch) => { if (!readonly) commit(updateSheet(latestWorkbook(), sheet.id, (item) => ({ ...item, images: item.images?.map((image) => image.id === id ? { ...image, ...patch } : image) })), { key: `image:${id}` }); }}
             onImageDelete={(id) => { if (!readonly) commit(updateSheet(latestWorkbook(), sheet.id, (item) => ({ ...item, images: item.images?.filter((image) => image.id !== id) })), { key: `image-delete:${id}` }); }}
+            highlightRowCol={settings.highlightRowCol}
           />
           {findOpen ? (
             <SheetFindBar
