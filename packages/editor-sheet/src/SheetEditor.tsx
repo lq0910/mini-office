@@ -18,7 +18,7 @@ import {
   type WorkbookModel,
 } from '@mini-office/document-model';
 import { useWorkspaceStore } from '@mini-office/document-model';
-import { printPages, renderPrintPreview, type PrintPreviewHandle } from '@mini-office/platform-adapter';
+import { attachPreviewMargins, printPages, renderPrintPreview, type PrintPreviewFit, type PrintPreviewHandle } from '@mini-office/platform-adapter';
 import {
   Button,
   ContextMenu,
@@ -81,6 +81,7 @@ import {
   deleteRows,
   deleteSheet,
   extractClipboard,
+  fillRange,
   findOrCreateStyle,
   insertColumns,
   insertRows,
@@ -141,6 +142,25 @@ interface ExportState {
   busy: boolean;
 }
 
+/** 功能：Excel 打印缩放的五种语义，界面用下拉统一表达；时间：2026-11-01；作者：lq。 */
+type SheetZoomMode = 'none' | 'onePage' | 'allCols' | 'allRows' | 'custom';
+
+function sheetZoomMode(setup: SheetPageSetup): SheetZoomMode {
+  if (setup.fitToWidth && setup.fitToHeight) return 'onePage';
+  if (setup.fitToWidth) return 'allCols';
+  if (setup.fitToHeight) return 'allRows';
+  return setup.scalePercent === 100 ? 'none' : 'custom';
+}
+
+function applySheetZoomMode(setup: SheetPageSetup, mode: SheetZoomMode): SheetPageSetup {
+  const cleared = { ...setup, fitToWidth: undefined, fitToHeight: undefined };
+  if (mode === 'onePage') return { ...setup, fitToWidth: 1, fitToHeight: 1 };
+  if (mode === 'allCols') return { ...setup, fitToWidth: 1, fitToHeight: undefined };
+  if (mode === 'allRows') return { ...setup, fitToWidth: undefined, fitToHeight: 1 };
+  if (mode === 'none') return { ...cleared, scalePercent: 100 };
+  return cleared;
+}
+
 export function SheetEditor({ session }: { session: SheetSession }) {
   const workbook = session.data as WorkbookModel;
   const readonly = session.readonly;
@@ -187,13 +207,15 @@ export function SheetEditor({ session }: { session: SheetSession }) {
   const [printPreviewSetup, setPrintPreviewSetup] = useState<SheetPageSetup | null>(null);
   const [printPreviewCount, setPrintPreviewCount] = useState(0);
   // 功能：与 Word 预览一致的缩放切换，方便在小窗口里看实际字号；时间：2026-10-29；作者：lq。
-  const [printPreviewScaleMode, setPrintPreviewScaleMode] = useState<'fit' | 'actual'>('fit');
+  const [printPreviewScaleMode, setPrintPreviewScaleMode] = useState<PrintPreviewFit>('page');
   const printPreviewRef = useRef<HTMLDivElement>(null);
   const printPreviewCleanupRef = useRef<(() => void) | null>(null);
   // 功能：单页预览的翻页句柄与当前页，与 Word 打印预览保持同一套交互；时间：2026-11-01；作者：lq。
   const printPreviewHandleRef = useRef<PrintPreviewHandle | null>(null);
   const printPreviewPageRef = useRef(0);
   const [printPreviewPage, setPrintPreviewPage] = useState(0);
+  // 功能：预览里直接显示可拖动的页边距线，边距不合适时不必退出预览；时间：2026-11-01；作者：lq。
+  const [previewMargins, setPreviewMargins] = useState(true);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -467,6 +489,8 @@ export function SheetEditor({ session }: { session: SheetSession }) {
       margins: Object.fromEntries(
         Object.entries(pageSetupDraft.margins).map(([key, value]) => [key, Math.max(0, Math.min(5, Number(value) || 0))]),
       ) as SheetPageSetup['margins'],
+      // 功能：打印标题只保留合法的“起始:结束”写法，非法输入退回自动表头；时间：2026-11-01；作者：lq。
+      printTitleRows: normalizeTitleRows(pageSetupDraft.printTitleRows),
     };
     commit(updateSheet(latestWorkbook(), sheet.id, (item) => ({ ...item, pageSetup: normalized })), { key: 'page-setup' });
     setPageSetupOpen(false);
@@ -482,15 +506,21 @@ export function SheetEditor({ session }: { session: SheetSession }) {
     setPageSetupDraft((current) => (current ? { ...current, margins: { ...current.margins, [key]: value } } : current));
   }, []);
 
-  const toggleMerge = useCallback(() => {
+  const toggleMerge = useCallback((mode: 'center' | 'merge' | 'unmerge' = 'center') => {
     if (readonly) return;
     const merged = sheet.merges.some(
       (merge) =>
         merge.r1 <= range.r2 && merge.r2 >= range.r1 && merge.c1 <= range.c2 && merge.c2 >= range.c1,
     );
-    const next = merged
-      ? unmergeSelection(latestWorkbook(), sheet.id, range)
-      : mergeSelection(latestWorkbook(), sheet.id, range);
+    if (mode === 'unmerge' || merged) {
+      commit(unmergeSelection(latestWorkbook(), sheet.id, range), { key: 'merge' });
+      return;
+    }
+    let next = mergeSelection(latestWorkbook(), sheet.id, range);
+    // 功能：默认按 Excel 的“合并后居中”处理，同时垂直居中，表头更常用；时间：2026-11-01；作者：lq。
+    if (mode === 'center') {
+      next = applyStyleToRange(next, sheet.id, range, { horizontalAlign: 'center', verticalAlign: 'middle' });
+    }
     commit(next, { key: 'merge' });
   }, [commit, latestWorkbook, range, readonly, sheet]);
 
@@ -568,12 +598,7 @@ export function SheetEditor({ session }: { session: SheetSession }) {
     }
   }, [active.col, active.row, commit, latestWorkbook, range, readonly, selection.kind, sheet]);
 
-  const insertFunction = useCallback(() => {
-    if (readonly) return;
-    cancelGridFocus();
-    setFormulaText((value) => value.startsWith('=') ? value : '=SUM(');
-  }, [cancelGridFocus, readonly]);
-
+  // 功能：fx 改由工具栏函数清单直接写入公式，编辑器不再保留占位式插入；时间：2026-11-01；作者：lq。
   const autoSum = useCallback(() => {
     if (readonly) return;
     const multi = range.r1 !== range.r2 || range.c1 !== range.c2;
@@ -838,13 +863,10 @@ export function SheetEditor({ session }: { session: SheetSession }) {
   const handleFill = useCallback(
     (source: CellRange, target: CellRange) => {
       if (readonly) return;
-      const current = latestWorkbook();
-      const currentSheet = current.sheets.find((item) => item.id === sheet.id) ?? sheet;
-      const clipboard = extractClipboard(current, currentSheet, source);
-      const next = pasteClipboard(current, currentSheet, target, clipboard);
-      commit(next, { key: 'fill' });
+      // 功能：数字按等差数列延展、文本按周期重复，与 Excel 的填充柄一致；时间：2026-11-01；作者：lq。
+      commit(fillRange(latestWorkbook(), sheet.id, source, target), { key: 'fill' });
     },
-    [commit, latestWorkbook, readonly, sheet],
+    [commit, latestWorkbook, readonly, sheet.id],
   );
 
   const handleCellContextMenu = useCallback(
@@ -1031,8 +1053,31 @@ export function SheetEditor({ session }: { session: SheetSession }) {
       pages,
       widthPx: size.width,
       heightPx: size.height,
-      scale: printPreviewScaleMode === 'actual' ? 1 : undefined,
+      fit: printPreviewScaleMode,
+      gutter: 16,
       singlePage: true,
+      // 功能：预览页上叠加可拖动的页边距线，拖动结束按新边距重新分页；时间：2026-11-01；作者：lq。
+      overlay: previewMargins
+        ? (context) => attachPreviewMargins(context, {
+          margins: {
+            left: printPreviewSetup.margins.left * 96,
+            right: printPreviewSetup.margins.right * 96,
+            top: printPreviewSetup.margins.top * 96,
+            bottom: printPreviewSetup.margins.bottom * 96,
+          },
+          pageWidthPx: size.width,
+          pageHeightPx: size.height,
+          onChange: (edge, valuePx) => {
+            setPrintPreviewSetup((current) => current ? {
+              ...current,
+              margins: {
+                ...current.margins,
+                [edge]: Math.max(0, Math.min(5, Math.round((valuePx / 96) * 100) / 100)),
+              },
+            } : current);
+          },
+        })
+        : undefined,
     });
     handle.setPage(printPreviewPageRef.current);
     setPrintPreviewCount(pages.length);
@@ -1042,7 +1087,7 @@ export function SheetEditor({ session }: { session: SheetSession }) {
       handle.cleanup();
     };
     return () => printPreviewCleanupRef.current?.();
-  }, [printPreviewOpen, printPreviewScaleMode, printPreviewSetup, sheet, workbook]);
+  }, [previewMargins, printPreviewOpen, printPreviewScaleMode, printPreviewSetup, sheet, workbook]);
 
   const confirmPrintPreview = useCallback(async () => {
     if (!printPreviewSetup) return;
@@ -1111,7 +1156,6 @@ export function SheetEditor({ session }: { session: SheetSession }) {
           propertiesOpen={settings.showProperties}
           onFormulaChange={setFormulaText}
           onFormulaFocus={cancelGridFocus}
-          onInsertFunction={insertFunction}
           onAutoSum={autoSum}
           onHideRow={() => setHidden('row', true)}
           onShowRows={() => setHidden('row', false)}
@@ -1270,13 +1314,15 @@ export function SheetEditor({ session }: { session: SheetSession }) {
         onClose={() => { setPrintPreviewOpen(false); printPreviewCleanupRef.current?.(); }}
         title="打印预览"
         description={`预览全部分页（共 ${printPreviewCount} 页）并选择打印方向，确认后调用系统打印。`}
-        width="xl"
+        width="print"
+        bodyClassName="px-3 pb-3 sm:px-4 sm:pb-4"
         footer={<><span className="mr-auto text-[11px] text-[var(--mo-text-muted)]">共 {printPreviewCount} 页</span><Button onClick={() => { setPrintPreviewOpen(false); printPreviewCleanupRef.current?.(); }}>取消</Button><Button variant="primary" onClick={() => void confirmPrintPreview()}>打印</Button></>}
       >
-        {printPreviewSetup ? <div className="grid grid-cols-[1fr_236px] gap-4 text-[12px]">
+        {printPreviewSetup ? <div className="grid grid-cols-[minmax(0,1fr)_224px] gap-3 text-[12px]">
           {/* 功能：左预览右设置，一页一屏加页码器，与 Word 打印预览及 Office 保持一致；时间：2026-11-01；作者：lq。 */}
           <div className="flex min-w-0 flex-col overflow-hidden rounded-md border border-[var(--mo-line)] bg-[var(--mo-surface-2)]">
-            <div ref={printPreviewRef} className="h-[430px] w-full overflow-auto" aria-label="工作表打印预览" />
+            {/* 功能：预览区随窗口高度扩展，内容更大更清楚；时间：2026-11-01；作者：lq。 */}
+            <div ref={printPreviewRef} className="h-[calc(100dvh-230px)] min-h-[420px] w-full overflow-auto" aria-label="工作表打印预览" />
             <div className="flex items-center justify-center gap-1 border-t border-[var(--mo-line)] bg-[var(--mo-surface)] py-1.5">
               <button
                 type="button"
@@ -1310,22 +1356,48 @@ export function SheetEditor({ session }: { session: SheetSession }) {
                 <option value="landscape">横向</option>
               </Select>
             </Field>
-            <Field label="缩放比例（%）">
-              <Input type="number" min={10} max={400} value={printPreviewSetup.scalePercent} onChange={(event) => setPrintPreviewSetup((current) => current ? { ...current, scalePercent: Number(event.target.value) || 100, fitToWidth: undefined } : current)} />
+            <Field label="缩放">
+              {/* 功能：按 Excel 的缩放语义提供“工作表一页 / 所有列一页 / 所有行一页 / 自定义”；时间：2026-11-01；作者：lq。 */}
+              <Select
+                value={sheetZoomMode(printPreviewSetup)}
+                onChange={(event) => setPrintPreviewSetup((current) => current ? applySheetZoomMode(current, event.target.value as SheetZoomMode) : current)}
+              >
+                <option value="none">无打印缩放</option>
+                <option value="onePage">将工作表打印在一页</option>
+                <option value="allCols">将所有列打印在一页</option>
+                <option value="allRows">将所有行打印在一页</option>
+                <option value="custom">自定义缩放</option>
+              </Select>
             </Field>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={!!printPreviewSetup.fitToWidth} onChange={(event) => setPrintPreviewSetup((current) => current ? { ...current, fitToWidth: event.target.checked ? 1 : undefined } : current)} />调整为一页宽</label>
+            {sheetZoomMode(printPreviewSetup) === 'custom' || sheetZoomMode(printPreviewSetup) === 'none' ? (
+              <Field label="缩放比例（%）">
+                <Input type="number" min={10} max={400} value={printPreviewSetup.scalePercent} onChange={(event) => setPrintPreviewSetup((current) => current ? { ...current, scalePercent: Number(event.target.value) || 100, fitToWidth: undefined, fitToHeight: undefined } : current)} />
+              </Field>
+            ) : null}
             <div className="space-y-1.5">
               <div className="text-[11px] text-[var(--mo-text-muted)]">预览比例</div>
               <SegmentedControl
                 value={printPreviewScaleMode}
-                onChange={setPrintPreviewScaleMode}
+                onChange={(value) => setPrintPreviewScaleMode(value as PrintPreviewFit)}
                 options={[
-                  { value: 'fit', label: '适应页宽' },
-                  { value: 'actual', label: '实际大小' },
+                  { value: 'page', label: '整页' },
+                  { value: 'width', label: '页宽' },
+                  { value: 'actual', label: '100%' },
                 ]}
+                className="w-full"
               />
             </div>
-            <p className="leading-5 text-[var(--mo-text-muted)]">共 {printPreviewCount} 页。列宽超出纸张时自动横向分页，合并单元格跨页会保留边框与底纹。</p>
+            {/* 功能：预览内直接拖动页边距，并显示当前标题行设置；时间：2026-11-01；作者：lq。 */}
+            <label className="flex h-8 items-center justify-between rounded-md px-1 text-[12px] hover:bg-[var(--mo-surface-2)]">
+              <span>显示页边距（可拖动）</span>
+              <Switch checked={previewMargins} onChange={setPreviewMargins} label="显示页边距" />
+            </label>
+            <p className="leading-5 text-[var(--mo-text-muted)]">
+              共 {printPreviewCount} 页。列宽超出纸张时自动横向分页，合并单元格跨页会保留边框与底纹。
+              {printPreviewSetup.printTitleRows
+                ? `每页重复标题行 ${printPreviewSetup.printTitleRows}。`
+                : '未设置打印标题，首行自动作为表头重复。'}
+            </p>
           </div>
         </div> : null}
       </Dialog>
@@ -1355,33 +1427,32 @@ export function SheetEditor({ session }: { session: SheetSession }) {
                   <option value="landscape">横向</option>
                 </Select>
               </Field>
+              <Field label="缩放">
+                <Select
+                  value={sheetZoomMode(pageSetupDraft)}
+                  onChange={(event) => setPageSetupDraft((current) => current ? applySheetZoomMode(current, event.target.value as SheetZoomMode) : current)}
+                >
+                  <option value="none">无打印缩放</option>
+                  <option value="onePage">将工作表打印在一页</option>
+                  <option value="allCols">将所有列打印在一页</option>
+                  <option value="allRows">将所有行打印在一页</option>
+                  <option value="custom">自定义缩放</option>
+                </Select>
+              </Field>
+            </section>
+            <section className="grid grid-cols-2 gap-3">
               <Field label="缩放比例（%）">
                 <Input
                   type="number"
                   min={10}
                   max={400}
                   value={pageSetupDraft.scalePercent}
-                  onChange={(event) => patchPageSetupDraft({ scalePercent: Number(event.target.value) })}
+                  onChange={(event) => patchPageSetupDraft({ scalePercent: Number(event.target.value), fitToWidth: undefined, fitToHeight: undefined })}
                 />
               </Field>
-            </section>
-            <section className="grid grid-cols-2 gap-3">
-              <Field label="调整为页宽（0 为自动）">
-                <Input
-                  type="number"
-                  min={0}
-                  value={pageSetupDraft.fitToWidth ?? ''}
-                  onChange={(event) => patchPageSetupDraft({ fitToWidth: Number(event.target.value) || undefined })}
-                />
-              </Field>
-              <Field label="调整为页高（0 为自动）">
-                <Input
-                  type="number"
-                  min={0}
-                  value={pageSetupDraft.fitToHeight ?? ''}
-                  onChange={(event) => patchPageSetupDraft({ fitToHeight: Number(event.target.value) || undefined })}
-                />
-              </Field>
+              <div className="flex items-end pb-1.5 text-[11px] leading-4 text-[var(--mo-text-muted)]">
+                选择“所有列/行一页”时按比例自动缩小，不会放大小表。
+              </div>
             </section>
             <section className="grid grid-cols-3 gap-2">
               {([
@@ -1407,6 +1478,27 @@ export function SheetEditor({ session }: { session: SheetSession }) {
                   value={pageSetupDraft.firstPageNumber ?? ''}
                   onChange={(event) => patchPageSetupDraft({ firstPageNumber: Number(event.target.value) || undefined })}
                 />
+              </Field>
+            </section>
+            {/* 功能：新增“打印标题”，每页重复指定标题行，对应 Excel 的顶端标题行；时间：2026-11-01；作者：lq。 */}
+            <section className="space-y-2 border-t border-[var(--mo-line)] pt-3">
+              <Field label="打印标题（顶端标题行）" hint="每页重复输出，例如 1:2；留空则把首行当表头。">
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={pageSetupDraft.printTitleRows ?? ''}
+                    placeholder="如 1:2"
+                    aria-label="打印标题行"
+                    onChange={(event) => patchPageSetupDraft({ printTitleRows: event.target.value })}
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="shrink-0"
+                    onClick={() => patchPageSetupDraft({ printTitleRows: `${range.r1 + 1}:${range.r2 + 1}` })}
+                  >
+                    用当前选区
+                  </Button>
+                </div>
               </Field>
             </section>
             {/* 功能：打印辅助项单独成组并显式标注文字，去掉此前右侧无标签的悬浮开关；时间：2026-10-29；作者：lq。 */}
@@ -1528,8 +1620,18 @@ export function SheetEditor({ session }: { session: SheetSession }) {
   );
 }
 
-function formatNumber(value: number): string {
-  if (!Number.isFinite(value)) return '—';
+/** 功能：规范化“打印标题”输入，非法内容清空并交给“首行当表头”的兜底逻辑；时间：2026-11-01；作者：lq。 */
+function normalizeTitleRows(text: string | undefined): string | undefined {
+  if (!text) return undefined;
+  const match = /^\s*\$?(\d{1,7})\s*(?::\s*\$?(\d{1,7})\s*)?$/.exec(text);
+  if (!match) return undefined;
+  const first = Number(match[1]);
+  const last = match[2] ? Number(match[2]) : first;
+  if (!Number.isFinite(first) || !Number.isFinite(last) || first < 1 || last < 1) return undefined;
+  return `${Math.min(first, last)}:${Math.max(first, last)}`;
+}
+
+function formatNumber(value: number): string {  if (!Number.isFinite(value)) return '—';
   return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(4)));
 }
 

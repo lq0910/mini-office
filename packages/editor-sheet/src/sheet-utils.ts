@@ -706,6 +706,74 @@ export function pasteTsv(
   return applyCellUpdates(next, sheet.id, updates);
 }
 
+/**
+ * 功能：拖动填充柄——单列/单行数字按等差数列延展，其他内容按原样重复填充；
+ * 时间：2026-11-01；作者：lq。
+ *
+ * 与 Excel 一致：单格数字向下拖得到 1、2、3…，多格数字按步长延展，文本与公式按周期重复。
+ */
+export function fillRange(
+  workbook: WorkbookModel,
+  sheetId: string,
+  source: CellRange,
+  target: CellRange,
+): WorkbookModel {
+  const sheet = getSheet(workbook, sheetId);
+  if (!sheet) return workbook;
+  const src = normalizeRange(source);
+  const dst = normalizeRange(target);
+  if (src.r1 === dst.r1 && src.r2 === dst.r2 && src.c1 === dst.c1 && src.c2 === dst.c2) return workbook;
+  const clipboard = extractClipboard(workbook, sheet, src);
+  let next = pasteClipboard(workbook, sheet, dst, clipboard);
+
+  const vertical = dst.c1 === src.c1 && dst.c2 === src.c2 && (dst.r2 > src.r2 || dst.r1 < src.r1);
+  const horizontal = dst.r1 === src.r1 && dst.r2 === src.r2 && (dst.c2 > src.c2 || dst.c1 < src.c1);
+
+  /** 功能：按等差数列推算目标位置的值，源序列含非数字时返回 null 走重复填充；时间：2026-11-01；作者：lq。 */
+  const seriesValue = (values: Array<number | null>, offset: number): number | null => {
+    if (values.length === 0 || values.some((value) => value === null)) return null;
+    const numbers = values as number[];
+    if (numbers.length === 1) return numbers[0] + offset;
+    const step = (numbers[numbers.length - 1] - numbers[0]) / (numbers.length - 1);
+    const base = offset > 0 ? numbers[numbers.length - 1] : numbers[0];
+    return base + step * offset;
+  };
+
+  const updates: CellUpdate[] = [];
+  if (vertical) {
+    for (let col = src.c1; col <= src.c2; col += 1) {
+      const values: Array<number | null> = [];
+      for (let row = src.r1; row <= src.r2; row += 1) {
+        const cell = sheet.cells[cellKey(row, col)];
+        values.push(typeof cell?.value === 'number' && !cell.formula ? cell.value : null);
+      }
+      for (let row = dst.r1; row <= dst.r2; row += 1) {
+        if (row >= src.r1 && row <= src.r2) continue;
+        const offset = row > src.r2 ? row - src.r2 : row - src.r1;
+        const value = seriesValue(values, offset);
+        if (value === null) continue;
+        updates.push({ row, col, cell: { value, styleId: sheet.cells[cellKey(row, col)]?.styleId } });
+      }
+    }
+  } else if (horizontal) {
+    for (let row = src.r1; row <= src.r2; row += 1) {
+      const values: Array<number | null> = [];
+      for (let col = src.c1; col <= src.c2; col += 1) {
+        const cell = sheet.cells[cellKey(row, col)];
+        values.push(typeof cell?.value === 'number' && !cell.formula ? cell.value : null);
+      }
+      for (let col = dst.c1; col <= dst.c2; col += 1) {
+        if (col >= src.c1 && col <= src.c2) continue;
+        const offset = col > src.c2 ? col - src.c2 : col - src.c1;
+        const value = seriesValue(values, offset);
+        if (value === null) continue;
+        updates.push({ row, col, cell: { value, styleId: sheet.cells[cellKey(row, col)]?.styleId } });
+      }
+    }
+  }
+  return updates.length > 0 ? applyCellUpdates(next, sheet.id, updates) : next;
+}
+
 // 功能：表头选择使用实际数据宽度，跳过合并标题，避免将空白整行整列当成数据范围；时间：2026-10-24；作者：lq。
 export function tableRangeForSelection(sheet: SheetModel, selection: Selection): CellRange {
   const selected = selectionRange(selection);

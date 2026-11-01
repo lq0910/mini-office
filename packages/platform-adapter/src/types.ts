@@ -66,6 +66,20 @@ export function isMacOS(): boolean {
   return /mac/i.test(platform) || /Macintosh|Mac OS X/i.test(navigator.userAgent || '');
 }
 
+export function isWindows(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const platform = navigator.platform || '';
+  return /win/i.test(platform) || /Windows/i.test(navigator.userAgent || '');
+}
+
+/**
+ * 功能：Windows 桌面端使用自绘标题栏，文档标签并入顶栏一行；macOS 保留 Overlay 红绿灯；
+ * 时间：2026-11-01；作者：lq。
+ */
+export function usesMergedTitleBar(): boolean {
+  return isTauriRuntime() && isWindows();
+}
+
 /** Native vibrancy is only meaningful in the macOS desktop shell. */
 export function supportsWindowVibrancy(): boolean {
   return isTauriRuntime() && isMacOS();

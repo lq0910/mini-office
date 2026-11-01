@@ -1,8 +1,9 @@
 import { BrandIcon } from '@mini-office/ui';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   AppWindow,
+  Copy,
   Download,
   Eye,
   Home,
@@ -18,6 +19,7 @@ import {
   Presentation,
   Search,
   Settings,
+  Square,
   Sun,
   Table2,
   X,
@@ -37,7 +39,11 @@ import {
 } from '@mini-office/shared';
 import { ACCENT_PRESETS, applyAppearance, resolveTheme } from '@mini-office/design-system';
 import {
+  closeWindow,
   isTauriRuntime,
+  isWindowMaximized,
+  isWindows,
+  minimizeWindow,
   startWindowDrag,
   supportsWindowVibrancy,
   toggleWindowMaximize,
@@ -65,9 +71,14 @@ const KIND_TINTS: Record<OfficeKind, string> = {
 export function TitleBar({
   onHome,
   onOpenPalette,
+  tabs,
+  merged = false,
 }: {
   onHome: () => void;
   onOpenPalette: () => void;
+  /** 功能：Windows 顶栏合并时把文档标签放进标题栏同一行；时间：2026-11-01；作者：lq。 */
+  tabs?: ReactNode;
+  merged?: boolean;
 }) {
   const settings = useWorkspaceStore((state) => state.settings);
   const updateSettings = useWorkspaceStore((state) => state.updateSettings);
@@ -110,7 +121,9 @@ export function TitleBar({
 
   return (
     <header
-      className="mo-glass mo-no-print flex h-11 shrink-0 select-none items-center gap-2 border-b border-[var(--mo-line)] bg-[var(--mo-surface)] px-2.5"
+      className={`mo-glass mo-no-print flex shrink-0 select-none items-center gap-2 border-b border-[var(--mo-line)] bg-[var(--mo-surface)] px-2.5 ${
+        merged ? 'h-10 gap-1.5 pr-0' : 'h-11'
+      }`}
       style={nativeOverlay ? { paddingLeft: 78 } : undefined}
       onMouseDown={(event) => {
         if (event.button !== 0 || isInteractive(event.target)) return;
@@ -129,17 +142,24 @@ export function TitleBar({
         title="返回首页"
       >
         {/* 功能：标题栏统一品牌图标；时间：2026-10-18；作者：lq。 */}
-        <BrandIcon size={30} />
-        <span className="hidden text-[12px] font-semibold sm:block">Mini Office</span>
+        <BrandIcon size={merged ? 22 : 30} />
+        {merged ? null : <span className="hidden text-[12px] font-semibold sm:block">Mini Office</span>}
       </button>
-      <div className="h-5 w-px bg-[var(--mo-line)]" />
-      <div className="flex min-w-0 flex-1 items-center px-1">
-        {activeId ? <ActiveDocumentLabel /> : <span className="text-[11px] text-[var(--mo-text-muted)]">首页</span>}
-      </div>
+      {merged ? null : <div className="h-5 w-px bg-[var(--mo-line)]" />}
+      {merged && tabs ? (
+        // 功能：标签与标题栏合并成一行，节省 Windows 端一条纵向空间；时间：2026-11-01；作者：lq。
+        <div className="flex min-w-0 flex-1 items-stretch self-stretch">{tabs}</div>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center px-1">
+          {activeId ? <ActiveDocumentLabel /> : <span className="text-[11px] text-[var(--mo-text-muted)]">首页</span>}
+        </div>
+      )}
       <button
         type="button"
         onClick={onOpenPalette}
-        className="flex h-7 items-center gap-2 rounded-md border border-[var(--mo-line)] bg-[var(--mo-surface-2)]/60 px-2.5 text-[11px] text-[var(--mo-text-muted)] transition-colors hover:border-[var(--mo-line-strong)] hover:text-[var(--mo-text-primary)]"
+        className={`flex h-7 shrink-0 items-center gap-2 rounded-md border border-[var(--mo-line)] bg-[var(--mo-surface-2)]/60 px-2.5 text-[11px] text-[var(--mo-text-muted)] transition-colors hover:border-[var(--mo-line-strong)] hover:text-[var(--mo-text-primary)] ${
+          merged ? 'max-w-[150px]' : ''
+        }`}
       >
         <Search size={13} />
         <span className="hidden md:block">搜索命令</span>
@@ -295,7 +315,59 @@ export function TitleBar({
           </IconButton>
         )}
       />
+      {merged ? <WindowControls /> : null}
     </header>
+  );
+}
+
+/**
+ * 功能：自绘窗口按钮（最小化 / 最大化 / 关闭），仅在去掉系统标题栏的 Windows 桌面端渲染；
+ * 时间：2026-11-01；作者：lq。
+ */
+function WindowControls() {
+  const [maximized, setMaximized] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const sync = () => { void isWindowMaximized().then((value) => { if (alive) setMaximized(value); }); };
+    sync();
+    window.addEventListener('resize', sync);
+    return () => { alive = false; window.removeEventListener('resize', sync); };
+  }, []);
+  const buttonClass =
+    'flex h-10 w-[42px] shrink-0 items-center justify-center text-[var(--mo-text-secondary)] transition-colors';
+  return (
+    <div className="flex h-full shrink-0 items-stretch self-stretch" data-no-drag>
+      <button
+        type="button"
+        aria-label="最小化"
+        title="最小化"
+        className={`${buttonClass} hover:bg-[var(--mo-surface-2)] hover:text-[var(--mo-text-primary)]`}
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={() => void minimizeWindow()}
+      >
+        <Minus size={14} />
+      </button>
+      <button
+        type="button"
+        aria-label={maximized ? '向下还原' : '最大化'}
+        title={maximized ? '向下还原' : '最大化'}
+        className={`${buttonClass} hover:bg-[var(--mo-surface-2)] hover:text-[var(--mo-text-primary)]`}
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={() => { void toggleWindowMaximize().then(() => isWindowMaximized().then(setMaximized)); }}
+      >
+        {maximized ? <Copy size={12} /> : <Square size={12} />}
+      </button>
+      <button
+        type="button"
+        aria-label="关闭"
+        title="关闭"
+        className={`${buttonClass} hover:bg-[#C42B1C] hover:text-white`}
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={() => void closeWindow()}
+      >
+        <X size={15} />
+      </button>
+    </div>
   );
 }
 
@@ -325,6 +397,60 @@ export function TabBar({
   onRequestClose: (id: string) => void;
   onHome: () => void;
   onSelectTab: (id: string) => void;
+}) {
+  const openFileDialog = useWorkspaceStore((state) => state.openFileDialog);
+
+  return (
+    <div
+      className="mo-glass mo-no-print flex h-[38px] shrink-0 select-none items-stretch border-b border-[var(--mo-line)] bg-[var(--mo-bg)]"
+      onMouseDown={(event) => {
+        if (event.button !== 0) return;
+        const target = event.target;
+        if (
+          target instanceof Element &&
+          target.closest('button, [role="tab"], input, select, textarea, a, [role="button"]')
+        ) {
+          return;
+        }
+        event.preventDefault();
+        void startWindowDrag();
+      }}
+    >
+      <button
+        type="button"
+        onClick={onHome}
+        aria-label="首页"
+        className="flex w-9 shrink-0 items-center justify-center border-r border-[var(--mo-line)] text-[var(--mo-text-muted)] hover:bg-[var(--mo-surface-2)] hover:text-[var(--mo-text-primary)]"
+      >
+        <Home size={14} />
+      </button>
+      <TabStrip onRequestClose={onRequestClose} onSelectTab={onSelectTab} />
+      <div className="flex shrink-0 items-center gap-1 border-l border-[var(--mo-line)] px-2">
+        <button
+          type="button"
+          onClick={() => void openFileDialog()}
+          className="hidden h-7 items-center gap-1.5 rounded-md px-2 text-[11px] text-[var(--mo-text-muted)] hover:bg-[var(--mo-surface-2)] sm:flex"
+        >
+          <FolderOpen size={13} /> 打开
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 功能：文档标签列表，标题栏合并与独立标签栏共用同一套拖拽排序和关闭逻辑；
+ * 时间：2026-11-01；作者：lq。
+ */
+export function TabStrip({
+  onRequestClose,
+  onSelectTab,
+  compact = false,
+}: {
+  onRequestClose: (id: string) => void;
+  onSelectTab: (id: string) => void;
+  /** 功能：并入标题栏时压缩标签高度，与 40px 顶栏对齐；时间：2026-11-01；作者：lq。 */
+  compact?: boolean;
 }) {
   const sessions = useWorkspaceStore((state) => state.sessions);
   const tabOrder = useWorkspaceStore((state) => state.tabOrder);
@@ -359,114 +485,83 @@ export function TabBar({
   ];
 
   return (
-    <div
-      className="mo-glass mo-no-print flex h-[38px] shrink-0 select-none items-stretch border-b border-[var(--mo-line)] bg-[var(--mo-bg)]"
-      onMouseDown={(event) => {
-        if (event.button !== 0) return;
-        const target = event.target;
-        if (
-          target instanceof Element &&
-          target.closest('button, [role="tab"], input, select, textarea, a, [role="button"]')
-        ) {
-          return;
-        }
-        event.preventDefault();
-        void startWindowDrag();
-      }}
-    >
-      <button
-        type="button"
-        onClick={onHome}
-        aria-label="首页"
-        className="flex w-9 shrink-0 items-center justify-center border-r border-[var(--mo-line)] text-[var(--mo-text-muted)] hover:bg-[var(--mo-surface-2)] hover:text-[var(--mo-text-primary)]"
-      >
-        <Home size={14} />
-      </button>
-      <div className="mo-scroll flex min-w-0 flex-1 items-stretch gap-1 overflow-x-auto px-1.5 pt-1.5">
-        {tabOrder.map((id) => {
-          const session = sessions[id];
-          if (!session) return null;
-          const Icon = KIND_ICONS[session.kind];
-          const active = id === activeId;
-          return (
-            <div
-              key={id}
-              role="tab"
-              aria-selected={active}
-              draggable
-              onDragStart={(event) => {
-                event.dataTransfer.setData('text/plain', id);
-                event.dataTransfer.effectAllowed = 'move';
-              }}
-              onDragOver={(event) => {
+    <div className={`mo-scroll flex min-w-0 flex-1 items-stretch gap-1 overflow-x-auto ${compact ? 'px-1' : 'px-1.5 pt-1.5'}`}>
+      {tabOrder.map((id) => {
+        const session = sessions[id];
+        if (!session) return null;
+        const Icon = KIND_ICONS[session.kind];
+        const active = id === activeId;
+        return (
+          <div
+            key={id}
+            role="tab"
+            aria-selected={active}
+            draggable
+            onDragStart={(event) => {
+              event.dataTransfer.setData('text/plain', id);
+              event.dataTransfer.effectAllowed = 'move';
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = 'move';
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              const from = event.dataTransfer.getData('text/plain');
+              if (from && from !== id) reorderTabs(from, id);
+            }}
+            onMouseDown={(event) => {
+              if (event.button === 1) {
                 event.preventDefault();
-                event.dataTransfer.dropEffect = 'move';
+                onRequestClose(id);
+              }
+            }}
+            onClick={() => {
+              activateTab(id);
+              onSelectTab(id);
+            }}
+            className={`group relative flex shrink-0 items-center gap-1.5 border px-2 text-[11px] transition-colors ${
+              compact ? 'my-1 h-[26px] min-w-[104px] max-w-[190px] rounded-md' : 'h-[30px] min-w-[120px] max-w-[220px] rounded-t-md border-b-0'
+            } ${
+              active
+                ? 'border-[var(--mo-line)] bg-[var(--mo-surface)] text-[var(--mo-text-primary)] shadow-[0_-1px_2px_rgba(16,24,40,0.03)]'
+                : 'border-transparent bg-transparent text-[var(--mo-text-muted)] hover:bg-[var(--mo-surface-2)]/70 hover:text-[var(--mo-text-primary)]'
+            }`}
+          >
+            <span
+              className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px]"
+              style={{ background: `${KIND_TINTS[session.kind]}14`, color: KIND_TINTS[session.kind] }}
+            >
+              <Icon size={11} />
+            </span>
+            <span className="min-w-0 flex-1 truncate">{session.displayName}</span>
+            {session.dirty ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--mo-warning)]" /> : null}
+            <button
+              type="button"
+              aria-label="关闭标签"
+              onClick={(event) => {
+                event.stopPropagation();
+                onRequestClose(id);
               }}
-              onDrop={(event) => {
-                event.preventDefault();
-                const from = event.dataTransfer.getData('text/plain');
-                if (from && from !== id) reorderTabs(from, id);
-              }}
-              onMouseDown={(event) => {
-                if (event.button === 1) {
-                  event.preventDefault();
-                  onRequestClose(id);
-                }
-              }}
-              onClick={() => {
-                activateTab(id);
-                onSelectTab(id);
-              }}
-              className={`group relative flex h-[30px] min-w-[120px] max-w-[220px] shrink-0 items-center gap-1.5 rounded-t-md border border-b-0 px-2 text-[11px] transition-colors ${
-                active
-                  ? 'border-[var(--mo-line)] bg-[var(--mo-surface)] text-[var(--mo-text-primary)] shadow-[0_-1px_2px_rgba(16,24,40,0.03)]'
-                  : 'border-transparent bg-transparent text-[var(--mo-text-muted)] hover:bg-[var(--mo-surface-2)]/70 hover:text-[var(--mo-text-primary)]'
+              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded hover:bg-[var(--mo-surface-3)] ${
+                active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
               }`}
             >
-              <span
-                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px]"
-                style={{ background: `${KIND_TINTS[session.kind]}14`, color: KIND_TINTS[session.kind] }}
-              >
-                <Icon size={11} />
-              </span>
-              <span className="min-w-0 flex-1 truncate">{session.displayName}</span>
-              {session.dirty ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--mo-warning)]" /> : null}
-              <button
-                type="button"
-                aria-label="关闭标签"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onRequestClose(id);
-                }}
-                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded hover:bg-[var(--mo-surface-3)] ${
-                  active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                }`}
-              >
-                <X size={11} />
-              </button>
-            </div>
-          );
-        })}
-        <div className="flex shrink-0 items-center gap-0.5 pb-1.5 pl-0.5 pt-1">
-          <Dropdown
-            minWidth={200}
-            items={newItems}
-            trigger={({ toggle }) => (
-              <IconButton label="新建或打开" onClick={toggle}>
-                <Plus size={14} />
-              </IconButton>
-            )}
-          />
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center gap-1 border-l border-[var(--mo-line)] px-2">
-        <button
-          type="button"
-          onClick={() => void openFileDialog()}
-          className="hidden h-7 items-center gap-1.5 rounded-md px-2 text-[11px] text-[var(--mo-text-muted)] hover:bg-[var(--mo-surface-2)] sm:flex"
-        >
-          <FolderOpen size={13} /> 打开
-        </button>
+              <X size={11} />
+            </button>
+          </div>
+        );
+      })}
+      <div className={`flex shrink-0 items-center gap-0.5 ${compact ? 'pl-0.5' : 'pb-1.5 pl-0.5 pt-1'}`}>
+        <Dropdown
+          minWidth={200}
+          items={newItems}
+          trigger={({ toggle }) => (
+            <IconButton label="新建或打开" onClick={toggle}>
+              <Plus size={14} />
+            </IconButton>
+          )}
+        />
       </div>
     </div>
   );

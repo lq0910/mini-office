@@ -1,8 +1,8 @@
 # Mini Office V1 实施完成度
 
-<!-- 功能：更新功能完成度与验证范围；时间：2026-10-30；作者：lq。 -->
+<!-- 功能：更新功能完成度与验证范围；时间：2026-11-01；作者：lq。 -->
 
-> 状态日期：2026-10-30 ｜ 版本：0.1.6 ｜ 对应设计：[`Mini_Office_完整版产品需求与技术设计.md`](../Mini_Office_完整版产品需求与技术设计.md)
+> 状态日期：2026-11-01 ｜ 版本：0.1.7 ｜ 对应设计：[`Mini_Office_完整版产品需求与技术设计.md`](../Mini_Office_完整版产品需求与技术设计.md)
 
 ## 1. 总体结论
 
@@ -14,15 +14,15 @@
 
 **当前源码检查与历史验证记录：**
 
-本轮重跑 TypeScript、Vitest、Web 构建及 Tauri release `.app`，生成 0.1.6 macOS arm64 ZIP 试用包；DMG 制作被当前运行环境对 `/Volumes` 的文件操作限制阻断。Rust workspace 测试、Office 回读及浏览器记录为历史证据，本轮未重新执行；本轮未安装或启动桌面成品验收。
+0.1.7 本轮重跑 TypeScript、Vitest 与 Web 生产构建，均通过；Tauri 打包、Rust workspace 测试、Office 回读及浏览器记录沿用 0.1.6 的历史证据，本轮未重新执行；本轮未安装或启动桌面成品验收。
 
 | 项目 | 结果 |
 |---|---|
 | TypeScript 严格检查 | 通过 |
-| Vitest | **405 项通过 / 47 个测试文件** |
+| Vitest | **509 项通过 / 52 个测试文件** |
 | Rust workspace 测试 | 历史记录：19 项通过 |
 | Web 生产构建 | 通过 |
-| Tauri release `.app` / ZIP | 0.1.6 arm64 构建、临时签名与 ZIP 完整性校验通过，ZIP 约 7.26 MB；无 Apple 公证 |
+| Tauri release `.app` / ZIP | 历史记录：0.1.6 arm64 构建、临时签名与 ZIP 完整性校验通过，ZIP 约 7.26 MB；无 Apple 公证 |
 | 真实 DOCX 往返 | 通过（python-docx 复核页眉、表格、图片、字体/字号） |
 | 真实 XLSX 往返 | 通过（openpyxl 复核公式、缓存值、合并、冻结、样式） |
 | PDF / PPT 图片 ZIP | 通过（实际生成并检查页数/文件） |

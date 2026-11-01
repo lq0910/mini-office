@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import { useWorkspaceStore } from '@mini-office/document-model';
 import {
+  applyCustomTitleBar,
   applyWindowVibrancy,
   isTauriRuntime,
+  isWindows,
   supportsWindowVibrancy,
   watchDesktopFiles,
 } from '@mini-office/platform-adapter';
@@ -94,6 +96,14 @@ export default function App() {
       unlisten?.();
     };
   }, [openPath]);
+
+  // 功能：Windows 端去掉系统标题栏，改由应用顶栏承载标签与窗口按钮；时间：2026-11-01；作者：lq。
+  useEffect(() => {
+    if (!isTauriRuntime() || !isWindows()) return;
+    void applyCustomTitleBar(true).then((applied) => {
+      document.documentElement.dataset.customTitlebar = applied ? 'on' : 'off';
+    });
+  }, []);
 
   // 功能：工作区初始化后领取访达双击文件，监听注册失败时明确提示；时间：2026-10-18；作者：lq。
   useEffect(() => {

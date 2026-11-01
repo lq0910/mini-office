@@ -90,8 +90,29 @@ describe('Word 颜色图标', () => {
     })));
     expect(container.textContent).toBe('A');
     expect(container.querySelector<HTMLElement>('[aria-hidden="true"] > span:last-child')?.style.background).toBe('rgb(217, 45, 32)');
-    click(container.querySelector('button'));
+    // 功能：主按钮直接套用当前颜色，调色板改由右侧箭头展开；时间：2026-11-01；作者：lq。
+    click(container.querySelector('button[aria-label="字体颜色"]'));
+    expect(change).toHaveBeenCalledWith('#D92D20');
+    click(container.querySelector('button[aria-label="字体颜色调色板"]'));
     click(document.querySelector('[aria-label="#3478F6"]'));
     expect(change).toHaveBeenCalledWith('#3478F6');
+  });
+
+  // 功能：颜色入口要记住上次选过的色，主按钮一键套用，不必每次重新调色；时间：2026-11-01；作者：lq。
+  it('主按钮直接套用上次选过的颜色', () => {
+    const first = vi.fn();
+    act(() => root.render(createElement(ColorField, {
+      label: '填充颜色', value: '#111111', onChange: first,
+    })));
+    click(container.querySelector('button[aria-label="填充颜色调色板"]'));
+    click(document.querySelector('[aria-label="#3478F6"]'));
+    expect(first).toHaveBeenCalledWith('#3478F6');
+
+    const second = vi.fn();
+    act(() => root.render(createElement(ColorField, {
+      label: '填充颜色', value: '#111111', onChange: second,
+    })));
+    click(container.querySelector('button[aria-label="填充颜色"]'));
+    expect(second).toHaveBeenCalledWith('#3478F6');
   });
 });

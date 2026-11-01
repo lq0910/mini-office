@@ -72,6 +72,11 @@ export interface SheetPageSetup {
   margins: { left: number; right: number; top: number; bottom: number; header: number; footer: number };
   printGridLines: boolean;
   printHeadings: boolean;
+  /**
+   * 功能：打印标题（顶端标题行），形如 `1:2`，每页都会重复输出这些行；空表示沿用“首行当表头”；
+   * 时间：2026-11-01；作者：lq。
+   */
+  printTitleRows?: string;
 }
 
 /** 功能：返回与 Excel 新工作表一致的页面设置默认值；时间：2026-10-24；作者：lq。 */

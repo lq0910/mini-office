@@ -8,6 +8,7 @@ import {
   ArrowDownAZ,
   ArrowUpAZ,
   Bold,
+  ChevronDown,
   Columns3,
   Download,
   FileWarning,
@@ -84,7 +85,6 @@ export interface SheetToolbarProps {
   onFormulaCommit: () => void;
   onFormulaCancel: () => void;
   onFormulaFocus: () => void;
-  onInsertFunction: () => void;
   onAutoSum: () => void;
   onHideRow: () => void;
   onShowRows: () => void;
@@ -99,7 +99,7 @@ export interface SheetToolbarProps {
   borderColor: string;
   onBorderColor: (color: string) => void;
   onMoreBorders: () => void;
-  onMergeToggle: () => void;
+  onMergeToggle: (mode?: 'center' | 'merge' | 'unmerge') => void;
   onFreeze: () => void;
   onInsertRow: () => void;
   onDeleteRow: () => void;
@@ -167,6 +167,63 @@ export function SheetToolbar(props: SheetToolbarProps) {
   ];
 
   const formatValue = style.numFmt ?? 'General';
+
+  // 功能：fx 入口展开常用函数清单，而不是直接写入 SUM；时间：2026-11-01；作者：lq。
+  const insertFunction = (name: string) => {
+    const input = formulaRef.current;
+    const text = props.formulaText;
+    if (text.startsWith('=')) {
+      const cursor = input?.selectionStart ?? text.length;
+      props.onFormulaChange(`${text.slice(0, cursor)}${name}(${text.slice(cursor)}`);
+      const caret = cursor + name.length + 1;
+      requestAnimationFrame(() => { input?.focus(); input?.setSelectionRange(caret, caret); });
+      return;
+    }
+    props.onFormulaChange(`=${name}(`);
+    const caret = name.length + 2;
+    requestAnimationFrame(() => { input?.focus(); input?.setSelectionRange(caret, caret); });
+  };
+
+  const functionMenu: MenuItem[] = [
+    { type: 'label', label: '数学与统计' },
+    ...([
+      ['SUM', '求和'], ['AVERAGE', '平均值'], ['COUNT', '计数'], ['MAX', '最大值'], ['MIN', '最小值'],
+      ['ROUND', '四舍五入'], ['ABS', '绝对值'], ['SUBTOTAL', '分类汇总'],
+    ] as Array<[string, string]>).map(([name, description]) => ({
+      id: `fn-${name}`,
+      label: `${name}　${description}`,
+      disabled: readonly,
+      onSelect: () => insertFunction(name),
+    })),
+    { type: 'separator' },
+    { type: 'label', label: '逻辑与查找' },
+    ...([
+      ['IF', '条件判断'], ['IFERROR', '错误处理'], ['AND', '同时成立'], ['OR', '任一成立'],
+      ['VLOOKUP', '纵向查找'], ['XLOOKUP', '查找匹配'],
+    ] as Array<[string, string]>).map(([name, description]) => ({
+      id: `fn-${name}`,
+      label: `${name}　${description}`,
+      disabled: readonly,
+      onSelect: () => insertFunction(name),
+    })),
+    { type: 'separator' },
+    { type: 'label', label: '文本与日期' },
+    ...([
+      ['CONCAT', '连接文本'], ['LEFT', '左侧截取'], ['RIGHT', '右侧截取'], ['LEN', '文本长度'],
+      ['TEXT', '格式化文本'], ['TODAY', '今天日期'], ['NOW', '当前时间'],
+    ] as Array<[string, string]>).map(([name, description]) => ({
+      id: `fn-${name}`,
+      label: `${name}　${description}`,
+      disabled: readonly,
+      onSelect: () => insertFunction(name),
+    })),
+  ];
+
+  const mergeMenu: MenuItem[] = [
+    { id: 'merge-center', label: '合并后居中', disabled: readonly, onSelect: () => props.onMergeToggle('center') },
+    { id: 'merge-only', label: '合并单元格', disabled: readonly, onSelect: () => props.onMergeToggle('merge') },
+    { id: 'merge-unmerge', label: '取消合并', disabled: readonly, onSelect: () => props.onMergeToggle('unmerge') },
+  ];
 
 
   return (
@@ -279,9 +336,40 @@ export function SheetToolbar(props: SheetToolbarProps) {
           )}
         </Select>
         <span className="mx-1 h-4 w-px bg-[var(--mo-line)]" />
-        <IconButton label={merged ? '取消合并' : '合并单元格'} active={merged} disabled={readonly} onClick={props.onMergeToggle}>
-          <Merge size={15} />
-        </IconButton>
+        {/* 功能：合并按钮拆成“合并后居中 + 下拉选项”，图标与文字同时可见，避免图标含义不明；时间：2026-11-01；作者：lq。 */}
+        <div className="flex shrink-0 items-stretch">
+          <button
+            type="button"
+            aria-label={merged ? '取消合并' : '合并后居中'}
+            title={merged ? '取消合并单元格' : '合并后居中：合并选区并把内容居中'}
+            disabled={readonly}
+            onClick={() => props.onMergeToggle(merged ? 'unmerge' : 'center')}
+            className={`flex h-7 items-center gap-1 rounded-l-md border px-2 text-[11px] transition-colors disabled:opacity-40 ${
+              merged
+                ? 'border-[var(--mo-accent)] bg-[var(--mo-accent-soft)] text-[var(--mo-accent)]'
+                : 'border-[var(--mo-line)] text-[var(--mo-text-secondary)] hover:bg-[var(--mo-surface-2)]'
+            }`}
+          >
+            <Merge size={14} />
+            {merged ? '取消合并' : '合并居中'}
+          </button>
+          <Dropdown
+            minWidth={168}
+            items={mergeMenu}
+            trigger={({ toggle }) => (
+              <button
+                type="button"
+                aria-label="合并选项"
+                aria-haspopup="menu"
+                disabled={readonly}
+                onClick={toggle}
+                className="flex h-7 w-4 items-center justify-center rounded-r-md border border-l-0 border-[var(--mo-line)] text-[var(--mo-text-secondary)] hover:bg-[var(--mo-surface-2)] disabled:opacity-40"
+              >
+                <ChevronDown size={11} />
+              </button>
+            )}
+          />
+        </div>
         <IconButton label="冻结窗格" active={frozen} onClick={props.onFreeze}>
           <Snowflake size={15} />
         </IconButton>
@@ -350,20 +438,25 @@ export function SheetToolbar(props: SheetToolbarProps) {
             }
           }}
         />
-        <button type="button" aria-label="插入函数" title="插入函数" disabled={readonly}
-          className="shrink-0 rounded px-1 font-serif text-[12px] italic text-[var(--mo-text-muted)] hover:bg-[var(--mo-accent-soft)] disabled:opacity-50"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => {
-            const input = formulaRef.current;
-            if (props.formulaText.startsWith('=')) {
-              const cursor = input?.selectionStart ?? props.formulaText.length;
-              props.onFormulaChange(`${props.formulaText.slice(0, cursor)}SUM(${props.formulaText.slice(cursor)}`);
-              requestAnimationFrame(() => { input?.focus(); input?.setSelectionRange(cursor + 4, cursor + 4); });
-            } else {
-              props.onInsertFunction();
-              requestAnimationFrame(() => { input?.focus(); input?.setSelectionRange(5, 5); });
-            }
-          }} >fx</button>
+        <Dropdown
+          minWidth={228}
+          items={functionMenu}
+          trigger={({ toggle }) => (
+            <button
+              type="button"
+              aria-label="插入函数"
+              title="插入函数"
+              aria-haspopup="menu"
+              disabled={readonly}
+              className="flex h-7 shrink-0 items-center gap-0.5 rounded px-1 font-serif text-[12px] italic text-[var(--mo-text-muted)] hover:bg-[var(--mo-accent-soft)] disabled:opacity-50"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={toggle}
+            >
+              fx
+              <ChevronDown size={10} />
+            </button>
+          )}
+        />
         <IconButton label="自动求和" disabled={readonly} onClick={props.onAutoSum}><Sigma size={14} /></IconButton>
         <FormulaInput
           ref={formulaRef}

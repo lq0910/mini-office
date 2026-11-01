@@ -8,7 +8,7 @@ import type { BorderPreset } from './sheet-utils';
 
 const PRESETS: Array<[BorderPreset, string] | null> = [
   ['bottom', '下框线'], ['top', '上框线'], ['left', '左框线'], ['right', '右框线'], null,
-  ['none', '无框线'], ['all', '所有框线'], ['inside', '内部框线'], ['outline', '外侧框线'], ['thickOutline', '粗匣框线'], null,
+  ['none', '无框线'], ['all', '所有框线'], ['inside', '内部框线'], ['outline', '外侧框线'], ['thickOutline', '粗外框线'], null,
   ['doubleBottom', '双底框线'], ['thickBottom', '粗底框线'], ['topBottom', '上下框线'], ['topThickBottom', '上框线和粗下框线'], ['topDoubleBottom', '上框线和双下框线'],
 ];
 

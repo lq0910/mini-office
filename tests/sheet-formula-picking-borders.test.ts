@@ -84,16 +84,16 @@ describe('公式引用选择', () => {
 });
 
 describe('公式栏快捷操作', () => {
-  it('fx 可点击插入函数，自动求和有独立入口', () => {
+  it('fx 展开函数清单并写入所选函数，自动求和有独立入口', () => {
     const book = createBlankWorkbook();
-    const insert = vi.fn(); const sum = vi.fn(); const change = vi.fn();
+    const sum = vi.fn(); const change = vi.fn();
     const noOp = vi.fn();
     const view = mount(createElement(SheetToolbar, {
       workbook: book, sheet: book.sheets[0], range: { r1: 9, c1: 0, r2: 17, c2: 0 },
       active: { row: 9, col: 0 }, formulaText: '', readonly: false, canUndo: false, canRedo: false,
       propertiesOpen: false, crosshair: false,
       onFormulaChange: change, onFormulaCommit: noOp, onFormulaCancel: noOp,
-      onFormulaFocus: noOp, onInsertFunction: insert, onAutoSum: sum,
+      onFormulaFocus: noOp, onAutoSum: sum,
       onHideRow: noOp, onShowRows: noOp, onHideColumn: noOp, onShowColumns: noOp,
       onJump: noOp, onStyle: noOp, onNumberFormat: noOp, onBorders: noOp,
       borderWeight: 'thin', onBorderWeight: noOp, borderColor: '#000000', onBorderColor: noOp,
@@ -105,8 +105,13 @@ describe('公式栏快捷操作', () => {
       onToggleCrosshair: noOp, onUndo: noOp, onRedo: noOp, onAddSheet: noOp,
     }));
     try {
+      // 功能：fx 现在是函数清单入口，选中具体函数后才写入公式栏；时间：2026-11-01；作者：lq。
       act(() => (view.host.querySelector('button[aria-label="插入函数"]') as HTMLButtonElement).click());
-      expect(insert).toHaveBeenCalledOnce();
+      const sumItem = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+        .find((item) => item.textContent?.startsWith('SUM'));
+      expect(sumItem).toBeTruthy();
+      act(() => sumItem!.click());
+      expect(change).toHaveBeenCalledWith('=SUM(');
       act(() => (view.host.querySelector('button[aria-label="自动求和"]') as HTMLButtonElement).click());
       expect(sum).toHaveBeenCalledOnce();
     } finally { view.dispose(); }

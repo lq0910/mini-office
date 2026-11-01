@@ -4,7 +4,7 @@ import { createBlankDoc, createBlankWorkbook, type DocTable } from '@mini-office
 import { createPrintRoot, renderPrintPreview, resolvePrintPaper } from '../packages/platform-adapter/src/print';
 import { paginateBlocks, sliceTable } from '../packages/editor-word/src/pagination';
 import { makeParagraph } from '../packages/editor-word/src/doc-utils';
-import { buildSheetPrintPages, sheetPageSize } from '../packages/editor-sheet/src/print';
+import { buildSheetPrintPages, parsePrintTitleRows, sheetPageSize } from '../packages/editor-sheet/src/print';
 import { defaultSheetPageSetup } from '@mini-office/document-model';
 
 /** 功能：构造带表头、可指定行数的表格；时间：2026-10-29；作者：lq。 */
@@ -202,8 +202,42 @@ describe('Excel 分页', () => {
   });
 
 
-  it('“调整为一页宽”只缩小不放大小表', () => {
+  // 功能：打印标题（顶端标题行）支持多行重复，正文不再重复输出标题行；时间：2026-11-01；作者：lq。
+  it('配置“打印标题”后每页重复多行标题，正文不重复', () => {
     const book = createBlankWorkbook();
+    const sheet = book.sheets[0];
+    sheet.cells['0:0'] = { value: '大标题' };
+    sheet.cells['1:0'] = { value: '表头' };
+    for (let row = 2; row <= 60; row += 1) sheet.cells[`${row}:0`] = { value: `行${row}` };
+    sheet.pageSetup = { ...sheet.pageSetup!, printTitleRows: '1:2' };
+    const host = document.createElement('div');
+    try {
+      const pages = buildSheetPrintPages(book, sheet, host);
+      expect(pages.length).toBeGreaterThan(1);
+      pages.forEach((page) => {
+        const head = Array.from(page.querySelectorAll('thead td')).map((td) => td.textContent);
+        expect(head).toEqual(['大标题', '表头']);
+      });
+      const body = pages.flatMap((page) => Array.from(page.querySelectorAll('tbody td')).map((td) => td.textContent));
+      expect(body).toHaveLength(59);
+      expect(body).not.toContain('大标题');
+      expect(body).not.toContain('表头');
+    } finally {
+      host.remove();
+    }
+  });
+
+  it('打印标题解析兼容 $1:$2 写法并裁剪到数据范围', () => {
+    const target = { r1: 0, c1: 0, r2: 9, c2: 3 };
+    expect(parsePrintTitleRows('1:2', target)).toEqual({ r1: 0, r2: 1 });
+    expect(parsePrintTitleRows('$1:$3', target)).toEqual({ r1: 0, r2: 2 });
+    expect(parsePrintTitleRows(' 2 ', target)).toEqual({ r1: 1, r2: 1 });
+    expect(parsePrintTitleRows('1:99', target)).toEqual({ r1: 0, r2: 9 });
+    expect(parsePrintTitleRows('abc', target)).toBeNull();
+    expect(parsePrintTitleRows('', target)).toBeNull();
+  });
+
+  it('“调整为一页宽”只缩小不放大小表', () => {    const book = createBlankWorkbook();
     const sheet = book.sheets[0];
     sheet.pageSetup = { ...sheet.pageSetup!, fitToWidth: 1 };
     sheet.cells['0:0'] = { value: '标题' };

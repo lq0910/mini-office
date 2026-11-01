@@ -292,12 +292,121 @@ export interface PrintPreviewOptions extends PrintPageGeometry {
   gutter?: number;
   /** 是否在每页上方显示“第 n / N 页”，默认显示。 */
   labels?: boolean;
-  /** 固定缩放比例（1 = 实际大小）；不传时按容器宽度自适应。 */
+  /** 固定缩放比例（1 = 实际大小）；不传时按 fit 规则自适应。 */
   scale?: number;
+  /** 功能：单页预览的适配方式——整页可见 / 适应页宽（可纵向滚动）/ 实际大小；时间：2026-11-01；作者：lq。 */
+  fit?: PrintPreviewFit;
   /** 每页各自的纸张尺寸，用于多节混合方向的文档；缺省时所有页共用 widthPx / heightPx。 */
   pageSizes?: PrintPageGeometry[];
   /** 单页模式：只渲染当前页，配合 setPage 翻页；默认 false（整列平铺）。 */
   singlePage?: boolean;
+  /** 功能：每页画框构建后回调，供调用方叠加边距参考线等交互层；时间：2026-11-01；作者：lq。 */
+  overlay?: (context: PreviewOverlayContext) => void;
+}
+
+/** 功能：打印预览的缩放策略；时间：2026-11-01；作者：lq。 */
+export type PrintPreviewFit = 'page' | 'width' | 'actual';
+
+/** 功能：预览画框上下文，供调用方叠加边距参考线等交互层；时间：2026-11-01；作者：lq。 */
+export interface PreviewOverlayContext {
+  /** 已按 scale 缩放的页面画框。 */
+  frame: HTMLElement;
+  /** 页面元素本身（未缩放）。 */
+  page: HTMLElement;
+  /** 画框相对纸张的缩放比例。 */
+  scale: number;
+  /** 页码索引（0 起）。 */
+  index: number;
+}
+
+/** 功能：页边距参考线的可拖动规格；时间：2026-11-01；作者：lq。 */
+export interface PreviewMarginSpec {
+  margins: { left: number; right: number; top: number; bottom: number };
+  pageWidthPx: number;
+  pageHeightPx: number;
+  /** 拖动结束后回调，单位为未缩放的页面像素。 */
+  onChange: (edge: 'left' | 'right' | 'top' | 'bottom', valuePx: number) => void;
+}
+
+/**
+ * 功能：在预览页上叠加四条可拖动的页边距参考线，直接拖动即改边距；
+ * 时间：2026-11-01；作者：lq。
+ *
+ * 说明：拖动期间只移动参考线本身，松手才回调改值，避免每帧重排整份文档。
+ */
+export function attachPreviewMargins(context: PreviewOverlayContext, spec: PreviewMarginSpec): void {
+  const { frame, scale } = context;
+  const { margins, pageWidthPx, pageHeightPx, onChange } = spec;
+  const factor = scale > 0 ? scale : 1;
+  const layer = document.createElement('div');
+  layer.dataset.previewMargins = 'true';
+  layer.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+  frame.appendChild(layer);
+
+  const band = document.createElement('div');
+  band.style.cssText = 'position:absolute;border:1px dashed rgba(52,120,246,0.55);pointer-events:none;';
+  layer.appendChild(band);
+
+  const box = {
+    left: margins.left * factor,
+    top: margins.top * factor,
+    right: (pageWidthPx - margins.right) * factor,
+    bottom: (pageHeightPx - margins.bottom) * factor,
+  };
+  const paint = () => {
+    band.style.left = `${box.left}px`;
+    band.style.top = `${box.top}px`;
+    band.style.width = `${Math.max(0, box.right - box.left)}px`;
+    band.style.height = `${Math.max(0, box.bottom - box.top)}px`;
+    for (const edge of edges) {
+      const strip = strips[edge];
+      if (edge === 'left') strip.style.cssText = stripStyle(`left:${box.left - 4}px;top:${box.top}px;width:8px;height:${Math.max(0, box.bottom - box.top)}px;`, 'ew-resize');
+      if (edge === 'right') strip.style.cssText = stripStyle(`left:${box.right - 4}px;top:${box.top}px;width:8px;height:${Math.max(0, box.bottom - box.top)}px;`, 'ew-resize');
+      if (edge === 'top') strip.style.cssText = stripStyle(`left:${box.left}px;top:${box.top - 4}px;width:${Math.max(0, box.right - box.left)}px;height:8px;`, 'ns-resize');
+      if (edge === 'bottom') strip.style.cssText = stripStyle(`left:${box.left}px;top:${box.bottom - 4}px;width:${Math.max(0, box.right - box.left)}px;height:8px;`, 'ns-resize');
+    }
+  };
+  const stripStyle = (position: string, cursor: string) =>
+    `position:absolute;${position}pointer-events:auto;cursor:${cursor};`;
+
+  const edges = ['left', 'right', 'top', 'bottom'] as const;
+  const strips = {} as Record<(typeof edges)[number], HTMLElement>;
+  for (const edge of edges) {
+    const strip = document.createElement('span');
+    strip.setAttribute('role', 'separator');
+    strip.setAttribute('aria-label', `拖动调整${edge === 'left' ? '左' : edge === 'right' ? '右' : edge === 'top' ? '上' : '下'}页边距`);
+    strip.title = strip.getAttribute('aria-label')!;
+    strip.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const initial = { ...box };
+      const move = (pointer: PointerEvent) => {
+        const dx = pointer.clientX - startX;
+        const dy = pointer.clientY - startY;
+        if (edge === 'left') box.left = Math.max(0, Math.min(initial.right - 40, initial.left + dx));
+        else if (edge === 'right') box.right = Math.min(pageWidthPx * factor, Math.max(initial.left + 40, initial.right + dx));
+        else if (edge === 'top') box.top = Math.max(0, Math.min(initial.bottom - 40, initial.top + dy));
+        else box.bottom = Math.min(pageHeightPx * factor, Math.max(initial.top + 40, initial.bottom + dy));
+        paint();
+      };
+      const finish = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', finish);
+        window.removeEventListener('pointercancel', finish);
+        const value = edge === 'left' ? box.left : edge === 'right' ? pageWidthPx * factor - box.right : edge === 'top' ? box.top : pageHeightPx * factor - box.bottom;
+        onChange(edge, Math.max(0, Math.round(value / factor)));
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', finish);
+      window.addEventListener('pointercancel', finish);
+    });
+    strips[edge] = strip;
+    layer.appendChild(strip);
+  }
+  paint();
 }
 
 /** 功能：打印预览句柄——清理、翻页与页数；时间：2026-11-01；作者：lq。 */
@@ -336,7 +445,7 @@ export function renderPrintPreview(options: PrintPreviewOptions): PrintPreviewHa
   // 功能：单页模式——一次只渲染一页，按容器宽高双向适配，接近 Office/GenOffice 的打印预览；时间：2026-11-01；作者：lq。
   if (options.singlePage) {
     const stage = document.createElement('div');
-    stage.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;min-height:100%;padding:14px;box-sizing:border-box;';
+    stage.style.cssText = 'display:flex;align-items:flex-start;justify-content:center;width:100%;min-height:100%;padding:10px;box-sizing:border-box;';
     host.appendChild(stage);
     const paint = (index: number) => {
       const paper = papers[index];
@@ -345,10 +454,14 @@ export function renderPrintPreview(options: PrintPreviewOptions): PrintPreviewHa
       const height = Number.parseFloat(paper.sheetHeight);
       const availableWidth = Math.max(200, (host.clientWidth || 640) - gutter * 2);
       const availableHeight = Math.max(200, (host.clientHeight || 520) - gutter * 2);
+      // 功能：默认整页可见；“适应页宽”放大到页宽、允许纵向滚动，细节更清楚；时间：2026-11-01；作者：lq。
+      const fit: PrintPreviewFit = options.scale && options.scale > 0 ? 'actual' : options.fit ?? 'page';
       const scale =
-        options.scale && options.scale > 0
-          ? options.scale
-          : Math.min(1, availableWidth / maxWidth, availableHeight / maxHeight);
+        fit === 'actual'
+          ? 1
+          : fit === 'width'
+            ? Math.min(1, availableWidth / maxWidth)
+            : Math.min(1, availableWidth / maxWidth, availableHeight / maxHeight);
       const frame = document.createElement('div');
       frame.style.cssText = `position:relative;flex:0 0 auto;width:${width * scale}px;height:${height * scale}px;background:#ffffff;box-shadow:0 1px 3px rgba(15,23,42,.16),0 0 0 1px rgba(15,23,42,.10);overflow:hidden;`;
       const page = pages[index];
@@ -360,6 +473,7 @@ export function renderPrintPreview(options: PrintPreviewOptions): PrintPreviewHa
       page.style.transformOrigin = 'top left';
       frame.appendChild(page);
       stage.replaceChildren(frame);
+      options.overlay?.({ frame, page, scale, index });
     };
     paint(0);
     return {
@@ -401,6 +515,7 @@ export function renderPrintPreview(options: PrintPreviewOptions): PrintPreviewHa
     frame.appendChild(page);
     column.appendChild(frame);
     list.appendChild(column);
+    options.overlay?.({ frame, page, scale, index });
   });
   host.appendChild(list);
   return { cleanup, pageCount: pages.length, setPage: () => undefined };

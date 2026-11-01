@@ -10,6 +10,7 @@ import {
   EditorLoading,
   StatusBar,
   TabBar,
+  TabStrip,
   TitleBar,
 } from './chrome';
 import { CommandPalette } from './CommandPalette';
@@ -20,6 +21,7 @@ import { useChromeVariant } from './chrome-variant';
 import { WorkspaceDialogs } from './dialogs';
 import { HomePage } from './HomePage';
 import { watchDesktopClose, finishDesktopClose } from '@mini-office/platform-adapter';
+import { usesMergedTitleBar } from '@mini-office/platform-adapter';
 import { confirmWorkspaceClose, type CloseChoice } from './close-workspace';
 
 // 功能：仅在打开对应文档时加载编辑界面，首页不再执行三种编辑器；时间：2026-10-24；作者：lq。
@@ -50,6 +52,8 @@ export function AppShell() {
   const notify = useWorkspaceStore((state) => state.notify);
 
   const [showHome, setShowHome] = useState(!activeId);
+  // 功能：Windows 桌面端把文档标签并入标题栏一行，减少一条纵向占位；时间：2026-11-01；作者：lq。
+  const mergedTitleBar = usesMergedTitleBar();
   // 功能：主题插件可切换外壳变体，经典风格需在标题栏下多渲染一行菜单栏；时间：2026-10-29；作者：lq。
   const chrome = useChromeVariant();
   const [closeRequestId, setCloseRequestId] = useState<string | null>(null);
@@ -364,9 +368,19 @@ export function AppShell() {
       <TitleBar
         onHome={() => setShowHome(true)}
         onOpenPalette={() => setCommandPalette(true)}
+        merged={mergedTitleBar}
+        tabs={
+          mergedTitleBar && tabOrder.length > 0 ? (
+            <TabStrip
+              compact
+              onRequestClose={requestClose}
+              onSelectTab={() => setShowHome(false)}
+            />
+          ) : undefined
+        }
       />
       {chrome.toolbar === 'classic-two-row' ? <MenuBar onHome={() => setShowHome(true)} /> : null}
-      {tabOrder.length > 0 ? (
+      {!mergedTitleBar && tabOrder.length > 0 ? (
         <TabBar
           onRequestClose={requestClose}
           onHome={() => setShowHome(true)}

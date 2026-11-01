@@ -11,7 +11,7 @@ export interface DialogProps {
   icon?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
-  width?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  width?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'print';
   closeOnBackdrop?: boolean;
   className?: string;
   /** 覆盖内容区样式；配合 bodyScroll=false 可让内容区自行管理滚动。 */
@@ -26,6 +26,8 @@ const WIDTHS = {
   lg: 'max-w-[660px]',
   xl: 'max-w-[820px]',
   '2xl': 'max-w-[940px]',
+  // 功能：打印预览需要更大的版面才能看清细节；时间：2026-11-01；作者：lq。
+  print: 'max-w-[min(1240px,96vw)]',
 };
 
 export function Dialog({

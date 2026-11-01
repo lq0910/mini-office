@@ -31,6 +31,12 @@ const PRESET_COLORS = [
 const PANEL_WIDTH = 206;
 const PANEL_MARGIN = 8;
 
+/**
+ * 功能：记住每个颜色入口上次使用的颜色，点击主按钮即可直接套用，无需每次重新选色；
+ * 时间：2026-11-01；作者：lq。
+ */
+const lastColorByField = new Map<string, string>();
+
 export function ColorField({
   value,
   onChange,
@@ -40,6 +46,7 @@ export function ColorField({
   icon,
   indicatorColor,
   disabled = false,
+  applyOnClick = true,
 }: {
   value?: string;
   onChange: (color: string | undefined) => void;
@@ -50,11 +57,16 @@ export function ColorField({
   icon?: ReactNode;
   indicatorColor?: string;
   disabled?: boolean;
+  /** 功能：主按钮直接套用上次颜色（Excel 行为），false 时仍打开调色板；时间：2026-11-01；作者：lq。 */
+  applyOnClick?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ left: 0, top: 0 });
+  const fieldKey = label ?? 'default';
+  const remembered = lastColorByField.get(fieldKey);
+  const activeColor = remembered ?? value;
 
   const updatePosition = () => {
     const button = buttonRef.current;
@@ -101,43 +113,65 @@ export function ColorField({
   }, [open]);
 
   const choose = (color: string | undefined) => {
+    if (color) lastColorByField.set(fieldKey, color);
     onChange(color);
     setOpen(false);
   };
 
+  // 功能：主按钮直接套用上次颜色，没有历史颜色时才展开调色板；时间：2026-11-01；作者：lq。
+  const applyLastColor = () => {
+    if (!applyOnClick) { setOpen((current) => !current); return; }
+    if (activeColor) onChange(activeColor);
+    else setOpen(true);
+  };
+
   return (
-    <div className={cn('relative inline-flex items-center gap-1.5', className)}>
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-label={label ?? '选择颜色'}
-        disabled={disabled}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        data-tooltip={label ?? '选择颜色'}
-        onClick={() => setOpen((current) => !current)}
+    <div className={cn('relative inline-flex shrink-0 items-stretch', className)}>
+      <div
         className={cn(
-          'flex h-7 shrink-0 items-center gap-1.5 rounded-md border bg-[var(--mo-surface)] px-1.5 text-[11px] text-[var(--mo-text-primary)] transition-colors duration-fast hover:bg-[var(--mo-surface-2)] disabled:pointer-events-none disabled:opacity-40',
+          'flex h-7 shrink-0 items-stretch overflow-hidden rounded-md border bg-[var(--mo-surface)] text-[11px] text-[var(--mo-text-primary)] transition-colors duration-fast',
           open
             ? 'border-[var(--mo-accent)] ring-2 ring-[color-mix(in_srgb,var(--mo-accent)_16%,transparent)]'
             : 'border-[var(--mo-line-strong)]',
+          disabled ? 'pointer-events-none opacity-40' : 'hover:bg-[var(--mo-surface-2)]',
         )}
       >
-        {icon ? (
-          <span aria-hidden="true" className="flex w-4 flex-col items-center gap-0.5">
-            {icon}
-            <span className="h-[3px] w-4 rounded-sm border border-[var(--mo-line)]"
-              style={{ background: indicatorColor ?? value ?? 'transparent' }} />
-          </span>
-        ) : <>
-        <span
-          className="h-4 w-4 rounded-sm border border-[var(--mo-line)]"
-          style={{ background: value ?? 'transparent' }}
-        />
-        <span className="w-[48px] truncate font-mono text-[10px]">{value ?? '自动'}</span>
-        </>}
-        <ChevronDown size={10} className="shrink-0 opacity-60" />
-      </button>
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-label={label ?? '选择颜色'}
+          disabled={disabled}
+          data-tooltip={label ?? '选择颜色'}
+          onClick={applyLastColor}
+          className="flex items-center gap-1.5 px-1.5"
+        >
+          {icon ? (
+            <span aria-hidden="true" className="flex w-4 flex-col items-center gap-0.5">
+              {icon}
+              <span className="h-[3px] w-4 rounded-sm border border-[var(--mo-line)]"
+                style={{ background: indicatorColor ?? value ?? 'transparent' }} />
+            </span>
+          ) : <>
+            <span
+              className="h-4 w-4 rounded-sm border border-[var(--mo-line)]"
+              style={{ background: value ?? 'transparent' }}
+            />
+            <span className="w-[48px] truncate font-mono text-[10px]">{value ?? '自动'}</span>
+          </>}
+        </button>
+        <button
+          type="button"
+          aria-label={`${label ?? '颜色'}调色板`}
+          data-tooltip="更多颜色"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          disabled={disabled}
+          onClick={() => setOpen((current) => !current)}
+          className="flex w-4 items-center justify-center border-l border-[var(--mo-line)] text-[var(--mo-text-muted)]"
+        >
+          <ChevronDown size={10} className="opacity-70" />
+        </button>
+      </div>
       {open && !disabled
         ? createPortal(
             <div

@@ -205,7 +205,8 @@ export function fontStackFor(name?: string): string {
   const latin = LATIN_FONT_STACKS[key.toLowerCase()];
   if (latin) return latin;
   const mapped = CJK_FONT_STACKS[key];
-  if (mapped) return mapped;
+  // 功能：本机装了同名中文字体时优先使用它（如方正小标宋简体），只有缺字时才走回退栈；时间：2026-11-01；作者：lq。
+  if (mapped) return mapped.startsWith(`"${key}"`) ? mapped : `"${key}", ${mapped}`;
   return `"${key}", ${heuristicCjkStack(key)}`;
 }
 

@@ -119,6 +119,46 @@ function borderCss(side: CellBorders['top']): string | undefined {
   return `${width}px ${lineStyle} ${paperLine(side.color, '#000000')}`;
 }
 
+/** 功能：边框粗细排序，用于相邻单元格共用一条线时保留更粗的一侧；时间：2026-11-01；作者：lq。 */
+function borderWeightOf(side: CellBorders['top']): number {
+  if (!side || side.style === 'none') return 0;
+  if (side.style === 'thick' || side.style === 'double') return 3;
+  if (side.style === 'medium') return 2;
+  return 1;
+}
+
+/**
+ * 功能：解析公式中光标处的单元格引用，供编辑时高亮求和范围等区域；
+ * 时间：2026-11-01；作者：lq。
+ */
+function referenceAtCaret(text: string, caret: number): CellRange | null {
+  if (!text.startsWith('=')) return null;
+  const pattern = /\$?([A-Za-z]{1,3})\$?([1-9]\d*)(?::\$?([A-Za-z]{1,3})\$?([1-9]\d*))?/g;
+  let match: RegExpExecArray | null;
+  let best: { range: CellRange; distance: number } | null = null;
+  while ((match = pattern.exec(text))) {
+    const start = match.index;
+    const end = start + match[0].length;
+    // 功能：避免把函数名或字符串内容误判成引用；时间：2026-11-01；作者：lq。
+    if (/[A-Za-z0-9_.]/.test(text[start - 1] ?? '')) continue;
+    const distance = caret < start ? start - caret : caret > end ? caret - end : 0;
+    const toIndex = (letters: string, digits: string) => ({
+      row: Number(digits) - 1,
+      col: letters.toUpperCase().split('').reduce((sum, char) => sum * 26 + (char.charCodeAt(0) - 64), 0) - 1,
+    });
+    const first = toIndex(match[1], match[2]);
+    const second = match[3] && match[4] ? toIndex(match[3], match[4]) : first;
+    const range: CellRange = {
+      r1: Math.min(first.row, second.row),
+      r2: Math.max(first.row, second.row),
+      c1: Math.min(first.col, second.col),
+      c2: Math.max(first.col, second.col),
+    };
+    if (!best || distance < best.distance) best = { range, distance };
+  }
+  return best?.range ?? null;
+}
+
 function buildOffsets(count: number, sizeAt: (index: number) => number): number[] {
   const offsets = new Array<number>(count + 1);
   let total = 0;
@@ -166,6 +206,9 @@ export function SheetGrid(props: SheetGridProps) {
   const [referenceDragging, setReferenceDragging] = useState(false);
   const [referenceRange, setReferenceRange] = useState<CellRange | null>(null);
   const [fillPreview, setFillPreview] = useState<CellRange | null>(null);
+  // 功能：拖拽结束需要读取最新预览范围，避免在 setState 回调里做副作用；时间：2026-11-01；作者：lq。
+  const fillPreviewRef = useRef<CellRange | null>(null);
+  const [fillSession, setFillSession] = useState(0);
   const fillRef = useRef<{ source: CellRange; startX: number; startY: number } | null>(null);
   const scrollRaf = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -213,6 +256,16 @@ export function SheetGrid(props: SheetGridProps) {
     return { origin, covered };
   }, [sheet.merges]);
 
+  // 功能：预先收集显式边框，渲染时判断相邻单元格是否重复画同一条线；时间：2026-11-01；作者：lq。
+  const borderLookup = useMemo(() => {
+    const map = new Map<string, CellBorders>();
+    for (const [key, cell] of Object.entries(sheet.cells)) {
+      const borders = cellStyle(workbook, cell).borders;
+      if (borders) map.set(key, borders);
+    }
+    return map;
+  }, [sheet.cells, workbook]);
+
   useLayoutEffect(() => {
     // Filtering can shrink the scrollable area while the browser clamps scrollTop.
     const element = scrollRef.current;
@@ -253,6 +306,9 @@ export function SheetGrid(props: SheetGridProps) {
     return () => observer.disconnect();
   }, []);
 
+  // 功能：记录编辑光标位置，用于高亮公式中当前引用的区域（例如求和范围）；时间：2026-11-01；作者：lq。
+  const [editCaret, setEditCaret] = useState(0);
+
   // 功能：在绘制前初始化编辑文本，避免快速输入时光标落在等号前面；时间：2026-10-24；作者：lq。
   useLayoutEffect(() => {
     if (!editing) {
@@ -260,6 +316,7 @@ export function SheetGrid(props: SheetGridProps) {
       return;
     }
     setDraft(editing.initialText);
+    setEditCaret(editing.initialText.length);
   }, [editing]);
 
   // 功能：从公式栏修改草稿时同步网格输入框，避免两个入口互相覆盖；时间：2026-10-24；作者：lq。
@@ -289,38 +346,16 @@ export function SheetGrid(props: SheetGridProps) {
   }, [dragging]);
 
   useEffect(() => {
-    if (!resizeRef.current && !fillRef.current) return;
+    if (!resizeRef.current) return;
     const onMove = (event: MouseEvent) => {
       const resize = resizeRef.current;
-      if (resize) {
-        const delta = resize.kind === 'col' ? event.clientX - resize.start : event.clientY - resize.start;
-        setResizePreview({
-          kind: resize.kind,
-          index: resize.index,
-          size: Math.max(resize.kind === 'col' ? 24 : 14, resize.initial + delta),
-        });
-        return;
-      }
-      const fill = fillRef.current;
-      if (fill && scrollRef.current) {
-        const rect = scrollRef.current.getBoundingClientRect();
-        const x = event.clientX - rect.left + scrollRef.current.scrollLeft;
-        const y = event.clientY - rect.top + scrollRef.current.scrollTop;
-        const col = findIndex(colOffsets, Math.max(0, x));
-        const row = findIndex(rowOffsets, Math.max(0, y));
-        const source = fill.source;
-        let next: CellRange;
-        if (Math.abs(row - source.r2) >= Math.abs(col - source.c2)) {
-          next = row >= source.r2
-            ? { r1: source.r1, c1: source.c1, r2: row, c2: source.c2 }
-            : { r1: row, c1: source.c1, r2: source.r2, c2: source.c2 };
-        } else {
-          next = col >= source.c2
-            ? { r1: source.r1, c1: source.c1, r2: source.r2, c2: col }
-            : { r1: source.r1, c1: col, r2: source.r2, c2: source.c2 };
-        }
-        setFillPreview(next);
-      }
+      if (!resize) return;
+      const delta = resize.kind === 'col' ? event.clientX - resize.start : event.clientY - resize.start;
+      setResizePreview({
+        kind: resize.kind,
+        index: resize.index,
+        size: Math.max(resize.kind === 'col' ? 24 : 14, resize.initial + delta),
+      });
     };
     const onUp = () => {
       const resize = resizeRef.current;
@@ -330,12 +365,6 @@ export function SheetGrid(props: SheetGridProps) {
       }
       resizeRef.current = null;
       setResizePreview(null);
-      const fill = fillRef.current;
-      if (fill && fillPreview) {
-        onFill(fill.source, fillPreview);
-      }
-      fillRef.current = null;
-      setFillPreview(null);
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -343,7 +372,7 @@ export function SheetGrid(props: SheetGridProps) {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [fillPreview, onColumnResize, onFill, onRowResize, resizePreview]);
+  }, [onColumnResize, onRowResize, resizePreview]);
 
   useEffect(() => {
     const scrollElement = scrollRef.current;
@@ -596,6 +625,14 @@ export function SheetGrid(props: SheetGridProps) {
     const isActive = row === active.row && col === active.col;
     const inRange =
       row >= range.r1 && row <= range.r2 && col >= range.c1 && col <= range.c2;
+    // 功能：相邻单元格共用一条边框线时只画一次，避免“所有框线”后内部线比外框粗一倍；时间：2026-11-01；作者：lq。
+    const explicit = borderLookup.get(key);
+    const neighborBorders = (rowOffset: number, colOffset: number) =>
+      borderLookup.get(cellKey(row + rowOffset, col + colOffset));
+    const skipRight = !!explicit?.right && borderWeightOf(neighborBorders(0, 1)?.left) >= borderWeightOf(explicit.right);
+    const skipBottom = !!explicit?.bottom && borderWeightOf(neighborBorders(1, 0)?.top) >= borderWeightOf(explicit.bottom);
+    const rightCss = skipRight ? undefined : borderCss(explicit?.right) ?? (sheet.showGridLines ? '1px solid var(--mo-grid-line)' : undefined);
+    const bottomCss = skipBottom ? undefined : borderCss(explicit?.bottom) ?? (sheet.showGridLines ? '1px solid var(--mo-grid-line)' : undefined);
     const cellCss: CSSProperties = {
       position: 'absolute',
       left: position.left,
@@ -622,13 +659,13 @@ export function SheetGrid(props: SheetGridProps) {
         .join(' ') || undefined,
       whiteSpace: style.wrapText ? 'pre-wrap' : 'nowrap',
       wordBreak: style.wrapText ? 'break-word' : 'normal',
-      borderRight: borderCss(style.borders?.right) ?? (sheet.showGridLines ? '1px solid var(--mo-grid-line)' : undefined),
-      borderBottom: borderCss(style.borders?.bottom) ?? (sheet.showGridLines ? '1px solid var(--mo-grid-line)' : undefined),
-      borderTop: borderCss(style.borders?.top),
-      borderLeft: borderCss(style.borders?.left),
+      borderRight: rightCss,
+      borderBottom: bottomCss,
+      borderTop: borderCss(explicit?.top),
+      borderLeft: borderCss(explicit?.left),
       outline: isActive && !editing ? '2px solid var(--mo-accent)' : undefined,
       outlineOffset: isActive && !editing ? '-2px' : undefined,
-      zIndex: isActive ? 7 : origin ? 5 : style.borders ? 4 : 1,
+      zIndex: isActive ? 7 : origin ? 5 : explicit ? 4 : 1,
       cursor: 'cell',
     };
     const displayText = style.shrinkToFit ? text : text;
@@ -653,9 +690,6 @@ export function SheetGrid(props: SheetGridProps) {
           if (beginReference(row, col)) return;
           containerRef.current?.focus({ preventScroll: true });
           beginSelection(row, col, event.shiftKey);
-        }}
-        onMouseEnter={() => {
-          if (dragging) onSelectionChange({ anchor: selection.anchor, focus: { row, col } }, { extend: true });
         }}
         onDoubleClick={() => { if (!referenceDrag.current && document.activeElement !== referenceInput.current) onStartEdit(row, col); }}
         onContextMenu={(event) => {
@@ -695,6 +729,144 @@ export function SheetGrid(props: SheetGridProps) {
   const frozenCols = Math.min(sheet.freeze?.cols ?? 0, colsCount);
   const frozenRowsHeight = rowOffsets[frozenRows] ?? 0;
   const frozenColsWidth = colOffsets[frozenCols] ?? 0;
+
+  /**
+   * 功能：把屏幕坐标换算成行列号，兼容 CSS 缩放、滚动位置与冻结窗格；
+   * 时间：2026-11-01；作者：lq。
+   */
+  const locateCell = useCallback(
+    (clientX: number, clientY: number) => {
+      const element = scrollRef.current;
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      // 功能：CSS zoom 下 rect 与 offsetWidth 不一致，先换算回网格逻辑像素；时间：2026-10-24；作者：lq。
+      const scale = rect.width / (element.offsetWidth || rect.width) || 1;
+      const x = (clientX - rect.left) / scale;
+      const y = (clientY - rect.top) / scale;
+      const col = Math.min(colsCount - 1, findIndex(colOffsets, Math.max(0, x + (x < frozenColsWidth ? 0 : element.scrollLeft))));
+      const row = Math.min(rowsCount - 1, findIndex(rowOffsets, Math.max(0, y + (y < frozenRowsHeight ? 0 : element.scrollTop))));
+      return { row, col };
+    },
+    [colOffsets, colsCount, frozenColsWidth, frozenRowsHeight, rowOffsets, rowsCount],
+  );
+
+  /**
+   * 功能：拖选改用全局指针坐标，替代逐单元格 mouseenter——快速拖动、跨冻结窗格与缩放时都能连续选中；
+   * 时间：2026-11-01；作者：lq。
+   */
+  useEffect(() => {
+    if (!dragging) return;
+    const anchor = selection.anchor;
+    let last = { row: anchor.row, col: anchor.col };
+    let pointer: { x: number; y: number } | null = null;
+    let frame = 0;
+    const apply = () => {
+      if (!pointer) return;
+      const cell = locateCell(pointer.x, pointer.y);
+      if (!cell || (cell.row === last.row && cell.col === last.col)) return;
+      last = cell;
+      onSelectionChange({ anchor, focus: cell }, { extend: true });
+    };
+    const move = (event: MouseEvent) => {
+      pointer = { x: event.clientX, y: event.clientY };
+      apply();
+    };
+    // 功能：拖到边缘时自动滚动，长距离选区不必反复滚动再拖；时间：2026-11-01；作者：lq。
+    const tick = () => {
+      const element = scrollRef.current;
+      if (pointer && element) {
+        const rect = element.getBoundingClientRect();
+        const dx = pointer.x < rect.left ? -18 : pointer.x > rect.right ? 18 : 0;
+        const dy = pointer.y < rect.top ? -18 : pointer.y > rect.bottom ? 18 : 0;
+        if (dx || dy) {
+          element.scrollLeft += dx;
+          element.scrollTop += dy;
+          apply();
+        }
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', () => setDragging(false));
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('mousemove', move);
+    };
+  }, [dragging, locateCell, onSelectionChange, selection.anchor]);
+
+  /**
+   * 功能：填充柄拖动使用同一套坐标换算，支持缩放、冻结窗格与拖到边缘自动滚动；
+   * 时间：2026-11-01；作者：lq。
+   */
+  useEffect(() => {
+    if (!fillRef.current) return;
+    let frame = 0;
+    let pointer: { x: number; y: number } | null = null;
+    const update = () => {
+      const fill = fillRef.current;
+      if (!fill || !pointer) return;
+      const cell = locateCell(pointer.x, pointer.y);
+      if (!cell) return;
+      const source = fill.source;
+      const row = cell.row;
+      const col = cell.col;
+      const next: CellRange =
+        Math.abs(row - source.r2) >= Math.abs(col - source.c2)
+          ? row >= source.r2
+            ? { r1: source.r1, c1: source.c1, r2: row, c2: source.c2 }
+            : { r1: row, c1: source.c1, r2: source.r2, c2: source.c2 }
+          : col >= source.c2
+            ? { r1: source.r1, c1: source.c1, r2: source.r2, c2: col }
+            : { r1: source.r1, c1: col, r2: source.r2, c2: source.c2 };
+      setFillPreview((current) =>
+        current && current.r1 === next.r1 && current.r2 === next.r2 && current.c1 === next.c1 && current.c2 === next.c2
+          ? current
+          : next,
+      );
+      fillPreviewRef.current = next;
+    };
+    const move = (event: MouseEvent) => {
+      pointer = { x: event.clientX, y: event.clientY };
+      update();
+    };
+    const tick = () => {
+      const element = scrollRef.current;
+      if (pointer && element) {
+        const rect = element.getBoundingClientRect();
+        const dx = pointer.x < rect.left ? -18 : pointer.x > rect.right ? 18 : 0;
+        const dy = pointer.y < rect.top ? -18 : pointer.y > rect.bottom ? 18 : 0;
+        if (dx || dy) {
+          element.scrollLeft += dx;
+          element.scrollTop += dy;
+          update();
+        }
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    const finish = () => {
+      const fill = fillRef.current;
+      const preview = fillPreviewRef.current;
+      fillRef.current = null;
+      fillPreviewRef.current = null;
+      setFillPreview(null);
+      if (fill && preview && (preview.r1 !== fill.source.r1 || preview.r2 !== fill.source.r2 || preview.c1 !== fill.source.c1 || preview.c2 !== fill.source.c2)) {
+        onFill(fill.source, preview);
+      }
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', finish);
+      cancelAnimationFrame(frame);
+    };
+    frame = requestAnimationFrame(tick);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', finish);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', finish);
+    };
+    // 功能：只依赖一次拖拽的起点，拖动过程中不重建监听；时间：2026-11-01；作者：lq。
+  }, [fillSession, locateCell, onFill]);
 
   // 功能：通过全局鼠标坐标拖选引用，跨虚拟滚动和冻结窗格仍正确定位；时间：2026-10-24；作者：lq。
   useEffect(() => {
@@ -767,7 +939,19 @@ export function SheetGrid(props: SheetGridProps) {
             borderBottom: '1px solid var(--mo-line-strong)',
           }}
         >
-          <div style={{ position: 'absolute', inset: 0 }}>{cells}</div>
+          <div style={{ position: 'absolute', inset: 0 }}>
+            {cells}
+            {(() => {
+              const box = clipRange(range, 0, frozenRows - 1, frozenCols, colsCount - 1);
+              return box ? rangeBox(box, scroll.left + frozenColsWidth, 0, 'selection') : null;
+            })()}
+            {editingReference
+              ? (() => {
+                  const box = clipRange(editingReference, 0, frozenRows - 1, frozenCols, colsCount - 1);
+                  return box ? rangeBox(box, scroll.left + frozenColsWidth, 0, 'reference') : null;
+                })()
+              : null}
+          </div>
         </div>,
       );
     }
@@ -799,7 +983,19 @@ export function SheetGrid(props: SheetGridProps) {
             borderRight: '1px solid var(--mo-line-strong)',
           }}
         >
-          <div style={{ position: 'absolute', inset: 0 }}>{cells}</div>
+          <div style={{ position: 'absolute', inset: 0 }}>
+            {cells}
+            {(() => {
+              const box = clipRange(range, frozenRows, rowsCount - 1, 0, frozenCols - 1);
+              return box ? rangeBox(box, 0, scroll.top + frozenRowsHeight, 'selection') : null;
+            })()}
+            {editingReference
+              ? (() => {
+                  const box = clipRange(editingReference, frozenRows, rowsCount - 1, 0, frozenCols - 1);
+                  return box ? rangeBox(box, 0, scroll.top + frozenRowsHeight, 'reference') : null;
+                })()
+              : null}
+          </div>
         </div>,
       );
     }
@@ -829,6 +1025,16 @@ export function SheetGrid(props: SheetGridProps) {
           }}
         >
           {cells}
+          {(() => {
+            const box = clipRange(range, 0, frozenRows - 1, 0, frozenCols - 1);
+            return box ? rangeBox(box, 0, 0, 'selection') : null;
+          })()}
+          {editingReference
+            ? (() => {
+                const box = clipRange(editingReference, 0, frozenRows - 1, 0, frozenCols - 1);
+                return box ? rangeBox(box, 0, 0, 'reference') : null;
+              })()
+            : null}
         </div>,
       );
     }
@@ -847,6 +1053,49 @@ export function SheetGrid(props: SheetGridProps) {
   const selectionHeight = (rowOffsets[range.r2 + 1] ?? selectionTop) - selectionTop;
   // 功能：编辑框沿用单元格自身的底色与文字色，并同样做深色纸张换算；时间：2026-10-31；作者：lq。
   const editingStyle = editing ? cellStyle(workbook, sheet.cells[cellKey(editing.row, editing.col)]) : null;
+  // 功能：编辑公式时高亮光标所在的引用区域，求和结果能一眼看出统计了哪些单元格；时间：2026-11-01；作者：lq。
+  const editingReference = editing ? referenceAtCaret(draft, editCaret) : null;
+
+  /** 功能：在指定坐标系里画一个选区/引用框；时间：2026-11-01；作者：lq。 */
+  const rangeBox = (target: CellRange, leftBase: number, topBase: number, tone: 'selection' | 'reference') => {
+    const left = (colOffsets[target.c1] ?? 0) - leftBase;
+    const top = (rowOffsets[target.r1] ?? 0) - topBase;
+    const width = (colOffsets[target.c2 + 1] ?? 0) - (colOffsets[target.c1] ?? 0);
+    const height = (rowOffsets[target.r2 + 1] ?? 0) - (rowOffsets[target.r1] ?? 0);
+    if (width <= 0 || height <= 0) return null;
+    return (
+      <div
+        // 功能：给选区框打标记，便于诊断脚本核对冻结窗格里是否都画出了选中框；时间：2026-11-01；作者：lq。
+        data-range-box={tone}
+        style={{
+          position: 'absolute',
+          left,
+          top,
+          width,
+          height,
+          boxSizing: 'border-box',
+          border: tone === 'selection' ? '2px solid var(--mo-accent)' : '2px dashed #3478F6',
+          background:
+            tone === 'selection'
+              ? 'color-mix(in srgb, var(--mo-accent) 8%, transparent)'
+              : 'rgba(52,120,246,0.08)',
+          pointerEvents: 'none',
+          zIndex: 5,
+        }}
+      />
+    );
+  };
+
+  /** 功能：把选区裁剪到某个窗格范围内，冻结区域同样显示选中框；时间：2026-11-01；作者：lq。 */
+  const clipRange = (target: CellRange, rowFrom: number, rowTo: number, colFrom: number, colTo: number): CellRange | null => {
+    const clipped = {
+      r1: Math.max(target.r1, rowFrom),
+      r2: Math.min(target.r2, rowTo),
+      c1: Math.max(target.c1, colFrom),
+      c2: Math.min(target.c2, colTo),
+    };
+    return clipped.r1 > clipped.r2 || clipped.c1 > clipped.c2 ? null : clipped;
+  };
 
   return (
     <div
@@ -874,9 +1123,10 @@ export function SheetGrid(props: SheetGridProps) {
           }}
         />
         <div className="relative flex-1 overflow-hidden">
-          <div style={{ position: 'absolute', left: 0, top: 0, width: totalWidth, height: COL_HEADER_HEIGHT, transform: `translateX(${-scroll.left}px)` }}>
-            {visibleCols.map((col) => {
-              const left = colOffsets[col] ?? 0;
+          {/* 功能：冻结列的表头固定在左侧，不再随水平滚动一起移出；时间：2026-11-01；作者：lq。 */}
+          <div style={{ position: 'absolute', left: 0, top: 0, width: totalWidth, height: COL_HEADER_HEIGHT }}>
+            {[...visibleCols.filter((col) => col >= frozenCols), ...Array.from({ length: frozenCols }, (_, index) => index)].map((col) => {
+              const left = (colOffsets[col] ?? 0) - (col < frozenCols ? 0 : scroll.left);
               const width = (colOffsets[col + 1] ?? left) - left;
               if (width <= 0) return null;
               const selected = col >= range.c1 && col <= range.c2;
@@ -942,9 +1192,10 @@ export function SheetGrid(props: SheetGridProps) {
 
       <div className="flex min-h-0 flex-1">
         <div className="relative shrink-0 overflow-hidden" style={{ width: ROW_HEADER_WIDTH }}>
-          <div style={{ position: 'absolute', left: 0, top: 0, width: ROW_HEADER_WIDTH, height: totalHeight, transform: `translateY(${-scroll.top}px)` }}>
-            {visibleRows.map((row) => {
-              const top = rowOffsets[row] ?? 0;
+          {/* 功能：冻结行的行号固定在顶部，避免滚动后冻结区左侧出现空白条；时间：2026-11-01；作者：lq。 */}
+          <div style={{ position: 'absolute', left: 0, top: 0, width: ROW_HEADER_WIDTH, height: totalHeight }}>
+            {[...visibleRows.filter((row) => row >= frozenRows), ...Array.from({ length: frozenRows }, (_, index) => index)].map((row) => {
+              const top = (rowOffsets[row] ?? 0) - (row < frozenRows ? 0 : scroll.top);
               const height = (rowOffsets[row + 1] ?? top) - top;
               if (height <= 0) return null;
               const selected = row >= range.r1 && row <= range.r2;
@@ -1039,6 +1290,23 @@ export function SheetGrid(props: SheetGridProps) {
               {referenceRange ? <div data-formula-reference={referenceAddress(referenceRange)} style={{ position: 'absolute', left: colOffsets[referenceRange.c1] ?? 0, top: rowOffsets[referenceRange.r1] ?? 0,
                 width: (colOffsets[referenceRange.c2 + 1] ?? 0) - (colOffsets[referenceRange.c1] ?? 0), height: (rowOffsets[referenceRange.r2 + 1] ?? 0) - (rowOffsets[referenceRange.r1] ?? 0),
                 border: '2px dashed #3478F6', background: 'rgba(52,120,246,0.08)', pointerEvents: 'none', zIndex: 14 }} /> : null}
+              {/* 功能：编辑公式时高亮当前引用，例如 =SUM(B4:B11) 直接框出求和范围；时间：2026-11-01；作者：lq。 */}
+              {editingReference ? (
+                <div
+                  data-editing-reference={referenceAddress(editingReference)}
+                  style={{
+                    position: 'absolute',
+                    left: colOffsets[editingReference.c1] ?? 0,
+                    top: rowOffsets[editingReference.r1] ?? 0,
+                    width: (colOffsets[editingReference.c2 + 1] ?? 0) - (colOffsets[editingReference.c1] ?? 0),
+                    height: (rowOffsets[editingReference.r2 + 1] ?? 0) - (rowOffsets[editingReference.r1] ?? 0),
+                    border: '2px dashed #3478F6',
+                    background: 'rgba(52,120,246,0.08)',
+                    pointerEvents: 'none',
+                    zIndex: 14,
+                  }}
+                />
+              ) : null}
               {/* 功能：图片与网格共用滚动坐标，拖动和缩放结束后保存；时间：2026-10-24；作者：lq。 */}
               <SheetImageLayer images={sheet.images ?? []} colOffsets={colOffsets} rowOffsets={rowOffsets} readonly={!!props.readonly} zoom={props.zoom ?? 1}
                 onChange={(id, patch) => props.onImageChange?.(id, patch)} onDelete={(id) => props.onImageDelete?.(id)} />
@@ -1122,13 +1390,11 @@ export function SheetGrid(props: SheetGridProps) {
                   event.preventDefault();
                   event.stopPropagation();
                   const source = selectionRange(selection);
-                  const rect = scrollRef.current?.getBoundingClientRect();
-                  fillRef.current = {
-                    source,
-                    startX: event.clientX - (rect?.left ?? 0),
-                    startY: event.clientY - (rect?.top ?? 0),
-                  };
+                  fillRef.current = { source, startX: event.clientX, startY: event.clientY };
+                  fillPreviewRef.current = source;
                   setFillPreview(source);
+                  // 功能：递增会话号触发一次监听注册，之后由全局鼠标事件驱动预览；时间：2026-11-01；作者：lq。
+                  setFillSession((value) => value + 1);
                 }}
               />
 
@@ -1139,6 +1405,9 @@ export function SheetGrid(props: SheetGridProps) {
                   ref={inputRef}
                   value={draft}
                   onValueChange={(value) => { setDraft(value); props.onDraftChange?.(value); }}
+                  onSelect={(event) => setEditCaret(event.currentTarget.selectionStart ?? 0)}
+                  onKeyUp={(event) => setEditCaret(event.currentTarget.selectionStart ?? 0)}
+                  onClick={(event) => setEditCaret(event.currentTarget.selectionStart ?? 0)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                       event.preventDefault();

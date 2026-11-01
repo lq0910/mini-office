@@ -56,6 +56,34 @@ function inchToPx(value: number): number {
   return Math.round(value * 96);
 }
 
+/**
+ * 功能：解析“打印标题”行区间（支持 `1:2`、`$1:$2`、`2`），并裁剪到打印范围内；
+ * 时间：2026-11-01；作者：lq。
+ *
+ * 说明：非法输入返回 null，由调用方回退到“首行当表头”，避免用户输入错误导致整表不打印。
+ */
+export function parsePrintTitleRows(
+  text: string | undefined,
+  target: CellRange,
+): { r1: number; r2: number } | null {
+  if (!text) return null;
+  const match = /^\s*\$?(\d{1,7})\s*(?::\s*\$?(\d{1,7})\s*)?$/.exec(text);
+  if (!match) return null;
+  const first = Number(match[1]) - 1;
+  const last = match[2] ? Number(match[2]) - 1 : first;
+  const clamped1 = Math.max(target.r1, Math.min(first, last));
+  const clamped2 = Math.min(target.r2, Math.max(first, last));
+  if (clamped2 < clamped1) return null;
+  return { r1: clamped1, r2: clamped2 };
+}
+
+/** 功能：统计一段连续行的模型高度，供打印标题占用高度预算；时间：2026-11-01；作者：lq。 */
+function rowsHeight(sheet: SheetModel, r1: number, r2: number): number {
+  let total = 0;
+  for (let row = r1; row <= r2; row += 1) total += sheet.rowHeights[row] ?? sheet.defaultRowHeight;
+  return total;
+}
+
 /** 功能：生成工作表打印页面，返回的每个元素就是一页纸；时间：2026-10-29；作者：lq。 */
 export function buildSheetPrintPages(
   workbook: WorkbookModel,
@@ -93,11 +121,12 @@ export function buildSheetPrintPages(
   const rawScale = fitCandidates.length > 0 ? Math.min(1, ...fitCandidates) : setup.scalePercent / 100;
   const scale = Math.max(0.1, Math.min(4, rawScale));
 
-  const headerRow = target.r2 > target.r1 ? target.r1 : null;
-  const bodyStart = headerRow !== null ? target.r1 + 1 : target.r1;
-  const headerHeight = headerRow !== null
-    ? Math.round((sheet.rowHeights[headerRow] ?? sheet.defaultRowHeight) * scale)
-    : 0;
+  // 功能：配置了“打印标题”就重复这些行；未配置时沿用“首行当表头”的历史行为，不改变已有文档的打印结果；时间：2026-11-01；作者：lq。
+  const explicitTitles = parsePrintTitleRows(setup.printTitleRows, target);
+  const titleRows = explicitTitles ?? (target.r2 > target.r1 ? { r1: target.r1, r2: target.r1 } : null);
+  const headerRow = titleRows ? titleRows.r1 : null;
+  const bodyStart = titleRows ? titleRows.r2 + 1 : target.r1;
+  const headerHeight = titleRows ? Math.round(rowsHeight(sheet, titleRows.r1, titleRows.r2) * scale) : 0;
 
   container.style.cssText = `position:fixed;left:-200000px;top:0;width:${pageWidth}px;background:#fff;z-index:-1;`;
   document.body.appendChild(container);
@@ -109,7 +138,7 @@ export function buildSheetPrintPages(
   const rowChunksByColumn = new Map<number, RowChunk[]>();
   for (const chunk of columnChunks) {
     rowChunksByColumn.set(chunk.start, measureRowChunks({
-      workbook, sheet, target, chunk, scale, headerRow, bodyStart,
+      workbook, sheet, target, chunk, scale, titleRows, bodyStart,
       columnWidths, printGridLines: setup.printGridLines, pageBodyHeight, container,
     }));
   }
@@ -122,7 +151,7 @@ export function buildSheetPrintPages(
         workbook, sheet, setup, target, chunk, rows, scale,
         pageWidth, pageHeight, contentWidth, contentHeight,
         margins: { top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft },
-        columnWidths, headerRow,
+        columnWidths, headerRow, titleRows,
         pageNumber: (setup.firstPageNumber ?? 1) + pageIndex,
         totalPages, headingWidth, headingHeight,
       }));
@@ -185,21 +214,21 @@ function measureRowChunks(params: {
   target: CellRange;
   chunk: ColumnChunk;
   scale: number;
-  headerRow: number | null;
+  titleRows: { r1: number; r2: number } | null;
   bodyStart: number;
   columnWidths: number[];
   printGridLines: boolean;
   pageBodyHeight: number;
   container: HTMLElement;
 }): RowChunk[] {
-  const { workbook, sheet, target, chunk, scale, headerRow, bodyStart, columnWidths, printGridLines, pageBodyHeight, container } = params;
+  const { workbook, sheet, target, chunk, scale, titleRows, bodyStart, columnWidths, printGridLines, pageBodyHeight, container } = params;
   if (bodyStart > target.r2) return [{ start: target.r1, end: target.r1 }];
 
   const probe = document.createElement('div');
   probe.style.cssText = `position:absolute;left:0;top:0;width:${chunk.width}px;visibility:hidden;`;
   const table = buildChunkTable({
     workbook, sheet, target, chunk, columnWidths, scale, printGridLines,
-    rowStart: bodyStart, rowEnd: target.r2, headerRow, repeatHeader: false, ignoreRowSpans: true,
+    rowStart: bodyStart, rowEnd: target.r2, titleRows, repeatTitles: false, ignoreRowSpans: true,
   });
   probe.appendChild(table);
   container.appendChild(probe);
@@ -244,6 +273,7 @@ function buildPage(params: {
   margins: { top: number; right: number; bottom: number; left: number };
   columnWidths: number[];
   headerRow: number | null;
+  titleRows: { r1: number; r2: number } | null;
   pageNumber: number;
   totalPages: number;
   headingWidth: number;
@@ -251,7 +281,7 @@ function buildPage(params: {
 }): HTMLElement {
   const {
     workbook, sheet, setup, target, chunk, rows, scale, pageWidth, pageHeight,
-    contentWidth, contentHeight, margins, columnWidths, headerRow, pageNumber, totalPages,
+    contentWidth, contentHeight, margins, columnWidths, headerRow, titleRows, pageNumber, totalPages,
     headingWidth, headingHeight,
   } = params;
 
@@ -277,7 +307,7 @@ function buildPage(params: {
   tableHost.appendChild(buildChunkTable({
     workbook, sheet, target, chunk, columnWidths, scale,
     printGridLines: setup.printGridLines,
-    rowStart: rows.start, rowEnd: rows.end, headerRow, repeatHeader: true, ignoreRowSpans: false,
+    rowStart: rows.start, rowEnd: rows.end, titleRows, repeatTitles: true, ignoreRowSpans: false,
   }));
   wrapper.appendChild(tableHost);
 
@@ -297,11 +327,11 @@ function buildChunkTable(params: {
   printGridLines: boolean;
   rowStart: number;
   rowEnd: number;
-  headerRow: number | null;
-  repeatHeader: boolean;
+  titleRows: { r1: number; r2: number } | null;
+  repeatTitles: boolean;
   ignoreRowSpans: boolean;
 }): HTMLTableElement {
-  const { workbook, sheet, target, chunk, columnWidths, scale, printGridLines, rowStart, rowEnd, headerRow, repeatHeader, ignoreRowSpans } = params;
+  const { workbook, sheet, target, chunk, columnWidths, scale, printGridLines, rowStart, rowEnd, titleRows, repeatTitles, ignoreRowSpans } = params;
   const table = document.createElement('table');
   table.style.cssText = `border-collapse:collapse;table-layout:fixed;width:${chunk.width}px;font-size:${workbook.defaultFontSizePt * scale}pt;`;
   const colgroup = document.createElement('colgroup');
@@ -312,15 +342,18 @@ function buildChunkTable(params: {
   }
   table.appendChild(colgroup);
 
-  // 功能：表头行不属于正文分页区间，但每页都要重复输出；时间：2026-10-29；作者：lq。
-  if (headerRow !== null && repeatHeader) {
+  // 功能：打印标题行不属于正文分页区间，但每页都要重复输出（支持 1:2 这类多行标题）；时间：2026-11-01；作者：lq。
+  if (titleRows && repeatTitles) {
     const thead = document.createElement('thead');
-    thead.appendChild(buildPrintRow({ workbook, sheet, target, chunk, row: headerRow, header: true, printGridLines, scale, rowStart: headerRow, rowEnd: headerRow, ignoreRowSpans }));
+    for (let row = titleRows.r1; row <= titleRows.r2; row += 1) {
+      thead.appendChild(buildPrintRow({ workbook, sheet, target, chunk, row, header: true, printGridLines, scale, rowStart: titleRows.r1, rowEnd: titleRows.r2, ignoreRowSpans }));
+    }
     table.appendChild(thead);
   }
   const tbody = document.createElement('tbody');
   for (let row = rowStart; row <= rowEnd; row += 1) {
-    if (headerRow !== null && row === headerRow) continue;
+    // 功能：标题行已由 thead 输出，正文里跳过，避免同一行打印两次；时间：2026-11-01；作者：lq。
+    if (titleRows && row >= titleRows.r1 && row <= titleRows.r2) continue;
     tbody.appendChild(buildPrintRow({ workbook, sheet, target, chunk, row, header: false, printGridLines, scale, rowStart, rowEnd, ignoreRowSpans }));
   }
   table.appendChild(tbody);

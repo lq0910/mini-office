@@ -50,6 +50,51 @@ export async function startWindowDrag(): Promise<void> {
   }
 }
 
+// 功能：Windows / Linux 桌面端改用自绘标题栏，需要自行提供最小化、最大化与关闭；时间：2026-11-01；作者：lq。
+export async function minimizeWindow(): Promise<void> {
+  if (!isTauriRuntime()) return;
+  try {
+    await getCurrentWindow().minimize();
+  } catch (error) {
+    console.warn('窗口最小化失败', error);
+  }
+}
+
+export async function closeWindow(): Promise<void> {
+  if (!isTauriRuntime()) return;
+  try {
+    await getCurrentWindow().close();
+  } catch (error) {
+    console.warn('窗口关闭失败', error);
+  }
+}
+
+export async function isWindowMaximized(): Promise<boolean> {
+  if (!isTauriRuntime()) return false;
+  try {
+    return await getCurrentWindow().isMaximized();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 功能：去掉系统标题栏，让文档标签直接并入窗口顶部一行（Windows 顶栏合并）；
+ * 时间：2026-11-01；作者：lq。
+ *
+ * 只在非 macOS 桌面端调用：macOS 使用 Overlay 标题栏保留红绿灯按钮。
+ */
+export async function applyCustomTitleBar(enabled: boolean): Promise<boolean> {
+  if (!isTauriRuntime()) return false;
+  try {
+    await getCurrentWindow().setDecorations(!enabled);
+    return true;
+  } catch (error) {
+    console.warn('切换自绘标题栏失败', error);
+    return false;
+  }
+}
+
 export async function setPresentationFullscreen(enabled: boolean): Promise<boolean> {
   if (isTauriRuntime()) {
     try {

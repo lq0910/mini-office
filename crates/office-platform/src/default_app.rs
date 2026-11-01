@@ -10,50 +10,127 @@ use std::path::Path;
 /// 关联目标：界面标签、扩展名与各平台标识。
 #[derive(Debug, Clone, Copy)]
 pub struct AssociationTarget {
+    /// 主扩展名，用于界面展示、默认值判断与 ProgID 命名。
     pub extension: &'static str,
+    /// 同族扩展名，登记时与主扩展名一并写入，避免 `.markdown` / `.htm` 被漏掉。
+    pub extra_extensions: &'static [&'static str],
     pub label: &'static str,
     pub mime: &'static str,
     /// macOS 统一类型标识，系统通过它判断默认打开程序。
     pub uti: &'static str,
     /// Windows 程序标识（ProgID），同时用于注册表登记与默认值判断。
     pub prog_id: &'static str,
+    /// 是否参与“设为默认应用”：HTML 只登记到“打开方式”，不抢占系统默认浏览器。
+    pub apply_default: bool,
 }
 
-pub const TARGETS: [AssociationTarget; 4] = [
+impl AssociationTarget {
+    /// 功能：主扩展名与同族扩展名的完整登记清单；时间：2026-11-01；作者：lq。
+    pub fn extensions(&self) -> impl Iterator<Item = &'static str> {
+        std::iter::once(self.extension).chain(self.extra_extensions.iter().copied())
+    }
+}
+
+pub const TARGETS: [AssociationTarget; 7] = [
     AssociationTarget {
         extension: "docx",
+        extra_extensions: &["docm", "dotx"],
         label: "Word 文档",
         mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         uti: "org.openxmlformats.wordprocessingml.document",
         prog_id: "MiniOffice.docx",
+        apply_default: true,
     },
     AssociationTarget {
         extension: "xlsx",
+        extra_extensions: &["xlsm", "xltx"],
         label: "Excel 工作簿",
         mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         uti: "org.openxmlformats.spreadsheetml.sheet",
         prog_id: "MiniOffice.xlsx",
+        apply_default: true,
     },
     AssociationTarget {
         extension: "pptx",
+        extra_extensions: &["pptm", "potx"],
         label: "PowerPoint 演示文稿",
         mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         uti: "org.openxmlformats.presentationml.presentation",
         prog_id: "MiniOffice.pptx",
+        apply_default: true,
     },
     AssociationTarget {
         extension: "csv",
+        extra_extensions: &[],
         label: "CSV 文本",
         mime: "text/csv",
         uti: "public.comma-separated-values-text",
         prog_id: "MiniOffice.csv",
+        apply_default: true,
+    },
+    // 功能：登记 PDF 关联，右键“打开方式”可直接用本应用查看；时间：2026-11-01；作者：lq。
+    AssociationTarget {
+        extension: "pdf",
+        extra_extensions: &[],
+        label: "PDF 文档",
+        mime: "application/pdf",
+        uti: "com.adobe.pdf",
+        prog_id: "MiniOffice.pdf",
+        apply_default: true,
+    },
+    // 功能：登记 Markdown 关联，覆盖 .md 与 .markdown 两种写法；时间：2026-11-01；作者：lq。
+    AssociationTarget {
+        extension: "md",
+        extra_extensions: &["markdown"],
+        label: "Markdown 文本",
+        mime: "text/markdown",
+        uti: "net.daringfireball.markdown",
+        prog_id: "MiniOffice.md",
+        apply_default: true,
+    },
+    // 功能：登记 HTML 关联，覆盖 .html 与 .htm 两种写法；时间：2026-11-01；作者：lq。
+    AssociationTarget {
+        extension: "html",
+        extra_extensions: &["htm"],
+        label: "HTML 网页",
+        mime: "text/html",
+        uti: "public.html",
+        prog_id: "MiniOffice.html",
+        // 功能：HTML 不参与默认应用申请，避免抢占系统默认浏览器；时间：2026-11-01；作者：lq。
+        apply_default: false,
     },
 ];
 
 /// 功能：可直接通过系统关联打开的全部扩展名，冷启动参数与拖拽校验共用；时间：2026-10-29；作者：lq。
-pub const OPENABLE_EXTENSIONS: [&str; 13] = [
+pub const OPENABLE_EXTENSIONS: [&str; 18] = [
     "docx", "docm", "dotx", "xlsx", "xlsm", "xltx", "pptx", "pptm", "potx", "csv", "doc", "xls", "ppt",
+    // 功能：PDF / Markdown / HTML 也走同一套“打开方式”与命令行打开路径；时间：2026-11-01；作者：lq。
+    "pdf", "md", "markdown", "html", "htm",
 ];
+
+/// 功能：把已登记类型拼成面向用户的扩展名清单，避免提示文案与 TARGETS 脱节；时间：2026-11-01；作者：lq。
+pub fn supported_extension_list() -> String {
+    TARGETS
+        .iter()
+        .map(|target| target.extension.to_ascii_uppercase())
+        .collect::<Vec<_>>()
+        .join(" / ")
+}
+
+/// 功能：仅列出参与“设为默认应用”的类型，与 status 面板条目保持一致；时间：2026-11-01；作者：lq。
+pub fn default_extension_list() -> String {
+    TARGETS
+        .iter()
+        .filter(|target| target.apply_default)
+        .map(|target| target.extension.to_ascii_uppercase())
+        .collect::<Vec<_>>()
+        .join(" / ")
+}
+
+/// 功能：参与默认应用申请的类型清单，status 与申请流程共用；时间：2026-11-01；作者：lq。
+pub fn default_targets() -> impl Iterator<Item = &'static AssociationTarget> {
+    TARGETS.iter().filter(|target| target.apply_default)
+}
 
 pub fn is_openable_extension(extension: &str) -> bool {
     let normalized = extension.trim_start_matches('.').to_ascii_lowercase();
@@ -171,8 +248,8 @@ fn platform_detail(app_name: &str) -> String {
 
 /// 功能：当前系统上本应用是否为各类型的默认打开程序；时间：2026-10-29；作者：lq。
 pub fn status(app_name: &str, bundle_id: &str) -> DefaultAppStatus {
-    let entries: Vec<AssociationStatus> = TARGETS
-        .iter()
+    // 功能：面板只展示参与默认应用申请的类型，HTML 仅登记“打开方式”不在此列；时间：2026-11-01；作者：lq。
+    let entries: Vec<AssociationStatus> = default_targets()
         .map(|target| AssociationStatus {
             extension: target.extension.to_string(),
             label: target.label.to_string(),
@@ -198,7 +275,10 @@ pub fn register(app_name: &str) -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
         windows::register(app_name)?;
-        Ok("已在当前用户范围登记 DOCX / XLSX / PPTX / CSV 关联，右键“打开方式”会列出 Mini Office。".to_string())
+        Ok(format!(
+            "已在当前用户范围登记 {} 关联，右键“打开方式”会列出 Mini Office。",
+            supported_extension_list()
+        ))
     }
     #[cfg(target_os = "macos")]
     {
@@ -230,7 +310,10 @@ pub fn request_default(app_name: &str, bundle_id: &str) -> DefaultAppOutcome {
             Ok(()) => DefaultAppOutcome {
                 outcome: "settings".to_string(),
                 message: if notes.is_empty() {
-                    "已打开 Windows 默认应用设置，请为 DOCX / XLSX / PPTX / CSV 选择 Mini Office。".to_string()
+                    format!(
+                        "已打开 Windows 默认应用设置，请为 {} 选择 Mini Office。",
+                        default_extension_list()
+                    )
                 } else {
                     format!("已打开 Windows 默认应用设置；{}", notes.join("；"))
                 },
@@ -253,8 +336,9 @@ pub fn request_default(app_name: &str, bundle_id: &str) -> DefaultAppOutcome {
                 failures.push(format!("刷新应用登记：{error}"));
             }
         }
-        for target in TARGETS {
-            if let Err(error) = set_default_handler(&target, app_name, bundle_id) {
+        // 功能：只申请参与默认应用的类型，HTML 仅登记“打开方式”；时间：2026-11-01；作者：lq。
+        for target in default_targets() {
+            if let Err(error) = set_default_handler(target, app_name, bundle_id) {
                 failures.push(format!("{}：{error}", target.extension));
             }
         }
@@ -262,7 +346,10 @@ pub fn request_default(app_name: &str, bundle_id: &str) -> DefaultAppOutcome {
         if refreshed.all_default {
             DefaultAppOutcome {
                 outcome: "applied".to_string(),
-                message: format!("已将 {app_name} 设为 DOCX / XLSX / PPTX / CSV 的默认打开方式。"),
+                message: format!(
+                    "已将 {app_name} 设为 {} 的默认打开方式。",
+                    default_extension_list()
+                ),
                 status: refreshed,
             }
         } else if failures.is_empty() {
@@ -570,16 +657,21 @@ mod windows {
                     failures.push(error);
                 }
             }
-            // 登记到 OpenWithProgids，右键“打开方式”立即出现本应用。
-            let open_with = format!("HKCU\\Software\\Classes\\.{}\\OpenWithProgids", target.extension);
-            if let Err(error) = write_value(&open_with, Some(target.prog_id), "", Some("REG_NONE")) {
-                failures.push(error);
-            }
-            // 登记到能力表，系统设置页据此列出可设默认的类型。
+            // 登记到 OpenWithProgids 与能力表，右键“打开方式”立即出现本应用，系统设置页也会列出该类型。
+            // 同族扩展名（.docm / .markdown / .htm 等）共用同一个 ProgID，一并写入。
             let capabilities = format!("HKCU\\Software\\{CAPABILITY_KEY}\\Capabilities\\FileAssociations");
-            let value_name = format!(".{}", target.extension);
-            if let Err(error) = write_value(&capabilities, Some(&value_name), target.prog_id, None) {
-                failures.push(error);
+            for extension in target.extensions() {
+                // 功能：仅参与默认应用的类型写入能力表，HTML 只登记“打开方式”；时间：2026-11-01；作者：lq。
+                if target.apply_default {
+                    let value_name = format!(".{extension}");
+                    if let Err(error) = write_value(&capabilities, Some(&value_name), target.prog_id, None) {
+                        failures.push(error);
+                    }
+                }
+                let open_with = format!("HKCU\\Software\\Classes\\.{extension}\\OpenWithProgids");
+                if let Err(error) = write_value(&open_with, Some(target.prog_id), "", Some("REG_NONE")) {
+                    failures.push(error);
+                }
             }
         }
 
@@ -753,9 +845,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn targets_cover_four_office_types() {
+    fn targets_cover_office_types_and_readonly_formats() {
         let extensions: Vec<&str> = TARGETS.iter().map(|target| target.extension).collect();
-        assert_eq!(extensions, vec!["docx", "xlsx", "pptx", "csv"]);
+        assert_eq!(
+            extensions,
+            vec!["docx", "xlsx", "pptx", "csv", "pdf", "md", "html"]
+        );
         for target in TARGETS {
             assert!(target.mime.contains('/'));
             assert!(!target.uti.is_empty());
@@ -764,11 +859,36 @@ mod tests {
     }
 
     #[test]
+    fn target_extensions_include_family_variants() {
+        // 功能：同族扩展名（含宏、模板、.markdown/.htm）必须一并登记，否则右键“打开方式”缺项；时间：2026-11-01；作者：lq。
+        let markdown = TARGETS.iter().find(|target| target.extension == "md").expect("缺少 md 关联");
+        assert_eq!(markdown.extensions().collect::<Vec<_>>(), vec!["md", "markdown"]);
+        let html = TARGETS.iter().find(|target| target.extension == "html").expect("缺少 html 关联");
+        assert_eq!(html.extensions().collect::<Vec<_>>(), vec!["html", "htm"]);
+        let word = TARGETS.iter().find(|target| target.extension == "docx").expect("缺少 docx 关联");
+        assert_eq!(word.extensions().collect::<Vec<_>>(), vec!["docx", "docm", "dotx"]);
+        // 每个登记扩展名都必须能被冷启动参数识别，避免“能关联却打不开”。
+        for target in TARGETS {
+            for extension in target.extensions() {
+                assert!(is_openable_extension(extension), "{extension} 未加入可打开清单");
+            }
+        }
+        assert_eq!(supported_extension_list(), "DOCX / XLSX / PPTX / CSV / PDF / MD / HTML");
+        // 功能：HTML 只登记“打开方式”，不参与默认应用申请；时间：2026-11-01；作者：lq。
+        assert_eq!(default_extension_list(), "DOCX / XLSX / PPTX / CSV / PDF / MD");
+        assert!(!default_targets().any(|target| target.extension == "html"));
+    }
+
+    #[test]
     fn openable_extension_matches_case_and_dot() {
         assert!(is_openable_extension("DOCX"));
         assert!(is_openable_extension(".xlsx"));
-        assert!(!is_openable_extension("pdf"));
+        // 功能：PDF 等只读格式也要能通过“打开方式”进入应用；时间：2026-11-01；作者：lq。
+        assert!(is_openable_extension("pdf"));
+        assert!(is_openable_extension(".PDF"));
+        assert!(is_openable_extension("md"));
         assert!(!is_openable_extension(""));
+        assert!(!is_openable_extension("exe"));
     }
 
     #[test]
@@ -815,7 +935,8 @@ mod tests {
     #[test]
     fn status_lists_every_target() {
         let report = status("Mini Office", "com.minioffice.desktop");
-        assert_eq!(report.entries.len(), TARGETS.len());
+        assert_eq!(report.entries.len(), default_targets().count());
+        assert!(report.entries.iter().all(|entry| entry.extension != "html"));
         assert_eq!(report.default_count, report.entries.iter().filter(|entry| entry.is_default).count());
         assert!(!report.app_name.is_empty());
     }

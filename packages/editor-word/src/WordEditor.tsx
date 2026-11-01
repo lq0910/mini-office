@@ -86,7 +86,7 @@ import { useMailMergeController } from './mail-merge-controller';
 // 功能：接入表格选区与网格编辑工具；时间：2026-10-19；作者：lq。
 import { editTable, findTable, intersects, tableSelectionRect, type TableAction, type TableSelection } from './table-editing';
 import { useWorkspaceStore, type WordSession } from '@mini-office/document-model';
-import { clearPrintRoots, printPages, renderPrintPreview, type PrintPreviewHandle } from '@mini-office/platform-adapter';
+import { attachPreviewMargins, clearPrintRoots, printPages, renderPrintPreview, type PrintPreviewFit, type PrintPreviewHandle } from '@mini-office/platform-adapter';
 import type {
   DocBlock,
   DocImage,
@@ -1027,7 +1027,25 @@ export function WordEditor({ session }: { session: WordSession }) {
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const [printPreviewCount, setPrintPreviewCount] = useState(0);
   const [printPreviewPage, setPrintPreviewPage] = useState(0);
-  const [previewScaleMode, setPreviewScaleMode] = useState<'fit' | 'actual'>('fit');
+  const [previewScaleMode, setPreviewScaleMode] = useState<PrintPreviewFit>('page');
+  // 功能：预览内直接拖动页边距，避免“预览发现边距不合适还要退出改设置”；时间：2026-11-01；作者：lq。
+  const [previewMargins, setPreviewMargins] = useState(true);
+  // 功能：预览 effect 早于 dragPageMargin 声明，用 ref 转接避免依赖顺序问题；时间：2026-11-01；作者：lq。
+  const dragPageMarginRef = useRef<(edge: 'left' | 'right' | 'top' | 'bottom', valuePx: number) => void>(() => {});
+  // 功能：页边距参考线在改动页面设置后短暂显示，用户能直观看到正文边界；时间：2026-11-01；作者：lq。
+  const [marginGuides, setMarginGuides] = useState(false);
+  const marginGuideTimer = useRef<number | null>(null);
+  const flashMarginGuides = useCallback(() => {
+    setMarginGuides(true);
+    if (marginGuideTimer.current !== null) window.clearTimeout(marginGuideTimer.current);
+    marginGuideTimer.current = window.setTimeout(() => {
+      marginGuideTimer.current = null;
+      setMarginGuides(false);
+    }, 2600);
+  }, []);
+  useEffect(() => () => {
+    if (marginGuideTimer.current !== null) window.clearTimeout(marginGuideTimer.current);
+  }, []);
   const [zoom, setZoom] = useState(() => session.view.zoom ?? 1);  const [currentPage, setCurrentPage] = useState(1);
   // 状态栏、快捷键与编辑区共用视图状态；缩放不触发文档修改。
   useEffect(() => {
@@ -1441,8 +1459,23 @@ export function WordEditor({ session }: { session: WordSession }) {
       pageSizes: sizes,
       widthPx: doc.page.widthPx,
       heightPx: doc.page.heightPx,
-      scale: previewScaleMode === 'actual' ? 1 : undefined,
+      fit: previewScaleMode,
+      gutter: 16,
       singlePage: true,
+      // 功能：预览页上叠加可拖动的页边距线，松手后按新边距重新分页；时间：2026-11-01；作者：lq。
+      overlay: previewMargins
+        ? (context) => attachPreviewMargins(context, {
+          margins: {
+            left: doc.page.margins.left,
+            right: doc.page.margins.right,
+            top: doc.page.margins.top,
+            bottom: doc.page.margins.bottom,
+          },
+          pageWidthPx: doc.page.widthPx,
+          pageHeightPx: doc.page.heightPx,
+          onChange: (edge, valuePx) => dragPageMarginRef.current(edge, valuePx),
+        })
+        : undefined,
     });
     handle.setPage(printPreviewPageRef.current);
     setPrintPreviewCount(pages.length);
@@ -1453,7 +1486,7 @@ export function WordEditor({ session }: { session: WordSession }) {
       printPreviewHandleRef.current = null;
       printPreviewCleanupRef.current = null;
     };
-  }, [printPreviewOpen, previewScaleMode, buildWordPrintPages, doc.page.widthPx, doc.page.heightPx, pages]);
+  }, [printPreviewOpen, previewScaleMode, previewMargins, buildWordPrintPages, doc.page, pages]);
 
   const confirmPrintPreview = useCallback(async () => {
     closePrintPreview();
@@ -1841,6 +1874,17 @@ export function WordEditor({ session }: { session: WordSession }) {
         );
         return;
       }
+      // 功能：补齐 Word 的对齐快捷键——Ctrl/Cmd+E 居中、L 左、R 右、J 两端对齐；时间：2026-11-01；作者：lq。
+      if (mod && !event.shiftKey && ['e', 'l', 'r', 'j'].includes(event.key.toLowerCase())) {
+        const alignment = ({ e: 'center', l: 'left', r: 'right', j: 'justify' } as const)[
+          event.key.toLowerCase() as 'e' | 'l' | 'r' | 'j'
+        ];
+        if (alignment) {
+          event.preventDefault();
+          paragraphFormatRef.current?.({ alignment });
+          return;
+        }
+      }
       // 功能：Ctrl/Cmd+Enter 插入分页符、Shift+Enter 插入段内换行，与 Word/WPS 键位保持一致；时间：2026-10-29；作者：lq。
       if (event.key === 'Enter' && mod) {
         event.preventDefault();
@@ -2154,6 +2198,12 @@ export function WordEditor({ session }: { session: WordSession }) {
     },
     [commit, latestDoc, notify, readonly, selectedParagraphIds],
   );
+
+  // 功能：把段落格式入口挂到 ref 上，供更早声明的键盘处理器调用，避免依赖顺序问题；时间：2026-11-01；作者：lq。
+  const paragraphFormatRef = useRef<((patch: Partial<ParagraphStyle>) => void) | null>(null);
+  useEffect(() => {
+    paragraphFormatRef.current = applyParagraphFormat;
+  }, [applyParagraphFormat]);
 
   /**
    * 功能：标尺拖动缩进——只作用于当前段落，并用稳定的 key 把整次拖动合并成一条撤销记录；
@@ -2494,11 +2544,28 @@ export function WordEditor({ session }: { session: WordSession }) {
     (page: DocModel['page']) => {
       const current = latestDoc();
       commit({ ...current, page }, { reflow: true });
+      // 功能：改动纸张或页边距后短暂显示正文边界参考线，方便核对边距；时间：2026-11-01；作者：lq。
+      flashMarginGuides();
     },
     [commit, latestDoc],
   );
-  const updateImage = useCallback((imageId: string, patch: Partial<DocImage>) => {
-    if (readonly || !imageId) return;
+  // 功能：拖动页面边缘直接调整页边距，整次拖动按边缘合并为一条撤销记录；时间：2026-11-01；作者：lq。
+  const dragPageMargin = useCallback(
+    (edge: 'left' | 'right' | 'top' | 'bottom', valuePx: number) => {
+      if (readonly) return;
+      const current = latestDoc();
+      const margins = { ...current.page.margins, [edge]: Math.max(0, Math.round(valuePx)) };
+      commit({ ...current, page: { ...current.page, margins } }, { reflow: true, key: `page-margin:${edge}` });
+      flashMarginGuides();
+    },
+    [commit, flashMarginGuides, latestDoc, readonly],
+  );
+
+  useEffect(() => {
+    dragPageMarginRef.current = dragPageMargin;
+  }, [dragPageMargin]);
+
+  const updateImage = useCallback((imageId: string, patch: Partial<DocImage>) => {    if (readonly || !imageId) return;
     const current = latestDoc();
     commit({ ...current, blocks: updateImageInBlocks(current.blocks, imageId, patch) }, { reflow: true, key: `image:${imageId}` });
   }, [commit, latestDoc, readonly]);
@@ -3229,6 +3296,8 @@ export function WordEditor({ session }: { session: WordSession }) {
                 handlers={paragraphHandlers}
                 tocEntries={tocEntries}
                 showFormattingMarks={showFormattingMarks}
+                showMarginGuides={marginGuides && !exporting}
+                onChangeMargin={readonly ? undefined : dragPageMargin}
                 onEditHeaderFooter={setHeaderFooterRegion}
                 onTocEntryClick={handleTocEntryClick}
               />
@@ -3388,7 +3457,8 @@ export function WordEditor({ session }: { session: WordSession }) {
         onClose={closePrintPreview}
         title="打印预览"
         description={`预览全部分页（共 ${printPreviewCount} 页），确认后调用系统打印。`}
-        width="xl"
+        width="print"
+        bodyClassName="px-3 pb-3 sm:px-4 sm:pb-4"
         footer={
           <>
             <span className="mr-auto text-[11px] text-[var(--mo-text-muted)]">共 {printPreviewCount} 页</span>
@@ -3400,9 +3470,10 @@ export function WordEditor({ session }: { session: WordSession }) {
         }
       >
         {/* 功能：左预览右设置的两栏布局，一页一屏加页码器，参照 Office/GenOffice 打印窗口；时间：2026-11-01；作者：lq。 */}
-        <div className="grid grid-cols-[1fr_236px] gap-4 text-[12px]">
+        <div className="grid grid-cols-[minmax(0,1fr)_212px] gap-3 text-[12px]">
           <div className="flex min-w-0 flex-col overflow-hidden rounded-md border border-[var(--mo-line)] bg-[var(--mo-surface-2)]">
-            <div ref={printPreviewRef} className="h-[430px] w-full overflow-auto" aria-label="文档打印预览" />
+            {/* 功能：预览区随窗口高度扩展，避免小弹窗里看不清版式细节；时间：2026-11-01；作者：lq。 */}
+            <div ref={printPreviewRef} className="h-[calc(100dvh-230px)] min-h-[420px] w-full overflow-auto" aria-label="文档打印预览" />
             <div className="flex items-center justify-center gap-1 border-t border-[var(--mo-line)] bg-[var(--mo-surface)] py-1.5">
               <button
                 type="button"
@@ -3474,17 +3545,24 @@ export function WordEditor({ session }: { session: WordSession }) {
               <div className="text-[11px] text-[var(--mo-text-muted)]">预览比例</div>
               <SegmentedControl
                 value={previewScaleMode}
-                onChange={setPreviewScaleMode}
+                onChange={(value) => setPreviewScaleMode(value as PrintPreviewFit)}
                 options={[
-                  { value: 'fit', label: '适应页宽' },
-                  { value: 'actual', label: '实际大小' },
+                  { value: 'page', label: '整页' },
+                  { value: 'width', label: '页宽' },
+                  { value: 'actual', label: '100%' },
                 ]}
+                className="w-full"
               />
             </div>
+            {/* 功能：预览内直接拖动页边距，边距不合适时无需退出预览；时间：2026-11-01；作者：lq。 */}
+            <label className="flex h-8 items-center justify-between rounded-md px-1 text-[12px] hover:bg-[var(--mo-surface-2)]">
+              <span>显示页边距（可拖动）</span>
+              <Switch checked={previewMargins} onChange={setPreviewMargins} label="显示页边距" />
+            </label>
             <p className="leading-5 text-[var(--mo-text-muted)]">
               {mixedOrientation
                 ? '每页按所属节的纸张输出，页码标签会标出该页方向。'
-                : '分页位置与“导出 PDF”、系统打印完全一致。纸张与页边距可在右侧属性面板中调整。'}
+                : '分页位置与“导出 PDF”、系统打印完全一致。拖动预览中的虚线即可调整页边距。'}
             </p>
           </div>
         </div>
@@ -3577,6 +3655,8 @@ function WordPageView({
   onEditHeaderFooter,
   onTocEntryClick,
   showFormattingMarks,
+  showMarginGuides,
+  onChangeMargin,
 }: {
   page: PageSlice;
   index: number;
@@ -3592,6 +3672,10 @@ function WordPageView({
   /** 功能：点击目录条目跳转到对应标题；时间：2026-10-30；作者：lq。 */
   onTocEntryClick: (paragraphId: string) => void;
   showFormattingMarks?: boolean;
+  /** 功能：调整页边距时在页面上显示正文边界参考线；时间：2026-11-01；作者：lq。 */
+  showMarginGuides?: boolean;
+  /** 功能：拖动页面边缘直接改页边距，值单位为未缩放页面像素；时间：2026-11-01；作者：lq。 */
+  onChangeMargin?: (edge: 'left' | 'right' | 'top' | 'bottom', valuePx: number) => void;
 }) {
   const pageNumber = (page.sectionPage ?? index) + (doc.page.pageNumberStart ?? 1);
   const fragments = page.fragments;
@@ -3602,6 +3686,47 @@ function WordPageView({
     .filter((block) => block.type !== 'pageBreak');
   const margins = doc.page.margins;
   const contentWidth = Math.max(120, doc.page.widthPx - margins.left - margins.right);
+  // 功能：拖动期间用本地预览值画参考线，松手才提交，避免每次移动都重新分页；时间：2026-11-01；作者：lq。
+  const [dragging, setDragging] = useState<'left' | 'right' | 'top' | 'bottom' | null>(null);
+  const [preview, setPreview] = useState<Partial<Record<'left' | 'right' | 'top' | 'bottom', number>>>({});
+  const liveMargins = { ...margins, ...preview };
+
+  const startMarginDrag = (edge: 'left' | 'right' | 'top' | 'bottom') => (event: React.PointerEvent<HTMLElement>) => {
+    if (readonly || !onChangeMargin || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const base = { ...margins };
+    let value = base[edge];
+    setDragging(edge);
+    const move = (pointer: PointerEvent) => {
+      const dx = (pointer.clientX - startX) / (zoom || 1);
+      const dy = (pointer.clientY - startY) / (zoom || 1);
+      if (edge === 'left') value = Math.min(Math.max(0, base.left + dx), doc.page.widthPx - base.right - 120);
+      else if (edge === 'right') value = Math.min(Math.max(0, base.right - dx), doc.page.widthPx - base.left - 120);
+      else if (edge === 'top') value = Math.min(Math.max(margins.header + 8, base.top + dy), doc.page.heightPx - base.bottom - 120);
+      else value = Math.min(Math.max(margins.footer + 8, base.bottom - dy), doc.page.heightPx - base.top - 120);
+      setPreview({ [edge]: Math.round(value) });
+    };
+    const finish = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      setDragging(null);
+      setPreview({});
+      onChangeMargin(edge, value);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  };
+
+  const guideActive = showMarginGuides || dragging !== null;
+  const guideLeft = liveMargins.left;
+  const guideTop = liveMargins.top;
+  const guideWidth = Math.max(0, doc.page.widthPx - liveMargins.left - liveMargins.right);
+  const guideHeight = Math.max(0, doc.page.heightPx - liveMargins.top - liveMargins.bottom);
   return (
     <div
       data-word-page-wrapper
@@ -3719,6 +3844,91 @@ function WordPageView({
               pageNumber={pageNumber}
               totalPages={total}
             />
+          </div>
+        ) : null}
+        {/* 功能：调整页边距时显示正文边界与四角标记，边距数值直接标注在页面上；时间：2026-11-01；作者：lq。 */}
+        {guideActive ? (
+          <div
+            data-margin-guides
+            className="mo-no-print"
+            style={{
+              position: 'absolute',
+              left: guideLeft,
+              top: guideTop,
+              width: guideWidth,
+              height: guideHeight,
+              pointerEvents: 'none',
+              zIndex: 8,
+            }}
+          >
+            <div style={{ position: 'absolute', inset: 0, border: '1px dashed rgba(52,120,246,0.5)' }} />
+            {[
+              { key: 'tl', left: -1, top: -1, borderTop: '2px solid #3478F6', borderLeft: '2px solid #3478F6' },
+              { key: 'tr', right: -1, top: -1, borderTop: '2px solid #3478F6', borderRight: '2px solid #3478F6' },
+              { key: 'bl', left: -1, bottom: -1, borderBottom: '2px solid #3478F6', borderLeft: '2px solid #3478F6' },
+              { key: 'br', right: -1, bottom: -1, borderBottom: '2px solid #3478F6', borderRight: '2px solid #3478F6' },
+            ].map((corner) => (
+              <span
+                key={corner.key}
+                style={{
+                  position: 'absolute',
+                  width: 14,
+                  height: 14,
+                  left: corner.left,
+                  right: corner.right,
+                  top: corner.top,
+                  bottom: corner.bottom,
+                  borderTop: corner.borderTop,
+                  borderLeft: corner.borderLeft,
+                  borderRight: corner.borderRight,
+                  borderBottom: corner.borderBottom,
+                }}
+              />
+            ))}
+            <span
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: -20,
+                padding: '1px 6px',
+                borderRadius: 3,
+                background: 'rgba(52,120,246,0.92)',
+                color: '#fff',
+                fontSize: 10,
+                lineHeight: '14px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              页边距 上 {Math.round(pxToMm(liveMargins.top))} · 下 {Math.round(pxToMm(liveMargins.bottom))} · 左{' '}
+              {Math.round(pxToMm(liveMargins.left))} · 右 {Math.round(pxToMm(liveMargins.right))} mm
+            </span>
+          </div>
+        ) : null}
+        {/* 功能：页面四边提供可拖动热区，直接拖动即改页边距（仅在首页显示，作用于整篇）；时间：2026-11-01；作者：lq。 */}
+        {!readonly && onChangeMargin && index === 0 ? (
+          <div className="mo-no-print" style={{ position: 'absolute', inset: 0, zIndex: 9, pointerEvents: 'none' }}>
+            {([
+              // 功能：热区全部落在页边距一侧，避免盖住正文首字符导致点击变成拖动；时间：2026-11-01；作者：lq。
+              { edge: 'left' as const, style: { left: liveMargins.left - 8, top: liveMargins.top, width: 8, height: guideHeight, cursor: 'ew-resize' } },
+              { edge: 'right' as const, style: { left: doc.page.widthPx - liveMargins.right, top: liveMargins.top, width: 8, height: guideHeight, cursor: 'ew-resize' } },
+              { edge: 'top' as const, style: { left: liveMargins.left, top: liveMargins.top - 8, width: guideWidth, height: 8, cursor: 'ns-resize' } },
+              { edge: 'bottom' as const, style: { left: liveMargins.left, top: doc.page.heightPx - liveMargins.bottom, width: guideWidth, height: 8, cursor: 'ns-resize' } },
+            ]).map(({ edge, style }) => (
+              <span
+                key={edge}
+                role="separator"
+                aria-label={`拖动调整${edge === 'left' ? '左' : edge === 'right' ? '右' : edge === 'top' ? '上' : '下'}页边距`}
+                title={`拖动调整${edge === 'left' ? '左' : edge === 'right' ? '右' : edge === 'top' ? '上' : '下'}页边距`}
+                onPointerDown={startMarginDrag(edge)}
+                style={{
+                  position: 'absolute',
+                  pointerEvents: 'auto',
+                  background: dragging === edge ? 'rgba(52,120,246,0.16)' : 'transparent',
+                  transition: 'background 120ms',
+                  ...style,
+                }}
+              />
+            ))}
           </div>
         ) : null}
       </div>

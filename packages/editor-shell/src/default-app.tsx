@@ -4,8 +4,10 @@ import {
   Check,
   CircleSlash,
   ExternalLink,
+  FileCode2,
   FileSpreadsheet,
   FileText,
+  FileType2,
   Presentation,
   Table2,
   type LucideIcon,
@@ -29,9 +31,22 @@ const EXTENSION_VISUALS: Record<string, { icon: LucideIcon; tint: string; soft: 
   xlsx: { icon: Table2, tint: '#217346', soft: '#E9F7EF' },
   pptx: { icon: Presentation, tint: '#C43E1C', soft: '#FCEFE9' },
   csv: { icon: FileSpreadsheet, tint: '#6B5BD6', soft: '#EFEDFC' },
+  // 功能：只读格式沿用各自品牌色，避免新类型落进灰色占位样式；时间：2026-11-01；作者：lq。
+  pdf: { icon: FileType2, tint: '#C0392B', soft: '#FBECEA' },
+  md: { icon: FileCode2, tint: '#2F6FEB', soft: '#ECF2FE' },
+  html: { icon: FileCode2, tint: '#D97706', soft: '#FDF3E3' },
 };
 
 const FALLBACK_VISUAL = { icon: FileText, tint: 'var(--mo-accent)', soft: 'var(--mo-accent-soft)' };
+
+/** 功能：同族扩展名提示，让用户知道 .markdown / .htm 等写法也一并关联；时间：2026-11-01；作者：lq。 */
+const EXTENSION_FAMILY: Record<string, string> = {
+  docx: 'docm、dotx',
+  xlsx: 'xlsm、xltx',
+  pptx: 'pptm、potx',
+  md: 'markdown',
+  html: 'htm',
+};
 
 export function hasDefaultAppPrompted(): boolean {
   try {
@@ -160,14 +175,15 @@ export function DefaultAppPanel({
         </p>
       ) : null}
 
-      <div className="space-y-1.5">
+      {/* 功能：类型增加到 6 项后压缩行高，保持单列避免窄弹窗内文字截断；时间：2026-11-01；作者：lq。 */}
+      <div className="space-y-1">
         {entries.map((entry) => {
           const visual = EXTENSION_VISUALS[entry.extension] ?? FALLBACK_VISUAL;
           const Icon = visual.icon;
           return (
             <div
               key={entry.extension}
-              className="flex items-center gap-2.5 rounded-lg border border-[var(--mo-line)] px-2.5 py-2"
+              className="flex items-center gap-2.5 rounded-lg border border-[var(--mo-line)] px-2.5 py-1.5"
             >
               <span
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
@@ -179,7 +195,10 @@ export function DefaultAppPanel({
                 <div className="truncate text-[12px] font-medium text-[var(--mo-text-primary)]">
                   {entry.label}
                 </div>
-                <div className="text-[10px] text-[var(--mo-text-muted)]">.{entry.extension} 文件</div>
+                <div className="truncate text-[10px] text-[var(--mo-text-muted)]">
+                  .{entry.extension} 文件
+                  {EXTENSION_FAMILY[entry.extension] ? `（含 ${EXTENSION_FAMILY[entry.extension]}）` : ''}
+                </div>
               </div>
               {entry.isDefault ? (
                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--mo-success-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--mo-success)]">
@@ -202,7 +221,7 @@ export function DefaultAppPanel({
 
       <p className="rounded-md bg-[var(--mo-surface-2)] px-3 py-2 text-[10px] leading-4 text-[var(--mo-text-muted)]">
         {allDefault
-          ? '当前已是 DOCX / XLSX / PPTX / CSV 的默认打开方式，无需重复设置。'
+          ? `当前已是 ${entries.map((entry) => entry.extension.toUpperCase()).join(' / ')} 的默认打开方式，无需重复设置。`
           : status?.detail ?? '正在读取系统默认应用状态…'}
       </p>
 
