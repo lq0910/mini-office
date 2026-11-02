@@ -168,14 +168,24 @@ jobs:
         with:
           targets: aarch64-pc-windows-msvc
 
-      # 功能：提前确认 ARM64 链接器存在，把环境缺失与编译错误区分开；时间：2026-11-02；作者：lq。
+      # 功能：定位 ARM64 链接器并写入 Cargo 配置，避免交叉编译时回落到 x64 链接器；时间：2026-11-02；作者：lq。
       - name: Verify ARM64 toolchain
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $linker = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\*\VC\Tools\MSVC\*\bin\Hostx64\arm64\link.exe" -ErrorAction SilentlyContinue
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $candidates = @()
+          if (Test-Path $vswhere) {
+            $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath
+            if ($vsPath) {
+              $candidates += Get-ChildItem "$vsPath\VC\Tools\MSVC\*\bin\Hostx64\arm64\link.exe" -ErrorAction SilentlyContinue
+            }
+          }
+          $candidates += Get-ChildItem "C:\Program Files*\Microsoft Visual Studio\2022\*\VC\Tools\MSVC\*\bin\Hostx64\arm64\link.exe" -ErrorAction SilentlyContinue
+          $linker = $candidates | Sort-Object FullName -Descending | Select-Object -First 1
           if (-not $linker) { throw "缺少 MSVC ARM64 链接器，请检查运行器镜像是否包含 VC.Tools.ARM64。" }
-          $linker | Select-Object -First 1 | ForEach-Object { Write-Host "ARM64 linker: $($_.FullName)" }
+          Write-Host "ARM64 linker: $($linker.FullName)"
+          Add-Content -Path $env:GITHUB_ENV -Value "CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER=$($linker.FullName)"
 
       # 功能：按锁文件安装依赖；时间：2026-11-02；作者：lq。
       - name: Install dependencies
