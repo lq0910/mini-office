@@ -1,4 +1,4 @@
-# 功能：手动构建 Windows x64 版本并自动准备标签及 Release 草稿。
+# 功能：手动构建 Windows x64 与 ARM64 版本并自动准备标签及 Release 草稿。
 # 时间：2026-10-23
 # 作者：lq
 name: Windows Release
@@ -11,6 +11,15 @@ on:
         required: false
         default: ""
         type: string
+      targets:
+        description: "构建范围：all 同时构建 x64 与 ARM64；已发版本补包时只选对应架构"
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - x64
+          - arm64
 
 permissions:
   contents: write
@@ -46,6 +55,8 @@ jobs:
 
   build-windows:
     needs: prepare-release
+    # 功能：仅在构建范围包含 x64 时执行，便于给已发布版本单独补 ARM64 包；时间：2026-11-02；作者：lq。
+    if: inputs.targets == 'all' || inputs.targets == 'x64'
     env:
       APP_VERSION: ${{ needs.prepare-release.outputs.version }}
       RELEASE_TAG: ${{ needs.prepare-release.outputs.tag }}
@@ -115,6 +126,115 @@ jobs:
           retention-days: 14
 
       # 功能：上传到现有版本，保留 macOS 下载文件；时间：2026-10-23；作者：lq。
+      - name: Upload to Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "$env:RELEASE_TAG" (Get-ChildItem release-assets -File).FullName
+
+  # 功能：在 x64 运行器上交叉编译 Windows ARM64 安装包，补齐 ARM 设备的原生安装选项；时间：2026-11-02；作者：lq。
+  build-windows-arm64:
+    needs: prepare-release
+    # 功能：仅在构建范围包含 ARM64 时执行，可与 x64 并行；时间：2026-11-02；作者：lq。
+    if: inputs.targets == 'all' || inputs.targets == 'arm64'
+    env:
+      APP_VERSION: ${{ needs.prepare-release.outputs.version }}
+      RELEASE_TAG: ${{ needs.prepare-release.outputs.tag }}
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      # 功能：使用准备阶段确定的不可变提交，避免构建期间分支更新；时间：2026-11-02；作者：lq。
+      - name: Checkout release source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare-release.outputs.sha }}
+
+      # 功能：安装项目指定的 pnpm；时间：2026-11-02；作者：lq。
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      # 功能：安装 Node.js 并缓存依赖；时间：2026-11-02；作者：lq。
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      # 功能：安装 ARM64 交叉编译目标，复用镜像自带的 MSVC ARM64 工具链；时间：2026-11-02；作者：lq。
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-pc-windows-msvc
+
+      # 功能：提前确认 ARM64 链接器存在，把环境缺失与编译错误区分开；时间：2026-11-02；作者：lq。
+      - name: Verify ARM64 toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $linker = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\*\VC\Tools\MSVC\*\bin\Hostx64\arm64\link.exe" -ErrorAction SilentlyContinue
+          if (-not $linker) { throw "缺少 MSVC ARM64 链接器，请检查运行器镜像是否包含 VC.Tools.ARM64。" }
+          $linker | Select-Object -First 1 | ForEach-Object { Write-Host "ARM64 linker: $($_.FullName)" }
+
+      # 功能：按锁文件安装依赖；时间：2026-11-02；作者：lq。
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 功能：构建 Windows ARM64 程序和 NSIS 安装包；时间：2026-11-02；作者：lq。
+      - name: Build Windows ARM64
+        run: pnpm tauri:build --target aarch64-pc-windows-msvc --bundles nsis
+
+      # 功能：整理安装包、运行包及校验清单，并校验可执行文件确为 ARM64；时间：2026-11-02；作者：lq。
+      - name: Prepare downloads
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $buildDir = "target/aarch64-pc-windows-msvc/release"
+          $exe = "$buildDir/mini-office-desktop.exe"
+          New-Item -ItemType Directory -Path release-assets -Force | Out-Null
+
+          # 功能：读取 PE 头 Machine 字段，0xAA64 表示 ARM64，避免误把 x64 产物发出去；时间：2026-11-02；作者：lq。
+          function Get-PeMachine([string]$Path) {
+            $stream = [System.IO.File]::OpenRead($Path)
+            try {
+              $reader = [System.IO.BinaryReader]::new($stream)
+              $stream.Position = 0x3C
+              $peOffset = $reader.ReadInt32()
+              $stream.Position = $peOffset + 4
+              return $reader.ReadUInt16()
+            } finally {
+              $stream.Dispose()
+            }
+          }
+
+          if (-not (Test-Path $exe)) { throw "未找到 ARM64 可执行文件：$exe" }
+          $machine = Get-PeMachine $exe
+          if ($machine -ne 0xAA64) { throw ("可执行文件架构不符：期望 ARM64(0xAA64)，实际 0x{0:X4}" -f $machine) }
+
+          $installers = @(Get-ChildItem "$buildDir/bundle/nsis/*-setup.exe")
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one NSIS installer."
+          }
+
+          Copy-Item $installers[0].FullName "release-assets/Mini-Office_${env:APP_VERSION}_windows-arm64-setup.exe"
+          Compress-Archive -Path $exe -DestinationPath "release-assets/Mini-Office_${env:APP_VERSION}_windows-arm64.zip"
+
+          Get-ChildItem release-assets -File | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)"
+          } | Set-Content "release-assets/SHA256SUMS-windows-arm64.txt" -Encoding ascii
+
+      # 功能：保留可下载产物，Release 上传失败时仍可获取；时间：2026-11-02；作者：lq。
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mini-Office_${{ env.APP_VERSION }}_windows-arm64
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 14
+
+      # 功能：上传到现有版本，与 x64 产物文件名不冲突；时间：2026-11-02；作者：lq。
       - name: Upload to Release
         shell: pwsh
         env:
