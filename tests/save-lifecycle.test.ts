@@ -33,6 +33,14 @@ function seed(id: string) {
 }
 
 describe('安全保存生命周期', () => {
+  // 功能：面板与内部刷新不能清除已有未保存正文的退出保护；时间：2026-11-03；作者：lq。
+  it('非用户刷新保留已有 dirty 状态', () => {
+    seed('keep-dirty');
+    useWorkspaceStore.getState().updateDocMeta('keep-dirty', { mailMergeState: '{}' });
+    expect(useWorkspaceStore.getState().sessions['keep-dirty'].dirty).toBe(true);
+    useWorkspaceStore.getState().updateData('keep-dirty', (data) => data, { dirty: false });
+    expect(useWorkspaceStore.getState().sessions['keep-dirty'].state).toBe('DIRTY');
+  });
   // 功能：快捷保存及另存为共享现有保存链路，不绕过路径选择策略；时间：2026-10-30；作者：lq。
   it.each([
     { id: 'quick-save-existing', newDocument: false, asNew: false, forcePicker: false },
@@ -55,6 +63,17 @@ describe('安全保存生命周期', () => {
     expect(useWorkspaceStore.getState().sessions[id].dirty).toBe(false);
   });
 
+  it('内部刷新不置脏，只有用户编辑才标记未保存', () => {
+    seed('internal-refresh');
+    useWorkspaceStore.setState((state) => ({ sessions: { ...state.sessions, 'internal-refresh': { ...state.sessions['internal-refresh'], dirty: false, state: 'EDIT_READY' } } }));
+    const blank = createBlankDoc();
+    useWorkspaceStore.getState().updateData('internal-refresh', createBlankDoc());
+    expect(useWorkspaceStore.getState().sessions['internal-refresh'].dirty).toBe(false);
+    expect(useWorkspaceStore.getState().sessions['internal-refresh'].state).toBe('EDIT_READY');
+    useWorkspaceStore.getState().updateData('internal-refresh', blank, { dirty: true });
+    expect(useWorkspaceStore.getState().sessions['internal-refresh'].dirty).toBe(true);
+  });
+
   it('写盘等待期间新增内容，写盘结束仍保持未保存', async () => {
     const platform = adapter();
     let finish!: (value: SaveOutcome) => void;
@@ -63,7 +82,7 @@ describe('安全保存生命周期', () => {
     seed('concurrent-edit');
     const saving = useWorkspaceStore.getState().saveSession('concurrent-edit');
     await vi.waitFor(() => expect(platform.saveBytes).toHaveBeenCalledOnce());
-    useWorkspaceStore.getState().updateData('concurrent-edit', createBlankDoc());
+    useWorkspaceStore.getState().updateData('concurrent-edit', createBlankDoc(), { dirty: true });
     expect(useWorkspaceStore.getState().sessions['concurrent-edit'].state).toBe('SAVING');
     expect(await useWorkspaceStore.getState().saveSession('concurrent-edit')).toBe(false);
     finish({ displayName: '合同.docx', path: '/tmp/concurrent-edit.docx', location: 'in-place' });

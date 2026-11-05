@@ -2,6 +2,8 @@ import type { DocImage, DocParagraph, DocRun, ParagraphStyle, RunStyle } from '@
 import { DOC_FONT_STACK, fontStackFor, isDarkInk, isLightShade, shadeColor } from '@mini-office/design-system';
 import { escapeHtml } from '@mini-office/shared';
 import type { TocEntry } from './toc';
+// 功能：段落行高使用各 run 实际字体度量，而非文档默认字体；时间：2026-11-05；作者：lq。
+import { fallbackFontFamily, paragraphLineMetrics } from './metrics';
 
 // 功能：颜色换算逻辑已抽到 design-system，与 Excel 共用同一套判定；这里原样转出，保持既有导入路径可用；时间：2026-10-31；作者：lq。
 export { isDarkInk, isLightShade, shadeColor };
@@ -98,9 +100,16 @@ function imageHtml(run: DocRun, context: RunRenderContext): string {
         : wrap === 'top-bottom'
           ? `position:relative;display:block;margin:${Math.max(distTop, 8)}px auto ${Math.max(distBottom, 8)}px;`
           : 'position:relative;display:inline-block;vertical-align:baseline;';
+  // 功能：内嵌图片效果外扩参与行盒占位，浮动图继续由锚定布局负责；时间：2026-11-04；作者：lq。
+  const effect = !anchor && wrap === 'inline' ? image.effectExtent : undefined;
+  const effectMargin = effect ? `margin:${effect.top}px ${effect.right}px ${effect.bottom}px ${effect.left}px;` : '';
+  // 功能：自动倍数图片行的额外间距随每张内嵌图参与行盒，换行后每行均生效，并与原有效果下外扩相加；时间：2026-11-05；作者：lq。
+  const autoLineMargin = !anchor && wrap === 'inline'
+    ? `margin-bottom:calc(${effect?.bottom ?? 0}px + var(--mo-inline-image-line-extra, 0px));` : '';
   // 功能：图片帧显式锁定为图片尺寸，避免帧被内部块级元素或样式丢失撑成大块；时间：2026-10-31；作者：lq。
-  const frameStyle = `line-height:0;box-sizing:content-box;width:${image.widthPx}px;height:${image.heightPx}px;${layout}`;
-  const imageStyle = `display:block;width:${image.widthPx}px;height:${image.heightPx}px;max-width:100%;object-fit:contain;`;
+  const frameStyle = `line-height:0;box-sizing:content-box;width:${image.widthPx}px;height:${image.heightPx}px;${layout}${effectMargin}${autoLineMargin}`;
+  // 功能：按文档声明的显示尺寸拉伸图片，避免非等比图片被 contain 留白，导致图案与尺寸手柄不一致；时间：2026-11-04；作者：lq。
+  const imageStyle = `display:block;width:${image.widthPx}px;height:${image.heightPx}px;max-width:100%;object-fit:fill;`;
   // 功能：为 Word 图片输出可直接拖动的八方向尺寸手柄；时间：2026-10-24；作者：lq。
   const handles = [
     ['nw', 'nwse-resize', 'left:-5px;top:-5px;'],
@@ -118,7 +127,8 @@ function imageHtml(run: DocRun, context: RunRenderContext): string {
 function runStyleCss(style: RunStyle): string {
   const css: string[] = [];
   if (style.fontFamily) {
-    css.push(`font-family:${fontStackFor(style.fontFamily).replace(/"/g, "'")}`);
+    // 功能：渲染时遵循文档字体表的备用名，保持主字体语义；时间：2026-11-05；作者：lq。
+    css.push(`font-family:${fontStackFor(style.fontFamily, fallbackFontFamily(style)).replace(/"/g, "'")}`);
   }
   if (style.fontSizePt) css.push(`font-size:${style.fontSizePt}pt`);
   if (style.bold) css.push('font-weight:700');
@@ -137,6 +147,11 @@ function runStyleCss(style: RunStyle): string {
   return css.join(';');
 }
 
+/** 功能：显式 Tab 与文字内原始 Tab 共用占位结构，确保前导线、编辑和制表位测量一致；时间：2026-11-03；作者：lq。 */
+function tabPlaceholderHtml(context: RunRenderContext): string {
+  return `<span data-tab="1" style="display:inline-block;width:0;height:0;line-height:0;vertical-align:baseline;user-select:none;pointer-events:none;">${context.showFormattingMarks ? '<span aria-hidden="true" style="color:#4b9cff;font-size:.72em;line-height:0;user-select:none;">→</span>' : ''}</span>`;
+}
+
 export function renderRunsHtml(runs: DocRun[], context: RunRenderContext = {}): string {
   const parts: string[] = [];
   for (const run of runs) {
@@ -151,7 +166,7 @@ export function renderRunsHtml(runs: DocRun[], context: RunRenderContext = {}): 
     if (run.tab) {
       // 功能：制表符渲染为占位块，宽度由布局后置处理按制表位实测设置，不再固定两个全角空格；时间：2026-10-30；作者：lq。
       // 功能：制表符占位块高度归零，避免 inline-block 的 1em 高度把固定行距的行盒撑高；时间：2026-10-31；作者：lq。
-      parts.push(`<span data-tab="1" style="display:inline-block;width:0;height:0;line-height:0;vertical-align:baseline;user-select:none;pointer-events:none;">${context.showFormattingMarks ? '<span aria-hidden="true" style="color:#4b9cff;font-size:.72em;line-height:0;user-select:none;">→</span>' : ''}</span>`);
+      parts.push(tabPlaceholderHtml(context));
       continue;
     }
     // 功能：字段显示为不可拆开的占位块，保留原字符样式；时间：2026-10-24；作者：lq。
@@ -168,7 +183,8 @@ export function renderRunsHtml(runs: DocRun[], context: RunRenderContext = {}): 
       text = String(context.totalPages);
     }
     if (!text) continue;
-    const escaped = escapeHtml(text).replace(/\n/g, '<br>');
+    // 功能：合成/导入文档的 w:t 可含原始 Tab，显示时接入相同布局通道，保留模型与源 XML；时间：2026-11-03；作者：lq。
+    const escaped = escapeHtml(text).replace(/\n/g, '<br>').replace(/\t/g, () => tabPlaceholderHtml(context));
     const css = runStyleCss(run.style);
     let html = css ? `<span${inkAttr(run.style)} style="${css}">${escaped}</span>` : escaped;
     if (run.style.verticalAlign === 'super') html = `<sup>${html}</sup>`;
@@ -216,11 +232,15 @@ export function renderParagraphHtml(
   return `${marker}${content || '<br>'}`;
 }
 
-export function paragraphWrapperStyle(paragraph: DocParagraph): React.CSSProperties {
+export function paragraphWrapperStyle(
+  paragraph: DocParagraph,
+  options: { dropSpaceBefore?: boolean } = {},
+): React.CSSProperties {
   const style = paragraph.style;
   const borderCss = (border: NonNullable<ParagraphStyle['borders']>['top']) => border && border.style !== 'none' ? `${Math.max(0.5, border.widthPx)}px ${border.style} ${border.color}` : undefined;
   return {
-    paddingTop: style.spaceBeforePx ?? 0,
+    // 功能：段前距在页首按 Word 规则丢弃，避免每个新页顶部多出一段空白；时间：2026-11-02；作者：lq。
+    paddingTop: options.dropSpaceBefore ? 0 : style.spaceBeforePx ?? 0,
     paddingBottom: style.spaceAfterPx ?? 0,
     marginLeft: style.indentLeftPx ?? 0,
     marginRight: style.indentRightPx ?? 0,
@@ -233,20 +253,40 @@ export function paragraphWrapperStyle(paragraph: DocParagraph): React.CSSPropert
   };
 }
 
-export function paragraphTextStyle(paragraph: DocParagraph, defaultFont: string, defaultFontSizePt: number): React.CSSProperties {
+export function paragraphTextStyle(
+  paragraph: DocParagraph,
+  defaultFont: string,
+  defaultFontSizePt: number,
+  gridLinePitchPx?: number,
+): React.CSSProperties {
   const style: ParagraphStyle = paragraph.style;
-  const exactLineHeight = style.lineHeightExactPx || style.lineHeightAtLeastPx;
-  const fontSizePx = (defaultFontSizePt * 96) / 72;
-  const lineHeightMultiplier = typeof style.lineHeight === 'number' ? style.lineHeight : 1.5;
+  // 功能：snapToGrid=false 的段落不使用 docGrid 的 linePitch，回退到字体度量；时间：2026-11-03；作者：lq。
+  const effectiveGridPitch = style.snapToGrid === false ? undefined : gridLinePitchPx;
+  // 功能：继承字体与行盒使用同一实际 run，防止中文字体跨两格时被默认 Calibri 压成一格；时间：2026-11-05；作者：lq。
+  const metrics = paragraphLineMetrics(paragraph.runs, style, defaultFont, defaultFontSizePt, effectiveGridPitch);
+  const fontSizePt = metrics.sizePt;
+  const fontFamily = fontStackFor(metrics.family, metrics.alternateFamily) || DOC_FONT_STACK;
+  const computedLineHeight = metrics.heightPx;
+  // 功能：无网格的纯内嵌图片自动行距由图片撑高，倍数只增加字体行高的额外间距，避免 CSS 下伸部重复占位；时间：2026-11-05；作者：lq。
+  const imageOnlyAutoLine = !paragraph.list && !paragraph.toc && paragraph.runs.length > 0
+    && paragraph.runs.every((run) => run.image && (run.image.wrap ?? 'inline') === 'inline'
+      && !run.image.anchor && !run.text && !run.tab && !run.lineBreak && !run.field && !run.mergeField)
+    && style.lineHeightExactPx === undefined && style.lineHeightAtLeastPx === undefined
+    && !effectiveGridPitch;
+  // 功能：保留自动倍数相对单倍增加的间距；固定值、最小值、网格和文字混排仍沿用完整文字行盒；时间：2026-11-05；作者：lq。
+  const imageLineExtra = imageOnlyAutoLine
+    ? Math.max(0, computedLineHeight - metrics.naturalHeightPx) : 0;
   return {
-    fontFamily: fontStackFor(defaultFont) || DOC_FONT_STACK,
-    fontSize: `${defaultFontSizePt}pt`,
-    // 功能：固定值与最小值行距都用 px 表达，CSS 无“至少”语义，取相同高度即可保证分页一致；时间：2026-10-29；作者：lq。
-    lineHeight: exactLineHeight ? `${exactLineHeight}px` : lineHeightMultiplier,
+    fontFamily,
+    fontSize: `${fontSizePt}pt`,
+    // 功能：固定值/最小值/倍数三种行距都落到同一个像素高度，保证测量与渲染一致；时间：2026-11-02；作者：lq。
+    lineHeight: imageOnlyAutoLine ? '0px' : `${computedLineHeight}px`,
+    // 功能：使用继承变量把间距传入图片帧；普通段落显式归零，避免嵌套段落继承外层图片行的间距；时间：2026-11-05；作者：lq。
+    ...{ '--mo-inline-image-line-extra': `${imageLineExtra}px` },
     // 功能：为浮动图片（绝对定位）提供定位上下文；时间：2026-10-31；作者：lq。
     position: 'relative',
     // 功能：只含浮动图的段落没有行内内容会塌成 0 高，用一行最小高度保住 Word 的行盒；时间：2026-10-31；作者：lq。
-    minHeight: `${exactLineHeight ?? lineHeightMultiplier * fontSizePx}px`,
+    minHeight: `${computedLineHeight}px`,
     textIndent: style.firstLineIndentPx ? `${style.firstLineIndentPx}px` : undefined,
     whiteSpace: 'pre-wrap',
     overflowWrap: 'break-word',

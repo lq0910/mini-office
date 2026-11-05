@@ -35,6 +35,8 @@ import { collectTocHeadings, type TocEntry } from './toc';
 import { DEFAULT_TAB_STOP_PX } from './tab-stops';
 // 功能：保存时把文档用到的样式定义写入 styles.xml，Word/WPS 才能显示样式名与标题层级；时间：2026-10-29；作者：lq。
 import { collectUsedStyleDefinitions, resolveStyleRun } from './styles';
+// 功能：未改文件直接透传，其他保存保留未修改的原始正文片段；时间：2026-11-03；作者：lq。
+import { documentSignature, patchSourceDocument, styleSignature } from './source-preservation';
 
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
@@ -142,7 +144,7 @@ function runProperties(style: RunStyle): string {
 
 /**
  * 功能：按 ECMA-376 CT_PPrBase 的固定顺序输出段落属性，避免 Word 因元素顺序不符模式而拒绝打开；时间：2026-10-29；作者：lq。
- * 顺序：pStyle → keepNext → pageBreakBefore → numPr → pBdr → shd → spacing → ind → jc → outlineLvl。
+ * 顺序：pStyle → keepNext → pageBreakBefore → keepLines → widowControl → snapToGrid → numPr → pBdr → shd → spacing → ind → jc → outlineLvl。
  */
 function paragraphProperties(
   paragraph: DocParagraph,
@@ -153,7 +155,10 @@ function paragraphProperties(
   const parts: string[] = [];
   if (paragraph.styleId) parts.push(`<w:pStyle w:val="${escapeXml(paragraph.styleId)}"/>`);
   if (style.keepNext) parts.push('<w:keepNext/>');
+  // 功能：keepLines 与 widowControl 按 CT_PPr 顺序紧随 keepNext，保证 Word 严格校验下仍可打开；时间：2026-11-03；作者：lq。
+  if (style.keepLines) parts.push('<w:keepLines/>');
   if (style.pageBreakBefore) parts.push('<w:pageBreakBefore/>');
+  if (style.widowControl === false) parts.push('<w:widowControl w:val="0"/>');
   if (includeNumbering && paragraph.list && state?.hasNumbering && paragraph.list.numId) {
     parts.push(
       `<w:numPr><w:ilvl w:val="${paragraph.list.level}"/><w:numId w:val="${escapeXml(paragraph.list.numId)}"/></w:numPr>`,
@@ -180,6 +185,8 @@ function paragraphProperties(
       .join('');
     if (stops) parts.push(`<w:tabs>${stops}</w:tabs>`);
   }
+  // 功能：snapToGrid 位于 tabs 之后、spacing 之前，保留显式开关以覆盖样式继承；时间：2026-11-03；作者：lq。
+  if (style.snapToGrid !== undefined) parts.push(boolTag('snapToGrid', style.snapToGrid));
   const spacingParts: string[] = [];
   if (style.spaceBeforePx !== undefined) spacingParts.push(`w:before="${Math.round(style.spaceBeforePx * 15)}"`);
   if (style.spaceAfterPx !== undefined) spacingParts.push(`w:after="${Math.round(style.spaceAfterPx * 15)}"`);
@@ -351,7 +358,10 @@ function drawingXml(image: DocImage, relId: string, drawingId: number): string {
   const heightEmu = Math.round(image.heightPx * 9525);
   const name = escapeXml(image.name ?? `图片 ${drawingId}`);
   const descr = escapeXml(image.alt ?? image.name ?? '');
-  const geometry = `<wp:extent cx="${widthEmu}" cy="${heightEmu}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>`;
+  // 功能：重建图片节点时保留效果外扩量，避免编辑图片后丢失原有占位；时间：2026-11-04；作者：lq。
+  const effect = image.effectExtent;
+  const effectEmu = (value: number | undefined) => Math.round((value ?? 0) * 9525);
+  const geometry = `<wp:extent cx="${widthEmu}" cy="${heightEmu}"/><wp:effectExtent l="${effectEmu(effect?.left)}" t="${effectEmu(effect?.top)}" r="${effectEmu(effect?.right)}" b="${effectEmu(effect?.bottom)}"/>`;
   const frame = `<wp:docPr id="${drawingId}" name="${name}" descr="${descr}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="${A_NS}" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="${A_NS}"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="${PIC_NS}"><pic:nvPicPr><pic:cNvPr id="${drawingId}" name="${name}" descr="${descr}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${widthEmu}" cy="${heightEmu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>`;
   const wrap = image.wrap ?? 'inline';
   const anchorInfo = image.anchor;
@@ -484,6 +494,18 @@ async function cellXml(
   if (background) {
     props.push(`<w:shd w:val="clear" w:color="auto" w:fill="${background}"/>`);
   }
+  // 功能：tcMar 单元格级内边距往返（覆盖表格级 tblCellMar）；时间：2026-11-03；作者：lq。
+  if (cell.marginPx) {
+    const m = cell.marginPx;
+    props.push(
+      `<w:tcMar>` +
+        `<w:top w:w="${Math.round(m.top * 15)}" w:type="dxa"/>` +
+        `<w:left w:w="${Math.round(m.left * 15)}" w:type="dxa"/>` +
+        `<w:bottom w:w="${Math.round(m.bottom * 15)}" w:type="dxa"/>` +
+        `<w:right w:w="${Math.round(m.right * 15)}" w:type="dxa"/>` +
+        `</w:tcMar>`,
+    );
+  }
   if (cell.verticalAlign) {
     const map = { top: 'top', middle: 'center', bottom: 'bottom' } as const;
     props.push(`<w:vAlign w:val="${map[cell.verticalAlign]}"/>`);
@@ -506,11 +528,27 @@ async function tableXml(table: DocTable, state: SerializeState): Promise<string>
     const map = { left: 'left', center: 'center', right: 'right', justify: 'left' } as const;
     props.push(`<w:jc w:val="${map[table.alignment]}"/>`);
   }
+  // 功能：tblInd 表格左缩进往返；时间：2026-11-03；作者：lq。
+  if (table.indentPx) {
+    props.push(`<w:tblInd w:w="${Math.round(table.indentPx * 15)}" w:type="dxa"/>`);
+  }
   const borders = tableBordersXml(table.borders);
   if (borders) props.push(borders);
-  // 功能：固定网格布局确保 Office 按用户设置的列宽打开表格；时间：2026-10-19；作者：lq。
-  // 功能：tblLayout 必须位于 tblBorders 之后（CT_TblPr 顺序），否则 Word 会判定表格部件非法；时间：2026-10-29；作者：lq。
-  props.push('<w:tblLayout w:type="fixed"/>');
+  // 功能：tblLayout 按 model 值输出，缺省 fixed；位于 tblBorders 之后（CT_TblPr 顺序）；时间：2026-11-03；作者：lq。
+  const layoutType = table.layout === 'autofit' ? 'autofit' : 'fixed';
+  props.push(`<w:tblLayout w:type="${layoutType}"/>`);
+  // 功能：tblCellMar 表格级内边距往返；时间：2026-11-03；作者：lq。
+  if (table.cellMarginPx) {
+    const m = table.cellMarginPx;
+    props.push(
+      `<w:tblCellMar>` +
+        `<w:top w:w="${Math.round(m.top * 15)}" w:type="dxa"/>` +
+        `<w:left w:w="${Math.round(m.left * 15)}" w:type="dxa"/>` +
+        `<w:bottom w:w="${Math.round(m.bottom * 15)}" w:type="dxa"/>` +
+        `<w:right w:w="${Math.round(m.right * 15)}" w:type="dxa"/>` +
+        `</w:tblCellMar>`,
+    );
+  }
   const grid = table.columnWidthsPx
     .map((width) => `<w:gridCol w:w="${Math.round(width * 15)}"/>`)
     .join('');
@@ -522,7 +560,11 @@ async function tableXml(table: DocTable, state: SerializeState): Promise<string>
   const rows: string[] = [];
   for (const row of table.rows) {
     const trProps: string[] = [];
-    if (row.heightPx) trProps.push(`<w:trHeight w:val="${Math.round(row.heightPx * 15)}" w:hRule="atLeast"/>`);
+    // 功能：hRule 按 model 值输出，缺省 atLeast；时间：2026-11-03；作者：lq。
+    if (row.heightPx) {
+      const hRule = row.heightRule === 'exact' ? 'exact' : 'atLeast';
+      trProps.push(`<w:trHeight w:val="${Math.round(row.heightPx * 15)}" w:hRule="${hRule}"/>`);
+    }
     if (row.isHeader) trProps.push('<w:tblHeader/>');
     const cellsXml: string[] = [];
     let column = 0;
@@ -652,7 +694,11 @@ function buildSectPr(page: PageSetup, state: SerializeState): string {
       // Fall back to a generated section.
     }
   }
-  return `<w:sectPr>${pgSz}${pgMar}${page.pageNumberStart !== undefined ? `<w:pgNumType w:start="${page.pageNumberStart}"/>` : ''}${page.columns && page.columns > 1 ? `<w:cols w:num="${page.columns}"/>` : ''}</w:sectPr>`;
+  // 功能：新建或缺失原始 sectPr 时补写文档网格，保证另存后网格设置不丢失；时间：2026-11-02；作者：lq。
+  const grid = page.docGrid && page.docGrid.type !== 'none'
+    ? `<w:docGrid w:type="${page.docGrid.type}"${page.docGrid.linePitchPx ? ` w:linePitch="${Math.round(pxToTwips(page.docGrid.linePitchPx))}"` : ''}${page.docGrid.charSpacePx ? ` w:charSpace="${Math.round((page.docGrid.charSpacePx * 72 / 96) * 4096)}"` : ''}/>`
+    : '';
+  return `<w:sectPr>${pgSz}${pgMar}${page.pageNumberStart !== undefined ? `<w:pgNumType w:start="${page.pageNumberStart}"/>` : ''}${page.columns && page.columns > 1 ? `<w:cols w:num="${page.columns}"/>` : ''}${grid}</w:sectPr>`;
 }
 
 /** 功能：保存新增/编辑后的默认页眉页脚，写入独立部件、关系和内容类型；时间：2026-10-24；作者：lq。 */
@@ -670,6 +716,8 @@ async function writeHeaderFooters(model: DocModel, state: SerializeState, suffix
     const partState: SerializeState = { ...state, documentRels: existingRels(partRels), relsChanged: false, addedImages: new Map() };
     let body = '';
     for (const block of value.blocks) body += await blockXml(block, partState);
+    // 功能：普通页眉页脚文字被编辑时仍保留只读文本框的源 XML，避免保存后页码框消失；时间：2026-11-05；作者：lq。
+    for (const box of value.textBoxes ?? []) body += `<w:p><w:r>${box.sourceXml}</w:r></w:p>`;
     state.imageCounter = partState.imageCounter;
     state.drawingCounter = partState.drawingCounter;
     const root = kind === 'header' ? 'hdr' : 'ftr';
@@ -875,6 +923,12 @@ export async function serializeDocx(
   doc: DocModel,
   options: SerializeDocxOptions,
 ): Promise<Uint8Array> {
+  // 功能：没有正文/属性/合并配置变化时返回原始字节，避免无操作保存改变文档；时间：2026-11-03；作者：lq。
+  const simpleSave = !options.sections && !options.materialized && options.mailMergeState === undefined && !options.mailMerge && !options.tocEntries;
+  if (simpleSave && options.sourceBytes && doc.source && documentSignature(doc) === doc.source.signature) {
+    const original = await JSZip.loadAsync(options.sourceBytes);
+    if (await original.file('word/document.xml')?.async('text') === doc.source.xml) return options.sourceBytes;
+  }
   const zip = options.sourceBytes
     ? await JSZip.loadAsync(options.sourceBytes)
     : new JSZip();
@@ -905,15 +959,22 @@ export async function serializeDocx(
   const sections = options.sections ?? documentSections(doc);
   const originalSection = state.sectPrXml;
   let body = '';
+  // 功能：先按现有规则生成可修改块，再让来源映射替换其中未修改的块；时间：2026-11-03；作者：lq。
+  const generatedBlocks = new Map<string, string>();
   for (let index = 0; index < sections.length; index++) {
     const current = sections[index];
     state.sectPrXml = originalSection;
-    const sectionDoc = sections.length > 1 ? { ...current, header: current.header ? { ...current.header, edited: true } : undefined, footer: current.footer ? { ...current.footer, edited: true } : undefined } : current;
+    // 功能：原始正文保留模式不强制重建未编辑页眉页脚，合并输出仍按原有独立节写入；时间：2026-11-03；作者：lq。
+    const sectionDoc = sections.length > 1 && (!sourceExists || !doc.source || options.sections) ? { ...current, header: current.header ? { ...current.header, edited: true } : undefined, footer: current.footer ? { ...current.footer, edited: true } : undefined } : current;
     await writeHeaderFooters(sectionDoc, state, options.sections || sections.length > 1 ? `-${index + 1}` : '');
     let content = '';
     const blocks = [...current.blocks];
     while (blocks.at(-1)?.type === 'pageBreak') blocks.pop();
-    for (const block of blocks) content += await blockXml(block, state);
+    for (const block of blocks) {
+      const xml = await blockXml(block, state);
+      generatedBlocks.set(block.id, xml);
+      content += xml;
+    }
     if (index < sections.length - 1) {
       const sectionDom = parseXmlDom(`<w:root xmlns:w="${W_NS}" xmlns:r="${R_NS}">${buildSectPr(current.page, state)}</w:root>`);
       const section = firstDescendant(sectionDom, 'w:sectPr')!;
@@ -931,7 +992,8 @@ export async function serializeDocx(
     }
     body += content;
   }
-  const documentContent = buildDocumentXml(body, sections.at(-1)?.page ?? doc.page, state);
+  const preservedDocument = sourceExists && !options.sections && !options.materialized ? patchSourceDocument(doc, generatedBlocks) : undefined;
+  const documentContent = preservedDocument ?? buildDocumentXml(body, sections.at(-1)?.page ?? doc.page, state);
   zip.file('word/document.xml', documentContent);
 
   if (!sourceExists) {
@@ -960,7 +1022,7 @@ export async function serializeDocx(
   // 功能：把文档实际用到的样式写入 styles.xml（新文档先建默认表，旧文档在原表上追加）；时间：2026-10-29；作者：lq。
   const currentStylesXml = sourceExists ? await zip.file('word/styles.xml')?.async('text') : undefined;
   // 源包没有 styles.xml 时保持原状：凭空补一个未在 [Content_Types].xml 与 rels 中声明的部件风险更高。
-  if (!sourceExists || currentStylesXml) {
+  if ((!sourceExists || currentStylesXml) && (!preservedDocument || !doc.source || styleSignature(doc) !== doc.source.styles)) {
     zip.file(
       'word/styles.xml',
       mergeStyleDefinitions(currentStylesXml ?? defaultStylesXml(doc), collectUsedStyleDefinitions(doc), doc),

@@ -1,4 +1,4 @@
-// 功能：工作表标签支持右键操作、双击原位改名及标签颜色选择；时间：2026-10-24；作者：lq。
+// 功能：工作表标签支持右键操作、原位改名和颜色选择，使用固定 13px 字号及 32px 点击高度；时间：2026-11-03；作者：lq。
 import { useEffect, useRef, useState } from 'react';
 import type { SheetModel } from '@mini-office/document-model';
 import { Button, ColorField, ContextMenu, Dialog } from '@mini-office/ui';
@@ -22,20 +22,20 @@ export function SheetTabs({ sheets, activeId, readonly, onSwitch, onRename, onCo
     catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); requestAnimationFrame(() => input.current?.focus({ preventScroll: true })); }
   };
   return <>
-    <div className="mo-scroll relative flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" role="tablist" aria-label="工作表">
+    <div className="mo-scroll mo-sheet-tabs relative flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" role="tablist" aria-label="工作表">
       {sheets.filter((item) => item.state === 'visible').map((item) => rename?.id === item.id ?
-        <input key={item.id} ref={input} aria-label="工作表新名称" aria-invalid={!!error} title={error || 'Enter 确认，Esc 取消'} value={rename.name} maxLength={31} className="h-6 w-[150px] shrink-0 rounded border border-[var(--mo-accent)] bg-[var(--mo-surface)] px-2 text-[11px] outline-none"
+        <input key={item.id} ref={input} aria-label="工作表新名称" aria-invalid={!!error} title={error || 'Enter 确认，Esc 取消'} value={rename.name} maxLength={31} className="h-8 w-[150px] shrink-0 rounded border border-[var(--mo-accent)] bg-[var(--mo-surface)] px-2 text-[13px] outline-none"
           onChange={(event) => { setRename({ ...rename, name: event.target.value }); setError(''); }} onBlur={finishRename}
           onKeyDown={(event) => { event.stopPropagation(); if (event.key === 'Enter') { event.preventDefault(); finishRename(); } if (event.key === 'Escape') { event.preventDefault(); setRename(null); setError(''); } }} /> :
         <button key={item.id} type="button" role="tab" aria-selected={item.id === activeId} onClick={() => onSwitch(item.id)} onDoubleClick={() => beginRename(item)}
           onContextMenu={(event) => { event.preventDefault(); setMenu({ x: event.clientX, y: event.clientY, sheet: item }); }}
-          className={`h-6 shrink-0 rounded-t-md border-b-[3px] px-3 text-[11px] transition-colors ${item.id === activeId ? 'bg-[var(--mo-surface)] font-semibold' : 'text-[var(--mo-text-muted)] hover:bg-[var(--mo-surface-2)]'}`}
+          className={`h-8 shrink-0 rounded-t-md border-b-[3px] px-4 text-[13px] transition-colors ${item.id === activeId ? 'bg-[var(--mo-surface)] font-semibold' : 'text-[var(--mo-text-muted)] hover:bg-[var(--mo-surface-2)]'}`}
           style={{ borderBottomColor: item.tabColor ?? (item.id === activeId ? 'var(--mo-accent)' : 'transparent'), background: item.tabColor && item.id === activeId ? `color-mix(in srgb, ${item.tabColor} 15%, var(--mo-surface))` : undefined }}>
           {item.name}
         </button>)}
-      <button type="button" aria-label="添加工作表" disabled={readonly} onClick={onAdd} className="h-6 w-6 shrink-0 text-[16px]">+</button>
+      <button type="button" aria-label="添加工作表" disabled={readonly} onClick={onAdd} className="h-8 w-8 shrink-0 rounded text-[20px] hover:bg-[var(--mo-surface-2)] disabled:opacity-40">+</button>
     </div>
-    {error ? <span role="alert" className="max-w-[240px] text-[11px] text-[var(--mo-danger)]">{error}</span> : null}
+    {error ? <span role="alert" className="max-w-[240px] text-[13px] text-[var(--mo-danger)]">{error}</span> : null}
     {menu ? <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[
       { id: 'add', label: '插入工作表', disabled: readonly, onSelect: onAdd },
       { id: 'rename', label: '重命名', disabled: readonly, onSelect: () => beginRename(menu.sheet) },

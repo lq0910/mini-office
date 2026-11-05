@@ -8,6 +8,7 @@ import {
   type DocTable,
   type DocTableCell,
   type DocTableRow,
+  type DocGrid,
   type HeaderFooter,
   type ImageAnchor,
   type ListInfo,
@@ -19,6 +20,7 @@ import {
   type TabStop,
   type TableBorderSide,
   type TableBorders,
+  type TableCellMargin,
 } from '@mini-office/document-model';
 import {
   cssColor,
@@ -45,6 +47,10 @@ import {
 import { countWords, uid } from '@mini-office/shared';
 // 功能：解析 Word 原生合并域（含 NEXT/NEXTIF/SKIPIF/MERGEREC/MERGESEQ 控制域与格式开关）；时间：2026-10-24；作者：lq。
 import { parseMergeDirective, parseMergeField, type MergeDirective } from './merge-fields';
+// 功能：按字符数换算缩进需要字号，与段落对话框保持同一套汉字宽度；时间：2026-11-03；作者：lq。
+import { charWidthPx } from './typography';
+// 功能：把原始正文与可编辑块关联，以支持保留未修改 XML 的局部保存；时间：2026-11-03；作者：lq。
+import { captureDocumentSource } from './source-preservation';
 
 const HIGHLIGHT_COLORS: Record<string, string | undefined> = {
   black: '#000000',
@@ -80,6 +86,8 @@ interface ResolvedStyle {
   para: ParagraphStyle;
   numId?: string;
   ilvl?: number;
+  /** 功能：表格样式的边框和默认单元格边距，沿 basedOn 链继承；时间：2026-11-03；作者：lq。 */
+  table?: { borders: TableBorders; margin?: TableCellMargin };
 }
 
 interface RawStyle {
@@ -93,18 +101,24 @@ interface RawStyle {
   para: ParagraphStyle;
   numId?: string;
   ilvl?: number;
+  /** 功能：保留表格属性节点供继承解析，不依赖 styleId 的英文名称；时间：2026-11-03；作者：lq。 */
+  tablePr?: Element | null;
 }
 
 interface StyleSheet {
   docDefaults: { run: RunStyle; para: ParagraphStyle };
   styles: Map<string, ResolvedStyle>;
   defaultParagraph?: ResolvedStyle;
+  /** 功能：没有显式 tblStyle 时使用文档默认表格样式；时间：2026-11-03；作者：lq。 */
+  defaultTable?: ResolvedStyle;
   /** 功能：styleId → 显示名 / 类型，用于把文档里实际用到的样式还原到样式库；时间：2026-10-29；作者：lq。 */
   names: Map<string, string>;
   types: Map<string, string>;
 }
 
 interface ParseContext {
+  /** 功能：文件字体表中的主名到备用名映射，随格式继承到文本 run；时间：2026-11-05；作者：lq。 */
+  fontAlternates: Map<string, string>;
   pkg: OoxmlPackage;
   rels: Map<string, Relationship>;
   styles: StyleSheet;
@@ -117,11 +131,15 @@ interface ParseContext {
   imageUrls: Map<string, string>;
   usedImages: Map<string, { src: string; part?: string }>;
   pageWidthPx: number;
+  /** 功能：版心宽度（页面宽减左右页边距），用于表格自适应收敛；时间：2026-11-03；作者：lq。 */
+  contentWidthPx?: number;
   blockCounter: number;
   hasTrackedChanges: boolean;
   hasContentControls: boolean;
   /** 功能：目录域状态；非空表示当前段落仍处在 TOC 域的缓存结果里，应整段丢弃；时间：2026-10-30；作者：lq。 */
   toc?: { levels: number; depth: number };
+  /** 功能：按正文直接子元素记录对应模型块，未知元素保留空组；时间：2026-11-03；作者：lq。 */
+  sourceGroups?: string[][];
 }
 
 function mergeRun(base: RunStyle, override: RunStyle | undefined): RunStyle {
@@ -195,7 +213,12 @@ function applyRunStyle(base: RunStyle, rPr: Element | null, ctx: ParseContext): 
     attrValue(fonts, 'w:ascii') ??
     attrValue(fonts, 'w:hAnsi') ??
     attrValue(fonts, 'w:cs');
-  if (font) style.fontFamily = font;
+  // 功能：只在字体族发生明确覆盖时重设备用名，避免将旧字体的备用名继承给新字体；时间：2026-11-05；作者：lq。
+  if (font) {
+    style.fontFamily = font;
+    style.fontFallback = ctx.fontAlternates.get(font);
+    style.fontFallbackFor = style.fontFallback ? font : undefined;
+  }
 
   const size = numericAttr(firstChild(rPr, 'w:sz'), 'w:val');
   const sizeCs = numericAttr(firstChild(rPr, 'w:szCs'), 'w:val');
@@ -238,7 +261,7 @@ function applyRunStyle(base: RunStyle, rPr: Element | null, ctx: ParseContext): 
   return style;
 }
 
-function applyParagraphStyle(base: ParagraphStyle, pPr: Element | null, ctx: ParseContext): ParagraphStyle {
+function applyParagraphStyle(base: ParagraphStyle, pPr: Element | null, ctx: ParseContext, fontSizePt?: number): ParagraphStyle {
   if (!pPr) return { ...base };
   const style: ParagraphStyle = { ...base };
   const alignment = attrValue(firstChild(pPr, 'w:jc'), 'w:val');
@@ -262,9 +285,18 @@ function applyParagraphStyle(base: ParagraphStyle, pPr: Element | null, ctx: Par
     const right = numericAttr(indent, 'w:right') ?? numericAttr(indent, 'w:end');
     const firstLine = numericAttr(indent, 'w:firstLine');
     const hanging = numericAttr(indent, 'w:hanging');
+    // 功能：中文文档常用「缩进 N 字符」（w:firstLineChars，单位 1/100 字符），只有它没有 twips 时旧实现会整段丢失首行缩进；时间：2026-11-03；作者：lq。
+    const leftChars = numericAttr(indent, 'w:leftChars');
+    const firstLineChars = numericAttr(indent, 'w:firstLineChars');
+    const hangingChars = numericAttr(indent, 'w:hangingChars');
+    const charPx = charWidthPx(fontSizePt && fontSizePt > 0 ? fontSizePt : 10.5);
     if (left !== undefined) style.indentLeftPx = twipsToPx(left);
+    else if (leftChars !== undefined) style.indentLeftPx = (leftChars / 100) * charPx;
     if (right !== undefined) style.indentRightPx = twipsToPx(right);
-    if (firstLine !== undefined) style.firstLineIndentPx = twipsToPx(firstLine);
+    // 功能：字符单位优先于 twips，与 ECMA-376 中 *Chars 覆盖同名字段的规则一致；时间：2026-11-03；作者：lq。
+    if (firstLineChars !== undefined) style.firstLineIndentPx = (firstLineChars / 100) * charPx;
+    else if (hangingChars !== undefined) style.firstLineIndentPx = -(hangingChars / 100) * charPx;
+    else if (firstLine !== undefined) style.firstLineIndentPx = twipsToPx(firstLine);
     else if (hanging !== undefined) style.firstLineIndentPx = -twipsToPx(hanging);
   }
 
@@ -276,7 +308,11 @@ function applyParagraphStyle(base: ParagraphStyle, pPr: Element | null, ctx: Par
     const rule = attrValue(spacing, 'w:lineRule') ?? 'auto';
     if (before !== undefined) style.spaceBeforePx = twipsToPx(before);
     if (after !== undefined) style.spaceAfterPx = twipsToPx(after);
-    if (line) {
+    // 功能：显式行距覆盖继承的其他行距模式，并保留 atLeast=0 的 Word 语义；时间：2026-11-03；作者：lq。
+    if (line !== undefined) {
+      delete style.lineHeight;
+      delete style.lineHeightAtLeastPx;
+      delete style.lineHeightExactPx;
       if (rule === 'auto') style.lineHeight = line / 240;
       else if (rule === 'atLeast') style.lineHeightAtLeastPx = twipsToPx(line);
       else style.lineHeightExactPx = twipsToPx(line);
@@ -285,8 +321,18 @@ function applyParagraphStyle(base: ParagraphStyle, pPr: Element | null, ctx: Par
 
   const keepNext = firstChild(pPr, 'w:keepNext');
   if (keepNext) style.keepNext = toggleValue(keepNext);
+  // 功能：解析整段不拆页与孤行控制，分页时据此决定段落能否跨页切开；时间：2026-11-03；作者：lq。
+  const keepLines = firstChild(pPr, 'w:keepLines');
+  if (keepLines) style.keepLines = toggleValue(keepLines);
+  const widowControl = firstChild(pPr, 'w:widowControl');
+  if (widowControl) style.widowControl = toggleValue(widowControl);
   const pageBreakBefore = firstChild(pPr, 'w:pageBreakBefore');
   if (pageBreakBefore) style.pageBreakBefore = toggleValue(pageBreakBefore);
+  // 功能：snapToGrid 控制段落是否吸附文档网格；显式 false 时不使用 linePitch 定行高；时间：2026-11-03；作者：lq。
+  const snapToGridNode = firstChild(pPr, 'w:snapToGrid');
+  if (snapToGridNode) {
+    style.snapToGrid = toggleValue(snapToGridNode);
+  }
   const outline = numericAttr(firstChild(pPr, 'w:outlineLvl'), 'w:val');
   if (outline !== undefined) style.outlineLevel = outline;
 
@@ -358,6 +404,7 @@ function parseStyleSheet(stylesXml: string, ctx: ParseContext): StyleSheet {
   const names = new Map<string, string>();
   const types = new Map<string, string>();
   let defaultParagraphId: string | undefined;
+  let defaultTableId: string | undefined;
 
   if (stylesXml) {
     const doc = parseXmlDom(stylesXml);
@@ -382,8 +429,9 @@ function parseStyleSheet(stylesXml: string, ctx: ParseContext): StyleSheet {
       const styleName = attrValue(firstChild(styleElement, 'w:name'), 'w:val');
       if (styleName) names.set(id, styleName);
       types.set(id, type);
-      rawStyles.set(id, { id, type, name: styleName, basedOn, isDefault, run, para, ...num });
+      rawStyles.set(id, { id, type, name: styleName, basedOn, isDefault, run, para, ...num, tablePr: firstChild(styleElement, 'w:tblPr') });
       if (type === 'paragraph' && isDefault) defaultParagraphId = id;
+      if (type === 'table' && isDefault) defaultTableId = id;
     }
   }
 
@@ -408,6 +456,10 @@ function parseStyleSheet(stylesXml: string, ctx: ParseContext): StyleSheet {
       para: mergeParagraph(base.para, raw.para),
       numId: raw.numId ?? base.numId,
       ilvl: raw.ilvl ?? base.ilvl,
+      table: raw.type === 'table' ? {
+        borders: { ...base.table?.borders, ...parseTableBorders(firstChild(raw.tablePr, 'w:tblBorders'), ctx.themeColors) },
+        margin: parseTableCellMargin(firstChild(raw.tablePr, 'w:tblCellMar'), base.table?.margin) ?? base.table?.margin,
+      } : undefined,
     };
     resolved.set(id, result);
     resolving.delete(id);
@@ -418,7 +470,7 @@ function parseStyleSheet(stylesXml: string, ctx: ParseContext): StyleSheet {
   const defaultParagraph = defaultParagraphId
     ? resolved.get(defaultParagraphId)
     : resolved.get('Normal');
-  return { docDefaults, styles: resolved, defaultParagraph, names, types };
+  return { docDefaults, styles: resolved, defaultParagraph, defaultTable: defaultTableId ? resolved.get(defaultTableId) : undefined, names, types };
 }
 
 /**
@@ -668,14 +720,13 @@ function parseTableBorders(
   theme: Record<string, string> = {},
 ): TableBorders {
   if (!element) return {};
-  return {
-    top: parseTableBorder(firstChild(element, 'w:top'), theme),
-    right: parseTableBorder(firstChild(element, 'w:right'), theme),
-    bottom: parseTableBorder(firstChild(element, 'w:bottom'), theme),
-    left: parseTableBorder(firstChild(element, 'w:left'), theme),
-    insideH: parseTableBorder(firstChild(element, 'w:insideH'), theme),
-    insideV: parseTableBorder(firstChild(element, 'w:insideV'), theme),
-  };
+  // 功能：缺省边不生成 undefined 覆盖值；显式 nil 则保留 none，确保逐边继承语义；时间：2026-11-03；作者：lq。
+  const borders: TableBorders = {};
+  for (const side of ['top', 'right', 'bottom', 'left', 'insideH', 'insideV'] as const) {
+    const value = parseTableBorder(firstChild(element, `w:${side}`), theme);
+    if (value !== undefined) borders[side] = value;
+  }
+  return borders;
 }
 
 async function loadImageUrl(ctx: ParseContext, part: string): Promise<string | undefined> {
@@ -816,6 +867,10 @@ async function parseDrawing(drawing: Element, ctx: ParseContext): Promise<DocRun
   const alt = attrValue(docPr, 'descr') ?? attrValue(docPr, 'title');
   const name = attrValue(docPr, 'name');
   const anchor = readImageAnchor(drawing);
+  // 功能：读取图片阴影等效果的外扩占位，避免后续段落提前；时间：2026-11-04；作者：lq。
+  const effect = firstDescendant(drawing, 'wp:effectExtent');
+  const effectExtent = { left: emuToPx(numericAttr(effect, 'l', 0) ?? 0), top: emuToPx(numericAttr(effect, 't', 0) ?? 0),
+    right: emuToPx(numericAttr(effect, 'r', 0) ?? 0), bottom: emuToPx(numericAttr(effect, 'b', 0) ?? 0) };
   const image: DocImage = {
     id: uid('img'),
     src,
@@ -828,6 +883,7 @@ async function parseDrawing(drawing: Element, ctx: ParseContext): Promise<DocRun
     // 功能：识别 Word 图片的内嵌/浮动形态，重新打开后保持文字环绕；时间：2026-10-24；作者：lq。
     wrap: wrapKindFromAnchor(anchor, ctx.pageWidthPx, widthPx),
     ...(anchor ? { anchor } : {}),
+    ...(Object.values(effectExtent).some((value) => value !== 0) ? { effectExtent } : {}),
   };
   ctx.usedImages.set(rid, { src, part });
   return [{ text: '', style: {}, image }];
@@ -1122,7 +1178,19 @@ async function parseParagraph(
     run: ctx.styles.docDefaults.run,
     para: ctx.styles.docDefaults.para,
   };
-  let paragraphStyle = applyParagraphStyle(mergeParagraph(styleBase.para, baseStyle?.para), pPr, ctx);
+  // 功能：先解析段落标记字号，再换算字符缩进；避免 16pt 正文的三字缩进被按文档默认 10pt 缩小；时间：2026-11-05；作者：lq。
+  const paragraphRun = applyRunStyle({}, firstChild(pPr, 'w:rPr'), ctx);
+  const runBase = mergeRun(
+    mergeRun(mergeRun(ctx.styles.docDefaults.run, styleBase.run), baseStyle?.run),
+    paragraphRun,
+  );
+  let paragraphStyle = applyParagraphStyle(
+    mergeParagraph(styleBase.para, baseStyle?.para),
+    pPr,
+    ctx,
+    // 功能：按段落样式的字号换算字符缩进，标题等大字号段落的缩进量才准确；时间：2026-11-03；作者：lq。
+    runBase.fontSizePt,
+  );
   const numbering = parseProjectedParagraphNumbering(pPr);
   const numId = numbering.numId ?? styleFromId?.numId;
   const ilvl = numbering.ilvl ?? styleFromId?.ilvl ?? 0;
@@ -1145,11 +1213,6 @@ async function parseParagraph(
 
   // 功能：继承段落属性中的文字格式（Word 将段落级加粗、字号等写入 w:pPr/w:rPr）；时间：2026-10-27；作者：lq。
   // 旧逻辑只合并样式表和字符级 w:rPr，导致从原生 Word 打开的段落格式在编辑区丢失。
-  const paragraphRun = applyRunStyle({}, firstChild(pPr, 'w:rPr'), ctx);
-  const runBase = mergeRun(
-    mergeRun(mergeRun(ctx.styles.docDefaults.run, styleBase.run), baseStyle?.run),
-    paragraphRun,
-  );
   const state: ParseInlineState = { fieldStack: [] };
   const runs = await parseInlineChildren(element, runBase, ctx, state);
 
@@ -1213,6 +1276,36 @@ async function parseParagraph(
   return blocks;
 }
 
+/**
+ * 功能：解析表格级单元格内边距（w:tblCellMar）；时间：2026-11-03；作者：lq。
+ *
+ * Word 默认上下为 0、左右 108 twips（5.4pt，即 7.2 CSS px）。未显式声明时返回 undefined，
+ * 由渲染层套用 Word 默认值。
+ */
+function parseTableCellMargin(node: Element | null | undefined, inherited?: TableCellMargin): TableCellMargin | undefined {
+  if (!node) return undefined;
+  const read = (name: string): number | undefined => {
+    const side = firstChild(node, name) ?? firstChild(node, name === 'w:left' ? 'w:start' : name === 'w:right' ? 'w:end' : name);
+    if (!side) return undefined;
+    const width = numericAttr(side, 'w:w');
+    if (width === undefined) return undefined;
+    return attrValue(side, 'w:type') === 'nil' ? 0 : twipsToPx(width);
+  };
+  const top = read('w:top');
+  const right = read('w:right');
+  const bottom = read('w:bottom');
+  const left = read('w:left');
+  if (top === undefined && right === undefined && bottom === undefined && left === undefined) {
+    return undefined;
+  }
+  return {
+    top: top ?? inherited?.top ?? 0,
+    right: right ?? inherited?.right ?? twipsToPx(108),
+    bottom: bottom ?? inherited?.bottom ?? 0,
+    left: left ?? inherited?.left ?? twipsToPx(108),
+  };
+}
+
 async function parseTable(element: Element, ctx: ParseContext): Promise<DocTable> {
   const tblPr = firstChild(element, 'w:tblPr');
   const grid = firstChild(element, 'w:tblGrid');
@@ -1222,7 +1315,9 @@ async function parseTable(element: Element, ctx: ParseContext): Promise<DocTable
     .filter((width) => width > 0);
 
   const styleId = attrValue(firstChild(tblPr, 'w:tblStyle'), 'w:val');
-  const borders = parseTableBorders(firstChild(tblPr, 'w:tblBorders'), ctx.themeColors);
+  // 功能：表格样式可能使用 a4 等内部 ID，边框从样式继承后再应用直接格式；时间：2026-11-03；作者：lq。
+  const tableStyle = styleId ? ctx.styles.styles.get(styleId) : ctx.styles.defaultTable;
+  const borders = { ...tableStyle?.table?.borders, ...parseTableBorders(firstChild(tblPr, 'w:tblBorders'), ctx.themeColors) };
   const hasAnyBorder = Object.values(borders).some((border) => border && border.style !== 'none');
   if (!hasAnyBorder && styleId && /grid/i.test(styleId)) {
     const single: TableBorderSide = { style: 'single', widthPx: 0.75, color: '#000000' };
@@ -1247,6 +1342,13 @@ async function parseTable(element: Element, ctx: ParseContext): Promise<DocTable
   const widthValue = numericAttr(tableWidth, 'w:w');
   const widthPct =
     widthType === 'pct' && widthValue !== undefined ? widthValue / 50 : undefined;
+  // 功能：解析列宽布局模式与表格缩进；时间：2026-11-03；作者：lq。
+  // 功能：保留布局模式供显示层使用，不在导入阶段按版心篡改列宽；时间：2026-11-03；作者：lq。
+  const layoutType = attrValue(firstChild(tblPr, 'w:tblLayout'), 'w:type');
+  const layout: DocTable['layout'] = layoutType === 'fixed' ? 'fixed' : 'autofit';
+  const tableIndentTwips = numericAttr(firstChild(tblPr, 'w:tblInd'), 'w:w');
+  const indentPx = tableIndentTwips !== undefined ? twipsToPx(tableIndentTwips) : undefined;
+  const cellMarginPx = parseTableCellMargin(firstChild(tblPr, 'w:tblCellMar'), tableStyle?.table?.margin) ?? tableStyle?.table?.margin;
 
   interface RawCell {
     cell: DocTableCell;
@@ -1254,13 +1356,18 @@ async function parseTable(element: Element, ctx: ParseContext): Promise<DocTable
     colSpan: number;
   }
 
-  const rawRows: Array<{ cells: RawCell[]; heightPx?: number; isHeader: boolean }> = [];
+  const rawRows: Array<{ cells: RawCell[]; heightPx?: number; heightRule?: 'atLeast' | 'exact'; isHeader: boolean }> = [];
   let colCount = columnWidths.length;
 
   for (const rowElement of Array.from(element.childNodes)) {
     if (!(rowElement instanceof Element) || localName(rowElement) !== 'tr') continue;
     const trPr = firstChild(rowElement, 'w:trPr');
-    const height = numericAttr(firstChild(trPr, 'w:trHeight'), 'w:val');
+    const heightNode = firstChild(trPr, 'w:trHeight');
+    const height = numericAttr(heightNode, 'w:val');
+    // 功能：行高规则 w:trHeight@w:hRule——exact 为固定行高，缺省按 atLeast；时间：2026-11-03；作者：lq。
+    // 此前统一按 minmax(下限, auto) 渲染，exact 的行会被内容撑高，与 Word 不一致。
+    const heightRuleValue = attrValue(heightNode, 'w:hRule');
+    const heightRule: 'atLeast' | 'exact' = heightRuleValue === 'exact' ? 'exact' : 'atLeast';
     const isHeader = toggleValue(firstChild(trPr, 'w:tblHeader'));
     const rawCells: RawCell[] = [];
     for (const cellElement of Array.from(rowElement.childNodes)) {
@@ -1282,7 +1389,10 @@ async function parseTable(element: Element, ctx: ParseContext): Promise<DocTable
       const verticalAlign =
         vAlignValue === 'center' ? 'middle' : vAlignValue === 'bottom' ? 'bottom' : 'top';
       const cellBorders = parseTableBorders(firstChild(tcPr, 'w:tcBorders'), ctx.themeColors);
-      const mergedBorders: TableBorders = { ...borders, ...cellBorders };
+      // 功能：单元格仅存自身覆盖值；内框与外框由渲染器根据行列位置从表格继承；时间：2026-11-03；作者：lq。
+      const mergedBorders: TableBorders = cellBorders;
+      // 功能：单元格自定义内边距（w:tcMar）覆盖表格级 tblCellMar；时间：2026-11-03；作者：lq。
+      const cellMargin = parseTableCellMargin(firstChild(tcPr, 'w:tcMar'), cellMarginPx);
       const blocks =
         vMerge === 'continue' ? [] : await parseBlockContainer(cellElement, ctx);
       if (vMerge !== 'continue' && blocks.length === 0) {
@@ -1305,6 +1415,7 @@ async function parseTable(element: Element, ctx: ParseContext): Promise<DocTable
           backgroundColor,
           borders: mergedBorders,
           verticalAlign,
+          marginPx: cellMargin,
         },
       });
       colCount = Math.max(
@@ -1315,6 +1426,7 @@ async function parseTable(element: Element, ctx: ParseContext): Promise<DocTable
     rawRows.push({
       cells: rawCells,
       heightPx: height ? twipsToPx(height) : undefined,
+      heightRule,
       isHeader,
     });
   }
@@ -1354,10 +1466,13 @@ async function parseTable(element: Element, ctx: ParseContext): Promise<DocTable
         id: uid('row'),
         cells,
         heightPx: rawRow.heightPx,
+        heightRule: rawRow.heightRule,
         isHeader: rawRow.isHeader,
       });
     }
   }
+
+  // 功能：导入保留原始 tblGrid；显示适配不能改写源列宽，尤其是 fixed 表格；时间：2026-11-03；作者：lq。
 
   return {
     type: 'table',
@@ -1368,6 +1483,9 @@ async function parseTable(element: Element, ctx: ParseContext): Promise<DocTable
     alignment: alignmentValue ? alignmentMap[alignmentValue] ?? 'left' : 'left',
     borders,
     styleId,
+    layout,
+    indentPx,
+    cellMarginPx,
   };
 }
 
@@ -1412,6 +1530,8 @@ async function parseBlockContainer(element: Element, ctx: ParseContext): Promise
   const blocks: DocBlock[] = [];
   for (const child of Array.from(element.childNodes)) {
     if (!(child instanceof Element)) continue;
+    // 功能：每个源顶层节点可展开为多个块（分页、内容控件），保存时按组恢复；时间：2026-11-03；作者：lq。
+    const groupStart = blocks.length;
     switch (localName(child)) {
       case 'p': {
         // 功能：把 TOC 域的缓存结果换成可动态重算的目录段落，避免打开后仍显示过期条目；时间：2026-10-30；作者：lq。
@@ -1461,6 +1581,7 @@ async function parseBlockContainer(element: Element, ctx: ParseContext): Promise
       default:
         break;
     }
+    if (localName(element) === 'body') ctx.sourceGroups?.push(blocks.slice(groupStart).map((block) => block.id));
   }
   return blocks;
 }
@@ -1496,6 +1617,24 @@ function parsePageSetup(sectPr: Element | null, ctx: ParseContext): PageSetup {
       (Math.abs(size.w - heightTwips) < 80 && Math.abs(size.h - widthTwips) < 80),
   );
   const columns = numericAttr(firstChild(sectPr, 'w:cols'), 'w:num');
+  // 功能：读取文档网格，公文类文档靠 linePitch 决定每页行数；时间：2026-11-02；作者：lq。
+  const docGridNode = firstChild(sectPr, 'w:docGrid');
+  // 功能：w:type 缺省或为 default 时按「只限定行网格」处理，避免写出非法属性值；时间：2026-11-02；作者：lq。
+  const rawGridType = attrValue(docGridNode, 'w:type') ?? 'lines';
+  const gridType: DocGrid['type'] =
+    rawGridType === 'none' || rawGridType === 'linesAndChars' || rawGridType === 'snapToChars'
+      ? rawGridType
+      : 'lines';
+  const linePitch = numericAttr(docGridNode, 'w:linePitch');
+  const charSpace = numericAttr(docGridNode, 'w:charSpace');
+  const docGrid =
+    docGridNode && gridType !== 'none' && linePitch
+      ? {
+          type: gridType,
+          linePitchPx: twipsToPx(linePitch),
+          charSpacePx: charSpace ? (charSpace / 4096) * (96 / 72) : undefined,
+        }
+      : undefined;
   return {
     widthPx: twipsToPx(widthTwips),
     heightPx: twipsToPx(heightTwips),
@@ -1505,6 +1644,7 @@ function parsePageSetup(sectPr: Element | null, ctx: ParseContext): PageSetup {
     columns: columns && columns > 1 ? columns : undefined,
     // 功能：恢复 DOCX 起始页码；时间：2026-10-24；作者：lq。
     pageNumberStart: numericAttr(firstChild(sectPr, 'w:pgNumType'), 'w:start'),
+    docGrid,
   };
 }
 
@@ -1530,15 +1670,34 @@ async function parseHeaderFooter(
   const doc = parseXmlDom(xml);
   const root = firstDescendant(doc, kind === 'header' ? 'w:hdr' : 'w:ftr') ?? doc.documentElement;
   // 功能：页眉页脚图片关系按自身部件解析；时间：2026-10-24；作者：lq。
-  const blocks = await parseBlockContainer(root, { ...ctx, rels: await relationshipMap(ctx.pkg, rel.resolved) });
-  const pageNumbers = blocks.some((block) =>
+  const partContext = { ...ctx, rels: await relationshipMap(ctx.pkg, rel.resolved) };
+  const blocks = await parseBlockContainer(root, partContext);
+  // 功能：单独解析 DrawingML 文本框，其文字不是图片，不能因没有 a:blip 而丢掉页码等域；时间：2026-11-05；作者：lq。
+  const textBoxes: NonNullable<HeaderFooter['textBoxes']> = [];
+  for (const content of Array.from(root.getElementsByTagNameNS('*', 'txbxContent'))) {
+    let drawing: Element | null = content.parentElement;
+    while (drawing && localName(drawing) !== 'drawing') drawing = drawing.parentElement;
+    if (!drawing) continue;
+    const extent = firstDescendant(drawing, 'wp:extent');
+    const bodyPr = firstDescendant(drawing, 'wps:bodyPr');
+    textBoxes.push({ id: uid('hf-box'), blocks: await parseBlockContainer(content, partContext),
+      widthPx: emuToPx(numericAttr(extent, 'cx', 0) ?? 0), heightPx: emuToPx(numericAttr(extent, 'cy', 0) ?? 0),
+      anchor: readImageAnchor(drawing), autoFit: !!firstDescendant(bodyPr, 'a:spAutoFit'),
+      noWrap: attrValue(bodyPr, 'wrap') === 'none',
+      insetsPx: { left: emuToPx(numericAttr(bodyPr, 'lIns', 0) ?? 0), top: emuToPx(numericAttr(bodyPr, 'tIns', 0) ?? 0),
+        right: emuToPx(numericAttr(bodyPr, 'rIns', 0) ?? 0), bottom: emuToPx(numericAttr(bodyPr, 'bIns', 0) ?? 0) },
+      sourceXml: new XMLSerializer().serializeToString(drawing) });
+  }
+  const pageNumbers = [...blocks, ...textBoxes.flatMap((box) => box.blocks)].some((block) =>
     block.type === 'paragraph' ? block.runs.some((run) => run.field === 'PAGE') : false,
   );
-  return { blocks, distancePx, pageNumbers, sourcePart: rel.resolved };
+  return { blocks, distancePx, pageNumbers, sourcePart: rel.resolved, ...(textBoxes.length ? { textBoxes } : {}) };
 }
 
 export interface ParseDocxOptions {
   fileName?: string;
+  /** 功能：只对确认未安装的旧 GB 字体应用兼容替代，不覆盖已安装字体；时间：2026-11-05；作者：lq。 */
+  knownFonts?: string[];
 }
 
 export async function parseDocxPackage(
@@ -1552,7 +1711,26 @@ export async function parseDocxPackage(
   const themeFonts = await readThemeFonts(pkg, 'word/theme/theme1.xml');
   const rels = await relationshipMap(pkg, 'word/document.xml');
 
+  // 功能：读取源 OOXML 的 w:altName，备用名仅参与显示，不改写文件原有主字体；时间：2026-11-05；作者：lq。
+  const fontAlternates = new Map<string, string>();
+  if (pkg.has('word/fontTable.xml')) {
+    const fontTable = parseXmlDom(await pkg.text('word/fontTable.xml'));
+    for (const font of Array.from(fontTable.getElementsByTagNameNS('*', 'font'))) {
+      const name = attrValue(font, 'w:name');
+      const alternate = attrValue(firstChild(font, 'w:altName'), 'w:val');
+      if (name && alternate && name !== alternate) fontAlternates.set(name, alternate);
+    }
+  }
+  // 功能：Word 16.114/macOS 对缺失 GB2312 字体采用微软雅黑；保留主名，仅在有安装清单且原字体缺失时添加显示备用名；时间：2026-11-05；作者：lq。
+  if (options.knownFonts) {
+    const installed = new Set(options.knownFonts.map((name) => name.normalize('NFKC').toLowerCase().trim()));
+    for (const name of ['仿宋_GB2312', 'FangSong_GB2312', '楷体_GB2312', 'KaiTi_GB2312']) {
+      if (!installed.has(name.normalize('NFKC').toLowerCase()) && !fontAlternates.has(name)) fontAlternates.set(name, '微软雅黑');
+    }
+  }
+
   const provisional: ParseContext = {
+    fontAlternates,
     pkg,
     rels,
     styles: {
@@ -1600,7 +1778,13 @@ export async function parseDocxPackage(
   };
   const page = parsePageSetup(sectionProperties, provisional);
   provisional.pageWidthPx = page.widthPx;
+  // 功能：记录版心宽度，供表格自适应收敛使用（Word 不允许表格越过版心右边界）；时间：2026-11-03；作者：lq。
+  provisional.contentWidthPx = Math.max(
+    120,
+    page.widthPx - page.margins.left - page.margins.right,
+  );
 
+  provisional.sourceGroups = [];
   const blocks = await parseBlockContainer(body, provisional);
 
   const header = await parseHeaderFooter(
@@ -1663,7 +1847,7 @@ export async function parseDocxPackage(
     }
   }
 
-  return {
+  const model: DocModel = {
     version: 1,
     page,
     blocks,
@@ -1682,6 +1866,8 @@ export async function parseDocxPackage(
     ...(documentStyles.length > 0 ? { styles: documentStyles } : {}),
     ...(defaultTabStopPx ? { defaultTabStopPx } : {}),
   };
+  model.source = captureDocumentSource(model, documentXml, provisional.sourceGroups);
+  return model;
 }
 
 async function parseDocMeta(pkg: OoxmlPackage): Promise<DocModel['meta']> {

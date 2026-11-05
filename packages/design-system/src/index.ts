@@ -120,15 +120,31 @@ export function detectInstalledFonts(): string[] {
 }
 
 /**
- * 功能：字体下拉的最终选项——本机可用字体 + 当前文档正在用的字体；时间：2026-10-31；作者：lq。
+ * 功能：字体下拉按字体族去重、过滤系统内部名称，并保留当前文档的字体原名；时间：2026-11-03；作者：lq。
  *
  * `installed` 传入平台适配器枚举到的真实字体清单（桌面端可拿到全部系统字体），
  * 拿不到时才退回到逐个探测；两者都为空时使用内置清单，保证下拉永远有选项。
  */
 export function availableFontChoices(current?: string, installed?: string[]): string[] {
   const detected = installed && installed.length > 0 ? installed : detectInstalledFonts();
-  const list = ['默认', ...detected.filter((name) => name && name !== '默认')];
-  if (current && !list.includes(current)) list.push(current);
+  // 功能：系统按 Regular/Bold 等字面枚举，菜单只显示字体族；统一大小写、首尾空白和 Unicode 组合形式后去重；时间：2026-11-03；作者：lq。
+  const keyOf = (name: string) => name.trim().normalize('NFC').toLowerCase();
+  const list = ['默认'];
+  const indices = new Map<string, number>([['默认', 0]]);
+  for (const raw of detected) {
+    const name = raw.trim();
+    const key = keyOf(name);
+    // 功能：点号开头是内部字体名；异常控制字符/解码替换符不作为新选项，不按文字语言过滤正常字体；时间：2026-11-03；作者：lq。
+    if (!name || name.startsWith('.') || /[\u0000-\u001f\u007f-\u009f\ufffd]/.test(name) || indices.has(key)) continue;
+    indices.set(key, list.length);
+    list.push(name);
+  }
+  // 功能：当前字体即使未安装或属于内部字体也保留一项，且使用原始值匹配 select，避免打开文档时显示空白或替换格式；时间：2026-11-03；作者：lq。
+  if (current && keyOf(current) && keyOf(current) !== '默认') {
+    const index = indices.get(keyOf(current));
+    if (index === undefined) list.push(current);
+    else list[index] = current;
+  }
   return list;
 }
 
@@ -198,10 +214,12 @@ function heuristicCjkStack(name: string): string {
  * 顺序：西文度量兼容映射 → 中文字体表 → 字形关键字推断。
  * 未命中的字体仍把它自己放在栈首，本机装了就直接用，没装才走回退。
  */
-export function fontStackFor(name?: string): string {
+// 功能：文档明确声明备用字体时优先使用该信息，主字体仍位于栈首，避免把文件专属替代规则写成全局映射；时间：2026-11-05；作者：lq。
+export function fontStackFor(name?: string, alternateName?: string): string {
   if (!name || name === '默认') return DOC_FONT_STACK;
   const key = name.trim();
   if (!key) return DOC_FONT_STACK;
+  if (alternateName?.trim() && alternateName.trim() !== key) return `"${key}", ${fontStackFor(alternateName)}`;
   const latin = LATIN_FONT_STACKS[key.toLowerCase()];
   if (latin) return latin;
   const mapped = CJK_FONT_STACKS[key];

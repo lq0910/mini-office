@@ -8,4 +8,5 @@ license.workspace = true
 office-core.workspace = true
 office_oxide.workspace = true
 tempfile.workspace = true
+zip.workspace = true
 

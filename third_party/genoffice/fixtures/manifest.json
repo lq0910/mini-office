@@ -1,0 +1,182 @@
+{
+  "_comment": "功能：固定 GenOffice 测试语料及基准状态；时间：2026-11-03；作者：lq。",
+  "schemaVersion": 1,
+  "repository": "https://github.com/genspark-ai/genoffice",
+  "commit": "e1f50e90d246f3ecc6427d2a0af90f04f37810ec",
+  "licenseFile": "../LICENSE",
+  "noticeFile": "../NOTICE",
+  "generatorHelper": {
+    "file": "truths/_docx.py",
+    "upstreamPath": "packages/docx-engine/tests/fixtures/truths/_docx.py",
+    "upstreamSha256": "4fcc22685a73cd9fa9cafee590cf910e5b8b5240fb3b6cf5f8b88e9dfc5e6f1d",
+    "sha256": "9f2caf72048a773e06d12e8bc70d7c9825ad2d30bc12ded9214c30c6ae9c8fbe"
+  },
+  "fixtures": [
+    {
+      "id": "formatting",
+      "format": "doc",
+      "file": "formatting.doc",
+      "upstreamPath": "packages/doc2docx/tests/fixtures/formatting.doc",
+      "sha256": "9ec057849e65836a1394049497c4609c7fdf9fbefacd061e65654a51b96b0a70",
+      "coverage": [
+        "character-formatting",
+        "paragraph-spacing",
+        "cjk"
+      ],
+      "provenance": {
+        "kind": "upstream-test-document",
+        "license": "Apache-2.0 repository notice; fixture-specific origin not separately attested",
+        "evidence": "packages/doc2docx/tests/helpers/fixtures.ts; tests/formatting.test.ts",
+        "expectedText": {
+          "file": "formatting.txt",
+          "sha256": "162bc50387b5f4f39b5633045eeb4ea934c28ec86c47f9652a20c642f6d37df1"
+        }
+      },
+      "officeBaseline": "pending"
+    },
+    {
+      "id": "table",
+      "format": "doc",
+      "file": "table.doc",
+      "upstreamPath": "packages/doc2docx/tests/fixtures/table.doc",
+      "sha256": "eed0984ab83adab8980e983b822558ec30880e9099e59a7574e1e7377fe272b4",
+      "coverage": [
+        "table-grid",
+        "table-borders"
+      ],
+      "provenance": {
+        "kind": "upstream-test-document",
+        "license": "Apache-2.0 repository notice; fixture-specific origin not separately attested",
+        "evidence": "packages/doc2docx/tests/helpers/fixtures.ts; tests/formatting.test.ts",
+        "expectedText": {
+          "file": "table.txt",
+          "sha256": "754dd5d5689018b788ee537987485d1cc67a27ce2dff6c23a77cb1f29bf5fcf1"
+        }
+      },
+      "officeBaseline": "pending"
+    },
+    {
+      "id": "page-setup",
+      "format": "doc",
+      "file": "page-setup.doc",
+      "upstreamPath": "packages/doc2docx/tests/fixtures/page-setup.doc",
+      "sha256": "35b319d5771cb70c279dbb90f0d7e478fb47a4d44ce1bd82a8144ee458e1e790",
+      "coverage": [
+        "section-page-size",
+        "page-margins"
+      ],
+      "provenance": {
+        "kind": "upstream-test-document",
+        "license": "Apache-2.0 repository notice; fixture-specific origin not separately attested",
+        "evidence": "packages/doc2docx/tests/helpers/fixtures.ts; tests/formatting.test.ts",
+        "expectedText": {
+          "file": "page-setup.txt",
+          "sha256": "31449f12910076d3fa5dff5b605ed4805a8d1b82c4b7e8a07e3293c87ded5d7e"
+        }
+      },
+      "officeBaseline": "pending"
+    },
+    {
+      "id": "text-basic",
+      "format": "doc",
+      "file": "text-basic.doc",
+      "upstreamPath": "packages/doc2docx/tests/fixtures/text-basic.doc",
+      "sha256": "e76ce88dbf975dcaa91cdf67156c070b807b4aa39545fb5eab5754657c699a08",
+      "coverage": [
+        "cjk-latin",
+        "tab",
+        "emoji",
+        "empty-paragraph"
+      ],
+      "provenance": {
+        "kind": "upstream-test-document",
+        "license": "Apache-2.0 repository notice; fixture-specific origin not separately attested",
+        "evidence": "packages/doc2docx/tests/helpers/fixtures.ts; tests/formatting.test.ts",
+        "expectedText": {
+          "file": "text-basic.txt",
+          "sha256": "dc4fab11e2a8c1afd5aeebbe895c72eab8101c921959f6af495bb6880bcd89b6"
+        }
+      },
+      "officeBaseline": "pending"
+    },
+    {
+      "id": "br-only-line-size",
+      "format": "docx",
+      "file": "truths/br-only-line-size/probe.docx",
+      "upstreamPath": "packages/docx-engine/tests/fixtures/truths/br-only-line-size/probe.docx",
+      "sha256": "27495b112d4333e42d99b02e68b99eea53f6737577d8b75687a5ee3fb0819f0d",
+      "coverage": [
+        "soft-break",
+        "mixed-run-font-size"
+      ],
+      "provenance": {
+        "kind": "synthetic-from-source",
+        "license": "Apache-2.0",
+        "generator": "truths/br-only-line-size/build.py",
+        "upstreamGeneratorSha256": "fa0c731f030b0feae4e336b1b55b01ccb39fe5557c765d45c054a6450310e4e9",
+        "generatorSha256": "a49b1884b084d1ce703ff588fd3ea7939f510a97d3f7d091af62ab63d8bd195a"
+      },
+      "officeBaseline": "pending"
+    },
+    {
+      "id": "tab-stops-column-edge",
+      "format": "docx",
+      "file": "truths/tab-stops-column-edge/probe.docx",
+      "upstreamPath": "packages/docx-engine/tests/fixtures/truths/tab-stops-column-edge/probe.docx",
+      "sha256": "163630256766062627fce6b8d04e3af55ca54672a6d632d27b37444f63ab07df",
+      "coverage": [
+        "right-tab",
+        "dot-leader",
+        "paragraph-indent"
+      ],
+      "provenance": {
+        "kind": "synthetic-from-source",
+        "license": "Apache-2.0",
+        "generator": "truths/tab-stops-column-edge/build.py",
+        "upstreamGeneratorSha256": "7a86cd189a52f4b4adc4cda0c9d7adc1cb23839f83b8c6cb5211126c02c164de",
+        "generatorSha256": "eb0e167e41750b0d0d853cc6634c002e7907f4f98b1cf7ba5f4a32a97edf9706"
+      },
+      "officeBaseline": "pending"
+    },
+    {
+      "id": "grid-line-rules",
+      "format": "docx",
+      "file": "truths/grid-line-rules/probe.docx",
+      "upstreamPath": "packages/docx-engine/tests/fixtures/truths/grid-line-rules/probe.docx",
+      "sha256": "29a888239763aa3e9754a2732999b95104d8018bd71ee7b9d189b94f4e0aa508",
+      "coverage": [
+        "doc-grid",
+        "line-spacing",
+        "snap-to-grid"
+      ],
+      "provenance": {
+        "kind": "synthetic-from-source",
+        "license": "Apache-2.0",
+        "generator": "truths/grid-line-rules/build.py",
+        "upstreamGeneratorSha256": "4167040366520c8016f8a25f9c2430e56d171cafcdc9bda14f55526b9adb0fd7",
+        "generatorSha256": "14a08fa6d6d813fb90d40555c0e33e276a60c83999c16331a33e85342cf042f7"
+      },
+      "officeBaseline": "pending"
+    },
+    {
+      "id": "para-picture-only-line",
+      "format": "docx",
+      "file": "truths/para-picture-only-line/probe.docx",
+      "upstreamPath": "packages/docx-engine/tests/fixtures/truths/para-picture-only-line/probe.docx",
+      "sha256": "6f07c82b9cbb508291c4a7c11b5c804343fbf06cc160edd9dc684e030560d387",
+      "coverage": [
+        "inline-image",
+        "mixed-image-height",
+        "image-only-paragraph"
+      ],
+      "provenance": {
+        "kind": "synthetic-from-source",
+        "license": "Apache-2.0",
+        "generator": "truths/para-picture-only-line/build.py",
+        "upstreamGeneratorSha256": "bb3a9890e1539b7e84a4c07782ff885257d2efc5df1978e89d1fba961cabcb30",
+        "generatorSha256": "2224463da4e538ca23e2b4400a379b3c0afda25552538e3549365209661234a8"
+      },
+      "officeBaseline": "pending"
+    }
+  ]
+}

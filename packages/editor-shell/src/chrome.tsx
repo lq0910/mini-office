@@ -601,8 +601,9 @@ export function StatusBar() {
 
   const stats = session ? documentStats(session) : null;
 
+  // 功能：Excel 状态栏使用固定的大字号与控件高度，提升底部信息可读性；时间：2026-11-03；作者：lq。
   return (
-    <footer className="mo-glass mo-no-print flex h-[27px] min-w-0 shrink-0 items-center gap-2 border-t border-[var(--mo-line)] bg-[var(--mo-surface)] px-2 text-[10px] text-[var(--mo-text-muted)]">
+    <footer className={`${isSheet ? 'mo-sheet-status ' : ''}mo-glass mo-no-print flex h-[27px] min-w-0 shrink-0 items-center gap-2 border-t border-[var(--mo-line)] bg-[var(--mo-surface)] px-2 text-[10px] text-[var(--mo-text-muted)]`}>
       <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
         {isWord ? <span className="shrink-0 whitespace-nowrap" aria-label="文档页数">第 {currentPage} 页 / 共 {pageCount} 页</span> : null}
         <div className="flex min-w-0 items-center gap-2">

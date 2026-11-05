@@ -370,3 +370,55 @@
   height: 18px;
   font-size: 11px;
 }
+
+/* 功能：Excel 底部字号和缩放控件固定放大，鼠标悬停不改变布局；时间：2026-11-03；作者：lq。 */
+.mo-sheet-status {
+  height: 36px;
+  font-size: 13px;
+}
+.mo-sheet-status .text-\[9px\] {
+  font-size: 12px;
+}
+.mo-sheet-status button {
+  width: 28px;
+  height: 28px;
+}
+.mo-sheet-status select {
+  width: 76px;
+  height: 28px;
+  font-size: 13px;
+}
+.mo-sheet-status input[type='range'] {
+  height: 24px;
+}
+
+/* 功能：表格与标签滚动条始终保持 14px，悬停只加深颜色，避免细条临时放大；时间：2026-11-03；作者：lq。 */
+.mo-sheet .overflow-auto,
+.mo-sheet-tabs {
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+.mo-sheet .overflow-auto::-webkit-scrollbar,
+.mo-sheet-tabs::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+.mo-sheet .overflow-auto::-webkit-scrollbar-track,
+.mo-sheet-tabs::-webkit-scrollbar-track,
+.mo-sheet .overflow-auto::-webkit-scrollbar-corner {
+  background: var(--mo-surface-2);
+}
+.mo-sheet .overflow-auto::-webkit-scrollbar-thumb,
+.mo-sheet-tabs::-webkit-scrollbar-thumb {
+  min-width: 36px;
+  min-height: 36px;
+  border: 2px solid var(--mo-surface-2);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--mo-text-muted) 65%, var(--mo-surface-2));
+  background-clip: padding-box;
+}
+.mo-sheet .overflow-auto::-webkit-scrollbar-thumb:hover,
+.mo-sheet-tabs::-webkit-scrollbar-thumb:hover {
+  background: var(--mo-text-muted);
+  background-clip: padding-box;
+}

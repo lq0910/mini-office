@@ -42,7 +42,8 @@ import {
   shadeColor,
 } from './html';
 import { replaceDocumentSelection, selectionHtml, selectionText } from './document-selection';
-import { pageMetrics, paginateDocument, type PageSlice, type TableLayout } from './pagination';
+import { measureParagraphLines, resetFontMetrics } from './metrics';
+import { pageMetrics, paginateDocument, type PageSlice, type ParagraphLayout, type ParagraphSplit, type TableLayout } from './pagination';
 import { documentSections } from './sections';
 import { WordToolbar } from './WordToolbar';
 // 功能：接入标尺、制表位与目录；时间：2026-10-30；作者：lq。
@@ -391,28 +392,63 @@ interface ParagraphHandlers {
   selectedImageId?: string;
 }
 
+/**
+ * 功能：段落片段的裁剪窗口——整段内容照常渲染，只露出属于本页的行；时间：2026-11-03；作者：lq。
+ *
+ * 为什么不真正切开文本：段落是编辑的最小单位，切开会让 `onInput` 只回读到半段内容。
+ * 这里沿用表格跨页片段的策略——完整内容 + 窗口裁剪，续页片段只读。
+ */
+function paragraphWrapperStyleWithClip(
+  paragraph: DocParagraph,
+  firstOnPage: boolean | undefined,
+  clip?: ParagraphSplit,
+): React.CSSProperties {
+  const style: React.CSSProperties = { ...paragraphWrapperStyle(paragraph, { dropSpaceBefore: firstOnPage }), display: 'flow-root' };
+  if (!clip) return style;
+  return {
+    ...style,
+    paddingTop: clip.paddingTop,
+    paddingBottom: clip.paddingBottom,
+    // 页面使用 content-box，故 height 只表示窗口高度，段前段后距由 padding 另行占位。
+    height: clip.height,
+    overflow: 'hidden',
+  };
+}
+
 const StaticParagraph = memo(function StaticParagraph({
   paragraph,
   doc,
   pageNumber,
   totalPages,
   tocEntries,
+  firstOnPage,
+  clip,
 }: {
   paragraph: DocParagraph;
   doc: DocModel;
   pageNumber: number;
   totalPages: number;
   tocEntries?: TocEntry[];
+  /** 功能：段前距在页首不生效，与分页时的高度扣减保持一致；时间：2026-11-02；作者：lq。 */
+  firstOnPage?: boolean;
+  /** 功能：跨页段落的裁剪窗口；时间：2026-11-03；作者：lq。 */
+  clip?: ParagraphSplit;
 }) {
   const html = useMemo(
     () => renderParagraphHtml(paragraph, { pageNumber, totalPages, sectionPages: doc.sectionPageCount, tocEntries }),
     [paragraph, pageNumber, totalPages, doc.sectionPageCount, tocEntries],
   );
   return (
-    <div style={{ ...paragraphWrapperStyle(paragraph), display: 'flow-root' }}>
+    <div style={paragraphWrapperStyleWithClip(paragraph, firstOnPage, clip)}>
       <div
-        data-paragraph-id={paragraph.id}
-        style={paragraphTextStyle(paragraph, doc.defaultFont, doc.defaultFontSizePt)}
+        // 功能：静态续页不继承外层可编辑状态，防止浏览器修改无法映射回模型的片段；时间：2026-11-03；作者：lq。
+        contentEditable={false}
+        // 功能：续页片段不占用段落 id，避免焦点与编辑回调落到被裁剪的不可见行上；时间：2026-11-03；作者：lq。
+        data-paragraph-id={clip && clip.start > 0 ? undefined : paragraph.id}
+        style={{
+          ...paragraphTextStyle(paragraph, doc.defaultFont, doc.defaultFontSizePt, doc.page.docGrid?.linePitchPx),
+          marginTop: clip && clip.offset ? -clip.offset : undefined,
+        }}
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>
@@ -428,6 +464,8 @@ const EditableParagraph = memo(function EditableParagraph({
   handlers,
   tocEntries,
   showFormattingMarks,
+  firstOnPage,
+  clip,
 }: {
   paragraph: DocParagraph;
   doc: DocModel;
@@ -437,6 +475,10 @@ const EditableParagraph = memo(function EditableParagraph({
   handlers: ParagraphHandlers;
   tocEntries?: TocEntry[];
   showFormattingMarks?: boolean;
+  /** 功能：段前距在页首不生效，与分页时的高度扣减保持一致；时间：2026-11-02；作者：lq。 */
+  firstOnPage?: boolean;
+  /** 功能：跨页段落首片的裁剪窗口；时间：2026-11-03；作者：lq。 */
+  clip?: ParagraphSplit;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const lastSyncToken = useRef(handlers.syncToken);
@@ -478,18 +520,22 @@ const EditableParagraph = memo(function EditableParagraph({
   }, [handlers.selectedImageId, html]);
 
   return (
-    <div style={{ ...paragraphWrapperStyle(paragraph), display: 'flow-root' }}>
+    <div style={paragraphWrapperStyleWithClip(paragraph, firstOnPage, clip)}>
       <div
         ref={ref}
         // 功能：继承整篇文档的编辑宿主，允许跨段和跨页选区；时间：2026-10-18；作者：lq。
         tabIndex={-1}
         suppressContentEditableWarning
         spellCheck={false}
-        data-paragraph-id={paragraph.id}
+        data-paragraph-id={clip && clip.start > 0 ? undefined : paragraph.id}
         role="textbox"
         aria-multiline="true"
         aria-label="文档段落"
-        style={{ ...paragraphTextStyle(paragraph, doc.defaultFont, doc.defaultFontSizePt), outline: 'none' }}
+        style={{
+          ...paragraphTextStyle(paragraph, doc.defaultFont, doc.defaultFontSizePt, doc.page.docGrid?.linePitchPx),
+          outline: 'none',
+          marginTop: clip && clip.offset ? -clip.offset : undefined,
+        }}
         onInput={(event) => handlers.onInput(paragraph.id, event.currentTarget)}
         onPointerDown={(event) => {
           const handle = (event.target as HTMLElement).closest<HTMLElement>('[data-image-handle]');
@@ -555,16 +601,37 @@ function TableGrid({
     [table.columnWidthsPx, columnCount],
   );
   const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+  // 功能：tblW 为百分比时按百分比缩放列宽——Word 新建表格默认就是 pct 5000，此前只按网格宽度渲染，表格会明显偏窄；时间：2026-11-03；作者：lq。
+  const widthPct = table.widthPct;
+  // 功能：表格级内边距优先于 Word 默认值；108 twips = 5.4pt = 7.2 CSS px，不能把磅值当成像素；时间：2026-11-05；作者：lq。
+  const tableMargin = table.cellMarginPx;
+  // 功能：Word 左对齐表格按首格文字起点对齐版心，边框需扣除首格左内边距；时间：2026-11-05；作者：lq。
+  const firstCellLeft = table.rows[0]?.cells[0]?.marginPx?.left ?? tableMargin?.left ?? 7.2;
   const gridStyle: CSSProperties = {
     display: 'grid',
     // 功能：为左上角表格手柄提供定位上下文，手柄绝对定位后不参与网格布局；时间：2026-10-31；作者：lq。
     position: 'relative',
-    gridTemplateColumns: widths.map((width) => `${width}px`).join(' '),
-    // 功能：按行高设置最小轨道高度，内容较多时自动撑开；时间：2026-10-19；作者：lq。
-    gridTemplateRows: table.rows.map((row) => `minmax(${row.heightPx ?? 28}px, auto)`).join(' '),
-    width: totalWidth,
-    maxWidth: '100%',
-    marginLeft: table.alignment === 'center' ? 'auto' : table.alignment === 'right' ? 'auto' : undefined,
+    gridTemplateColumns: widthPct
+      ? widths.map((width) => `${((width / (totalWidth || 1)) * 100).toFixed(4)}%`).join(' ')
+      : widths.map((width) => `${width}px`).join(' '),
+    // 功能：行高按 Word 语义区分 atLeast 与 exact——exact 是固定行高，内容溢出被裁；
+    // atLeast（含缺省）以设定值��下限，内容更高时行会被撑开；时间：2026-11-03；作者：lq。
+    gridTemplateRows: table.rows
+      .map((row) =>
+        row.heightRule === 'exact' && row.heightPx
+          ? `${row.heightPx}px`
+          : `minmax(${row.heightPx ?? 20}px, auto)`,
+      )
+      .join(' '),
+    width: widthPct ? `${widthPct}%` : totalWidth,
+    // 功能：固定布局允许使用原件列宽，不再强制把超出版心的表格缩窄；时间：2026-11-03；作者：lq。
+    maxWidth: table.layout === 'fixed' ? undefined : '100%',
+    // 功能：显式居中/右对齐优先；左对齐的缩进以首格文字而非外边框为基准；时间：2026-11-05；作者：lq。
+    marginLeft: table.alignment === 'center'
+        ? 'auto'
+        : table.alignment === 'right'
+          ? 'auto'
+          : `${(table.indentPx ?? 0) - firstCellLeft}px`,
     marginRight: table.alignment === 'right' ? '0' : table.alignment === 'center' ? 'auto' : undefined,
   };
 
@@ -617,7 +684,13 @@ function TableGrid({
               flexDirection: 'column',
               justifyContent: justify,
               minWidth: 0,
-              padding: '3px 6px',
+              // 功能：单元格内边距取「单元格 tcMar > 表格 tblCellMar > Word 默认」的优先级；
+              // Word 默认上下 0、左右 108 twips（7.2 CSS px）；时间：2026-11-05；作者：lq。
+              padding: (() => {
+                const m = cell.marginPx ?? tableMargin;
+                if (!m) return '0 7.2px';
+                return `${m.top}px ${m.right}px ${m.bottom}px ${m.left}px`;
+              })(),
               boxSizing: 'border-box',
               // 功能：单元格底色同样走变量，深色纸张下不会留下刺眼白块；时间：2026-10-31；作者：lq。
               backgroundColor: shadeColor(backgroundColor),
@@ -677,17 +750,20 @@ function TableGrid({
 
 function HeaderFooterView({
   blocks,
+  textBoxes,
   doc,
   pageNumber,
   totalPages,
 }: {
   blocks: DocBlock[];
+  /** 功能：单独渲染页眉页脚锚定文本框，不继承正文编辑和网格状态；时间：2026-11-05；作者：lq。 */
+  textBoxes?: NonNullable<DocModel['footer']>['textBoxes'];
   doc: DocModel;
   pageNumber: number;
   totalPages: number;
 }) {
   return (
-    <div contentEditable={false}>
+    <div contentEditable={false} style={{ position: 'relative' }}>
       {blocks.map((block) =>
         block.type === 'paragraph' ? (
           <StaticParagraph
@@ -709,6 +785,23 @@ function HeaderFooterView({
           />
         ) : null,
       )}
+      {/* 功能：自动适应文字的页码框按内容收缩；对齐依据源锚点，禁止用全局偏移修图；时间：2026-11-05；作者：lq。 */}
+      {textBoxes?.map((box) => {
+        const align = box.anchor?.hAlign;
+        const right = align === 'right' || (align === 'outside' && pageNumber % 2 === 1) || (align === 'inside' && pageNumber % 2 === 0);
+        // 功能：页眉页脚容器从版心开始，page 相对坐标须补回页面边距；时间：2026-11-05；作者：lq。
+        const pageRelative = box.anchor?.hRelative === 'page';
+        const left = align === 'center'
+          ? pageRelative ? `calc(50% + ${(doc.page.margins.right - doc.page.margins.left) / 2}px)` : '50%'
+          : right ? undefined : (box.anchor?.hOffsetPx ?? 0) - (pageRelative ? doc.page.margins.left : 0);
+        return <div key={box.id} data-header-footer-text-box data-page-number={pageNumber} style={{ position: 'absolute', left, right: right ? pageRelative ? -doc.page.margins.right : 0 : undefined,
+          top: box.anchor?.vOffsetPx ?? 0, transform: align === 'center' ? 'translateX(-50%)' : undefined,
+          width: box.autoFit && box.noWrap ? 'max-content' : box.widthPx, height: box.autoFit ? undefined : box.heightPx,
+          padding: `${box.insetsPx.top}px ${box.insetsPx.right}px ${box.insetsPx.bottom}px ${box.insetsPx.left}px`,
+          boxSizing: 'border-box', overflow: 'hidden' }}>
+          <HeaderFooterView blocks={box.blocks} doc={{ ...doc, page: { ...doc.page, docGrid: undefined } }} pageNumber={pageNumber} totalPages={totalPages} />
+        </div>;
+      })}
     </div>
   );
 }
@@ -1144,7 +1237,7 @@ export function WordEditor({ session }: { session: WordSession }) {
       if (readonly) return;
       const previous = latestDoc();
       if (options?.history !== false) pushHistory(previous, options?.key);
-      updateData(session.id, { ...next, stats: computeDocStats(next) });
+      updateData(session.id, { ...next, stats: computeDocStats(next) }, { dirty: true });
       if (options?.reflow) setLayoutRevision((value) => value + 1);
     },
     [latestDoc, pushHistory, readonly, session.id, updateData],
@@ -1157,7 +1250,7 @@ export function WordEditor({ session }: { session: WordSession }) {
     if (!previous) return;
     stack.future.push(latestDoc());
     stack.lastKey = undefined;
-    updateData(session.id, previous);
+    updateData(session.id, previous, { dirty: true });
     setHistoryVersion((value) => value + 1);
     setSyncToken((value) => value + 1);
     setLayoutRevision((value) => value + 1);
@@ -1170,7 +1263,7 @@ export function WordEditor({ session }: { session: WordSession }) {
     if (!next) return;
     stack.past.push(latestDoc());
     stack.lastKey = undefined;
-    updateData(session.id, next);
+    updateData(session.id, next, { dirty: true });
     setHistoryVersion((value) => value + 1);
     setSyncToken((value) => value + 1);
     setLayoutRevision((value) => value + 1);
@@ -1280,10 +1373,11 @@ export function WordEditor({ session }: { session: WordSession }) {
 
   // 功能：制表位解析表——按段落 id 取制表位与默认间距，供渲染后置处理使用；时间：2026-10-30；作者：lq。
   const tabStopSource = useMemo(() => {
-    const map = new Map<string, { stops: TabStop[] | undefined; defaultStepPx: number }>();
+    const map = new Map<string, { stops: TabStop[] | undefined; defaultStepPx: number; indentLeftPx: number }>();
     for (const paragraph of collectParagraphs(doc)) {
-      if (paragraph.runs.some((run) => run.tab)) {
-        map.set(paragraph.id, { stops: paragraph.style.tabStops, defaultStepPx: doc.defaultTabStopPx ?? DEFAULT_TAB_STOP_PX });
+      // 功能：文字内原始 Tab 同样参与布局；源制表位仍以正文栏为基准，不因段落缩进向右漂移；时间：2026-11-03；作者：lq。
+      if (paragraph.runs.some((run) => run.tab || run.text?.includes('\t'))) {
+        map.set(paragraph.id, { stops: paragraph.style.tabStops, defaultStepPx: doc.defaultTabStopPx ?? DEFAULT_TAB_STOP_PX, indentLeftPx: paragraph.style.indentLeftPx ?? 0 });
       }
     }
     return map;
@@ -1296,13 +1390,19 @@ export function WordEditor({ session }: { session: WordSession }) {
     applyTabStops(container, (id) => tabStopSource.get(id));
     const heights = new Map<string, number>();
     const tables = new Map<string, TableLayout>();
+    const paragraphs = new Map<string, ParagraphLayout>();
     container.querySelectorAll<HTMLElement>('[data-measure-id]').forEach((element) => {
       const id = element.getAttribute('data-measure-id');
       if (id) heights.set(id, element.getBoundingClientRect().height);
       if (!id) return;
+      const block = blockMap.get(id);
+      // 功能：记录段落行盒，供跨页段落按行切分；单行段落与含图片的非均匀行盒不会登记，仍按整段移动；时间：2026-11-03；作者：lq。
+      if (block && block.type === 'paragraph' && !block.toc) {
+        const layout = measureParagraphLines(element.querySelector<HTMLElement>('[data-paragraph-id]'));
+        if (layout) paragraphs.set(id, layout);
+      }
       // 功能：读取表格每行实测高度，用于长表格跨页切分并重复表头；时间：2026-10-29；作者：lq。
       const grid = element.querySelector<HTMLElement>('[data-table-id]');
-      const block = blockMap.get(id);
       if (!grid || !block || block.type !== 'table') return;
       const rowHeights = getComputedStyle(grid).gridTemplateRows
         .split(' ')
@@ -1313,7 +1413,7 @@ export function WordEditor({ session }: { session: WordSession }) {
       while (block.rows[headerRows]?.isHeader) headerRows += 1;
       tables.set(id, { rowHeights, headerRows });
     });
-    setPages(paginateDocument(docRef.current, heights, tables));
+    setPages(paginateDocument(docRef.current, heights, tables, paragraphs));
   }, [
     layoutRevision,
     metrics.contentHeight,
@@ -1369,7 +1469,10 @@ export function WordEditor({ session }: { session: WordSession }) {
     if (document.fonts) {
       document.fonts.ready
         .then(() => {
-          if (!cancelled) setLayoutRevision((value) => value + 1);
+          if (cancelled) return;
+          // 功能：字体加载完成后重新测量单行高度，避免首屏用兜底系数排版；时间：2026-11-02；作者：lq。
+          resetFontMetrics();
+          setLayoutRevision((value) => value + 1);
         })
         .catch(() => {});
     }
@@ -3768,6 +3871,7 @@ function WordPageView({
           >
             <HeaderFooterView
               blocks={doc.header.blocks}
+              textBoxes={doc.header.textBoxes}
               doc={doc}
               pageNumber={pageNumber}
               totalPages={total}
@@ -3782,8 +3886,10 @@ function WordPageView({
             width: contentWidth,
           }}
         >
-          {blocks.map((block) =>
-            block.type === 'paragraph' ? (
+          {blocks.map((block, blockIndex) => {
+            // 功能：跨页段落片段以原段落 id 为 sourceId，内容回取原段落，片段 id 只用于渲染分片；时间：2026-11-03；作者：lq。
+            const split = block.type === 'paragraph' ? page.splits?.[block.id] : undefined;
+            return block.type === 'paragraph' ? (
               // 功能：目录段落由标题实时生成，不进入可编辑流，点击条目跳转到标题；时间：2026-10-30；作者：lq。
               block.toc ? (
                 <div
@@ -3800,18 +3906,33 @@ function WordPageView({
                     pageNumber={pageNumber}
                     totalPages={total}
                     tocEntries={tocEntries}
+                    firstOnPage={blockIndex === 0}
                   />
                 </div>
+              ) : split && split.start > 0 ? (
+                // 功能：续页片段只读，避免编辑落到被裁剪的不可见行上；时间：2026-11-03；作者：lq。
+                <StaticParagraph
+                  key={block.id}
+                  paragraph={findParagraph(doc, split.sourceId) ?? block}
+                  doc={doc}
+                  pageNumber={pageNumber}
+                  totalPages={total}
+                  tocEntries={tocEntries}
+                  clip={split}
+                  firstOnPage={blockIndex === 0}
+                />
               ) : (
                 <EditableParagraph
                   key={block.id}
-                  paragraph={block}
+                  paragraph={split ? findParagraph(doc, split.sourceId) ?? block : block}
                   doc={doc}
                   pageNumber={pageNumber}
                   totalPages={total}
                   readonly={readonly}
                   handlers={handlers}
                   showFormattingMarks={showFormattingMarks}
+                  firstOnPage={blockIndex === 0}
+                  clip={split}
                 />
               )
             ) : block.type === 'table' ? (
@@ -3824,8 +3945,8 @@ function WordPageView({
                 readonly={readonly || locked?.includes(block.id) === true}
                 handlers={locked?.includes(block.id) ? undefined : handlers}
               />
-            ) : null,
-          )}
+            ) : null;
+          })}
         </div>
         {doc.footer ? (
           <div
@@ -3840,6 +3961,7 @@ function WordPageView({
           >
             <HeaderFooterView
               blocks={doc.footer.blocks}
+              textBoxes={doc.footer.textBoxes}
               doc={doc}
               pageNumber={pageNumber}
               totalPages={total}

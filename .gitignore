@@ -31,3 +31,6 @@ docs/superpowers/
 
 # 功能：忽略重复构建产生的带时间戳发布包，每个版本只保留最终产物；时间：2026-11-01；作者：lq。
 output/releases/**/*_20[0-9][0-9][0-9][0-9][0-9][0-9]*.zip
+
+# 功能：逐页 Word 回归报告与外部 Office 基准副本属于本地验收产物，不提交仓库；时间：2026-11-03；作者：lq。
+output/playwright/word-corpus/

@@ -63,6 +63,8 @@ export const BUILTIN_STYLES: ReadonlyArray<DocStyleDefinition> = [
       alignment: 'left',
       outlineLevel: 0,
       keepNext: true,
+      // 功能：Word 内置标题样式同时带 keepLines，标题不会被拆到两页；时间：2026-11-03；作者：lq。
+      keepLines: true,
       lineHeight: 1.3,
       spaceBeforePx: pt(12),
       spaceAfterPx: pt(6),
@@ -80,6 +82,8 @@ export const BUILTIN_STYLES: ReadonlyArray<DocStyleDefinition> = [
       alignment: 'left',
       outlineLevel: 1,
       keepNext: true,
+      // 功能：Word 内置标题样式同时带 keepLines，标题不会被拆到两页；时间：2026-11-03；作者：lq。
+      keepLines: true,
       lineHeight: 1.35,
       spaceBeforePx: pt(10),
       spaceAfterPx: pt(4),
@@ -97,6 +101,8 @@ export const BUILTIN_STYLES: ReadonlyArray<DocStyleDefinition> = [
       alignment: 'left',
       outlineLevel: 2,
       keepNext: true,
+      // 功能：Word 内置标题样式同时带 keepLines，标题不会被拆到两页；时间：2026-11-03；作者：lq。
+      keepLines: true,
       lineHeight: 1.4,
       spaceBeforePx: pt(8),
       spaceAfterPx: pt(4),
@@ -114,6 +120,8 @@ export const BUILTIN_STYLES: ReadonlyArray<DocStyleDefinition> = [
       alignment: 'left',
       outlineLevel: 3,
       keepNext: true,
+      // 功能：Word 内置标题样式同时带 keepLines，标题不会被拆到两页；时间：2026-11-03；作者：lq。
+      keepLines: true,
       lineHeight: 1.45,
       spaceBeforePx: pt(6),
       spaceAfterPx: pt(3),

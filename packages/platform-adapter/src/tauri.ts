@@ -6,7 +6,7 @@ import {
   type DocumentSnapshotMeta,
   type FontInfo,
 } from '@mini-office/shared';
-import { fileTypeFilters, toUint8Array, type OpenedFile, type PlatformAdapter, type SaveOutcome, type SaveTarget } from './types';
+import { fileTypeFilters, toUint8Array, type ConvertedLegacy, type OpenedFile, type PlatformAdapter, type SaveOutcome, type SaveTarget } from './types';
 import { getSnapshot, listSnapshots, putSnapshot, removeSnapshot } from './snapshots';
 
 async function tauriInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -64,16 +64,25 @@ export class TauriPlatformAdapter implements PlatformAdapter {
     return this.openPath(path);
   }
 
-  /** 功能：调用 Rust 兼容桥转换 DOC/XLS/PPT，并读取生成的 OOXML 副本；时间：2026-10-27；作者：lq。 */
-  async convertLegacy(path: string): Promise<OpenedFile | null> {
+  /** 功能：调用 Rust 兼容桥在内存中转换 DOC/XLS/PPT，源目录不新增文件；时间：2026-11-02；作者：lq。 */
+  async convertLegacy(path: string): Promise<ConvertedLegacy | null> {
     try {
-      const converted = await tauriInvoke<string>('convert_legacy_document', { input: path });
-      const opened = await this.openPath(converted);
-      if (!opened) return null;
-      // 功能：转换旧版文件后保留用户原始显示名称，避免临时转换后缀污染标签和最近文件；时间：2026-10-28；作者：lq。
-      const originalExtension = path.split('.').pop()?.toLowerCase();
-      const convertedExtension = originalExtension === 'doc' ? 'docx' : originalExtension === 'xls' ? 'xlsx' : 'pptx';
-      return { ...opened, name: `${baseName(path).replace(/\.[^.]+$/, '')}.${convertedExtension}` };
+      // 功能：DOC 改走保留字体、样式、表格和节信息的浏览器转换器；XLS/PPT 沿用现有 Rust 通道；时间：2026-11-03；作者：lq。
+      if (/\.doc$/i.test(path)) {
+        const opened = await this.openPath(path);
+        if (!opened) return null;
+        const { convertLegacyDoc } = await import('./legacy-doc');
+        return convertLegacyDoc(opened.bytes, opened.name);
+      }
+      const converted = await tauriInvoke<{ name: string; sourceName: string; bytes: ArrayBuffer | number[] }>(
+        'convert_legacy_document',
+        { input: path },
+      );
+      return {
+        name: converted.name,
+        sourceName: converted.sourceName,
+        bytes: toUint8Array(converted.bytes),
+      };
     } catch (error) {
       throw new OfficeError(ErrorCodes.PARSE_FAILED, `无法转换旧版文件：${baseName(path)}`, error instanceof Error ? error.message : String(error));
     }
@@ -171,9 +180,14 @@ export class TauriPlatformAdapter implements PlatformAdapter {
     const bytes = new Uint8Array(await file.arrayBuffer());
     if (/\.(doc|xls|ppt)$/i.test(file.name)) {
       try {
+        // 功能：拖拽 DOC 复用路径打开的同一转换器，避免两个入口保真度不同；时间：2026-11-03；作者：lq。
+        if (/\.doc$/i.test(file.name)) {
+          const { convertLegacyDoc } = await import('./legacy-doc');
+          return convertLegacyDoc(bytes, file.name);
+        }
         // 功能：拖拽旧版 Office 文件时直接走内存转换，不创建用户可见临时文件；时间：2026-10-28；作者：lq。
-        const converted = await tauriInvoke<{ name: string; bytes: ArrayBuffer | number[] }>('convert_legacy_bytes', { name: file.name, bytes: Array.from(bytes) });
-        return { name: converted.name, bytes: toUint8Array(converted.bytes) };
+        const converted = await tauriInvoke<{ name: string; sourceName: string; bytes: ArrayBuffer | number[] }>('convert_legacy_bytes', { name: file.name, bytes: Array.from(bytes) });
+        return { name: converted.name, sourceName: converted.sourceName, bytes: toUint8Array(converted.bytes) };
       } catch (error) {
         throw new OfficeError(ErrorCodes.PARSE_FAILED, `无法转换旧版文件：${file.name}`, error instanceof Error ? error.message : String(error));
       }

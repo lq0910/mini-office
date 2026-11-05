@@ -6,6 +6,21 @@ export interface OpenedFile {
   path?: string;
   handle?: FileSystemFileHandle;
   lastModified?: number;
+  /**
+   * 功能：旧版格式转换后的原始文件名（如 合同.doc）；存在即表示这是只读兼容会话；时间：2026-11-02；作者：lq。
+   */
+  sourceName?: string;
+  /** 功能：旧格式转换检测到的兼容缺口，打开时向用户展示；时间：2026-11-03；作者：lq。 */
+  conversionWarnings?: string[];
+}
+
+/** 功能：旧版 DOC/XLS/PPT 的内存转换结果，源目录不产生任何文件；时间：2026-11-02；作者：lq。 */
+export interface ConvertedLegacy {
+  name: string;
+  bytes: Uint8Array;
+  sourceName: string;
+  /** 功能：记录转换器报告的非致命格式损失；时间：2026-11-03；作者：lq。 */
+  conversionWarnings?: string[];
 }
 
 export interface SaveTarget {
@@ -27,8 +42,8 @@ export interface PlatformAdapter {
   readonly kind: 'web' | 'tauri';
   openFile(extensions: string[]): Promise<OpenedFile | null>;
   openPath(path: string): Promise<OpenedFile | null>;
-  /** 功能：将旧版 Office 文件转换为 OOXML 后再进入统一编辑流程；时间：2026-10-27；作者：lq。 */
-  convertLegacy?(path: string): Promise<OpenedFile | null>;
+  /** 功能：将旧版 Office 文件在内存中转换为 OOXML，不写临时文件、不污染源目录；时间：2026-11-02；作者：lq。 */
+  convertLegacy?(path: string): Promise<ConvertedLegacy | null>;
   saveBytes(bytes: Uint8Array, target: SaveTarget, mime: string): Promise<SaveOutcome>;
   listFonts(): Promise<FontInfo[]>;
   /** 功能：强制重新扫描字体，供用户安装字体后即时生效；时间：2026-10-29；作者：lq。 */

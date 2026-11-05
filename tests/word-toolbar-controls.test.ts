@@ -6,6 +6,8 @@ import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WordToolbar, type WordToolbarProps } from '../packages/editor-word/src/WordToolbar';
+// 功能：注入系统字体枚举结果，验证真实工具栏的字体列表与选中行为；时间：2026-11-03；作者：lq。
+import { useWorkspaceStore } from '@mini-office/document-model';
 
 let container: HTMLDivElement;
 let root: Root;
@@ -437,6 +439,31 @@ describe('Word Ribbon 选项卡与回调', () => {
     }
     click(control('查找替换'));
     expect(toolbarProps.onToggleFind).toHaveBeenCalledOnce();
+  });
+
+  // 功能：回归截图中的重复字体与内部字体问题，并验证列表整理后仍能选中及切换字体；时间：2026-11-03；作者：lq。
+  it('系统字体不同字重合并后，当前字体仍选中且新选择能提交', () => {
+    const previousFonts = useWorkspaceStore.getState().fonts;
+    const toolbarProps = props({ activeStyle: { fontFamily: 'verdana', fontSizePt: 12 } });
+    try {
+      act(() => useWorkspaceStore.setState({ fonts: [
+        { family: '.Hiragino Kaku Gothic Interface', style: 'Regular', source: 'system', hasChinese: false },
+        { family: 'Verdana', style: 'Regular', source: 'system', hasChinese: false },
+        { family: 'Verdana', style: 'Bold', source: 'system', hasChinese: false },
+        { family: '宋体', style: 'Regular', source: 'system', hasChinese: true },
+      ] }));
+      act(() => root.render(createElement(WordToolbar, toolbarProps)));
+      const font = container.querySelector<HTMLSelectElement>('select[aria-label="字体"]')!;
+      expect(Array.from(font.options, (option) => option.value)).toEqual(['默认', 'verdana', '宋体']);
+      expect(font.value).toBe('verdana');
+      act(() => {
+        font.value = '宋体';
+        font.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      expect(toolbarProps.onFontFormat).toHaveBeenCalledWith({ fontFamily: '宋体' });
+    } finally {
+      act(() => useWorkspaceStore.setState({ fonts: previousFonts }));
+    }
   });
 
   it('字体颜色与高亮仍分别提交颜色格式回调', () => {

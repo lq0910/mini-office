@@ -22,7 +22,8 @@ export function HeaderFooterDialog({ doc, pageCount, initialRegion, onClose, onA
   const alignment = paragraph?.style.alignment ?? 'center';
   const fontSize = paragraph?.runs[0]?.style.fontSizePt ?? 10.5;
   const distance = current?.distancePx ?? doc.page.margins[region];
-  const complex = !!current?.blocks.some((block) => block.type !== 'paragraph' || block.runs.some((run) => run.image || (run.field && !['PAGE', 'NUMPAGES'].includes(run.field))));
+  // 功能：锚定文本框属于需保留的复杂内容，不能通过普通文字表单无提示覆盖；清空操作仍可显式移除；时间：2026-11-05；作者：lq。
+  const complex = !!current?.textBoxes?.length || !!current?.blocks.some((block) => block.type !== 'paragraph' || block.runs.some((run) => run.image || (run.field && !['PAGE', 'NUMPAGES'].includes(run.field))));
   const validStart = Number.isInteger(start) && start >= 0 && start <= 32767;
   const update = (changes: { text?: string; alignment?: WordAlignment; fontSize?: number; distance?: number }) => {
     setLayoutError('');

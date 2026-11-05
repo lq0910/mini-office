@@ -278,7 +278,7 @@ export function SheetEditor({ session }: { session: SheetSession }) {
       const previous = latestWorkbook();
       if (options?.history !== false) pushHistory(previous, options?.key);
       const recalculated = recalculateWorkbook(next);
-      updateData(session.id, recalculated);
+      updateData(session.id, recalculated, { dirty: true });
     },
     [latestWorkbook, pushHistory, readonly, session.id, updateData],
   );
@@ -290,7 +290,7 @@ export function SheetEditor({ session }: { session: SheetSession }) {
     if (!previous) return;
     stack.future.push(latestWorkbook());
     stack.lastKey = undefined;
-    updateData(session.id, previous);
+    updateData(session.id, previous, { dirty: true });
     setEditing(null);
     setHistoryVersion((value) => value + 1);
   }, [latestWorkbook, readonly, session.id, updateData]);
@@ -302,7 +302,7 @@ export function SheetEditor({ session }: { session: SheetSession }) {
     if (!next) return;
     stack.past.push(latestWorkbook());
     stack.lastKey = undefined;
-    updateData(session.id, next);
+    updateData(session.id, next, { dirty: true });
     setEditing(null);
     setHistoryVersion((value) => value + 1);
   }, [latestWorkbook, readonly, session.id, updateData]);
@@ -1245,13 +1245,14 @@ export function SheetEditor({ session }: { session: SheetSession }) {
           ) : null}
         </div>
 
-        <div className="mo-glass mo-no-print flex h-8 shrink-0 items-center gap-1 border-t border-[var(--mo-line)] bg-[var(--mo-surface)] px-2">
+        {/* 功能：加大工作表底栏和统计字号，保持固定尺寸便于阅读与点击；时间：2026-11-03；作者：lq。 */}
+        <div className="mo-sheet-bottom mo-glass mo-no-print flex h-12 shrink-0 items-center gap-1 border-t border-[var(--mo-line)] bg-[var(--mo-surface)] px-2">
           {/* 功能：标签右键菜单、双击原位改名及标签颜色；时间：2026-10-24；作者：lq。 */}
           <SheetTabs sheets={workbook.sheets} activeId={sheet.id} readonly={readonly} onSwitch={switchSheet} onAdd={addNewSheet}
             onRename={(id, name) => { if (!readonly) commit(renameSheet(latestWorkbook(), id, name), { key: 'rename-sheet' }); }}
             onColor={(id, tabColor) => { if (!readonly) commit(updateSheet(latestWorkbook(), id, (item) => ({ ...item, tabColor })), { key: 'tab-color' }); }}
             onDelete={(item) => setSheetDialog({ sheetId: item.id, name: item.name })} />
-          <div className="flex shrink-0 items-center gap-3 pl-3 text-[10px] tabular-nums text-[var(--mo-text-muted)]">
+          <div className="flex shrink-0 items-center gap-3 pl-3 text-[13px] tabular-nums text-[var(--mo-text-muted)]">
             {stats.numericCount > 0 ? (
               <>
                 <span>求和 {formatNumber(stats.sum)}</span>

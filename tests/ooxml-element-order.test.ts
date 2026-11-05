@@ -36,7 +36,8 @@ function richDoc(): DocModel {
     {
       type: 'paragraph',
       id: 'p1',
-      style: { alignment: 'justify', spaceBeforePx: 6, spaceAfterPx: 12, lineHeight: 1.5, firstLineIndentPx: 28, backgroundColor: '#fff', borders: { bottom: { style: 'single', widthPx: 1, color: '#333' } } },
+      // 功能：同时覆盖 snapToGrid、边框和底纹，校验新增属性组合的真实模式顺序；时间：2026-11-03；作者：lq。
+      style: { alignment: 'justify', spaceBeforePx: 6, spaceAfterPx: 12, lineHeight: 1.5, firstLineIndentPx: 28, backgroundColor: '#fff', keepLines: true, widowControl: false, snapToGrid: false, borders: { bottom: { style: 'single', widthPx: 1, color: '#333' } } },
       runs: [{ text: '标题', style: { bold: true, italic: true, underline: true, strike: true, allCaps: true, smallCaps: true, color: '#f00', highlight: '#ff0', fontSizePt: 12, letterSpacingPx: 1, verticalAlign: 'super' } }],
     },
     {
@@ -57,10 +58,13 @@ function richDoc(): DocModel {
       columnWidthsPx: [120, 120],
       widthPct: 100,
       alignment: 'center',
+      // 功能：确保表格缩进与内边距的新增写入分支参与顺序验证；时间：2026-11-03；作者：lq。
+      indentPx: 12,
+      cellMarginPx: { top: 0, right: 7, bottom: 0, left: 7 },
       borders: { top: { style: 'single', widthPx: 1, color: '#000' }, insideV: { style: 'single', widthPx: 1, color: '#000' } },
       rows: [
         { id: 'r1', heightPx: 24, isHeader: true, cells: [
-          { id: 'c1', colSpan: 1, rowSpan: 2, verticalAlign: 'middle', backgroundColor: '#eee', borders: { top: { style: 'single', widthPx: 1, color: '#000' } }, blocks: [{ type: 'paragraph', id: 'p3', style: {}, runs: [{ text: '合并', style: {} }] }] },
+          { id: 'c1', colSpan: 1, rowSpan: 2, verticalAlign: 'middle', marginPx: { top: 2, right: 5, bottom: 2, left: 5 }, backgroundColor: '#eee', borders: { top: { style: 'single', widthPx: 1, color: '#000' } }, blocks: [{ type: 'paragraph', id: 'p3', style: {}, runs: [{ text: '合并', style: {} }] }] },
           { id: 'c2', colSpan: 1, rowSpan: 1, verticalAlign: 'bottom', blocks: [{ type: 'paragraph', id: 'p4', style: {}, runs: [{ text: '右一', style: {} }] }] },
         ] },
         { id: 'r2', cells: [
@@ -84,6 +88,9 @@ describe('DOCX 部件符合 ECMA-376 顺序', () => {
     expect(orderViolations(xml, 'tcPr', TCPR_ORDER)).toEqual([]);
     expect(orderViolations(xml, 'tblPr', TBLPR_ORDER)).toEqual([]);
     expect(orderViolations(xml, 'sectPr', SECTPR_ORDER)).toEqual([]);
+    // 功能：确认分页属性确实写出，且 widowControl 仅在显式关闭时输出 w:val="0"；时间：2026-11-03；作者：lq。
+    expect(xml).toContain('<w:keepLines/>');
+    expect(xml).toContain('<w:widowControl w:val="0"/>');
     for (const name of ['word/header1.xml', 'word/footer1.xml']) {
       const part = zip.file(name);
       if (!part) continue;

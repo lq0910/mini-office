@@ -2518,6 +2518,7 @@ dependencies = [
  "office-core",
  "office_oxide",
  "tempfile",
+ "zip 2.6.1",
 ]
 
 [[package]]

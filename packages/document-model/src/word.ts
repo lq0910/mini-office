@@ -2,6 +2,10 @@ export type WordAlignment = 'left' | 'center' | 'right' | 'justify';
 
 export interface RunStyle {
   fontFamily?: string;
+  /** 功能：源字体表明确声明的备用字体，仅用于显示和度量，不替换原字体名；时间：2026-11-05；作者：lq。 */
+  fontFallback?: string;
+  /** 功能：绑定备用名对应的原字体，工具栏改用其他字体后不继承旧替代规则；时间：2026-11-05；作者：lq。 */
+  fontFallbackFor?: string;
   fontSizePt?: number;
   bold?: boolean;
   italic?: boolean;
@@ -63,6 +67,8 @@ export interface DocImage {
   wrap?: 'inline' | 'square-left' | 'square-right' | 'top-bottom';
   /** 功能：浮动图片的锚定参数，保存时原样写回；时间：2026-10-31；作者：lq。 */
   anchor?: ImageAnchor;
+  /** 功能：保留图片效果外扩的占位尺寸（px），用于内嵌行排版及 OOXML 保存；时间：2026-11-04；作者：lq。 */
+  effectExtent?: { left: number; top: number; right: number; bottom: number };
 }
 
 export interface MergeFieldFormat {
@@ -96,8 +102,9 @@ export interface DocRun {
 /**
  * 功能：Word 制表位（w:tabs/w:tab），标尺与正文 Tab 定位共用同一份数据；时间：2026-10-30；作者：lq。
  *
- * `posPx` 相对段落左边界（即正文内容框左沿，不含缩进），与 OOXML 的 `w:pos` 语义一致，
+ * `posPx` 相对正文栏左沿，不叠加段落左缩进，与 OOXML 的 `w:pos` 语义一致，
  * 因此解析后可直接与浏览器实测位置比较，不需要再做一次坐标换算。
+ * 功能：依据公开制表位探针明确缩进后的坐标基准；时间：2026-11-03；作者：lq。
  */
 export type TabAlignment = 'left' | 'center' | 'right' | 'decimal';
 
@@ -123,7 +130,16 @@ export interface ParagraphStyle {
   /** 功能：最小值行距（w:lineRule="atLeast"），低于该高度时按内容撑开；时间：2026-10-29；作者：lq。 */
   lineHeightAtLeastPx?: number;
   keepNext?: boolean;
+  /** 功能：整段不拆页（w:keepLines），用于条款、签名栏等不允许跨页的段落；时间：2026-11-03；作者：lq。 */
+  keepLines?: boolean;
+  /** 功能：孤行控制（w:widowControl），默认开启；显式 false 表示允许页首页尾出现单行；时间：2026-11-03；作者：lq。 */
+  widowControl?: boolean;
   pageBreakBefore?: boolean;
+  /**
+   * 功能：段落网格吸附开关（w:snapToGrid）；缺省 true 表示吸附到文档网格行距；
+   * 显式 false 时段落按字体度量定行高，不使用 docGrid 的 linePitch；时间：2026-11-03；作者：lq。
+   */
+  snapToGrid?: boolean;
   outlineLevel?: number;
   backgroundColor?: string;
   /** 功能：保留段落上下左右边框，用于兼容 Word 横线与签名栏；时间：2026-10-27；作者：lq。 */
@@ -206,12 +222,33 @@ export interface DocTableCell {
   backgroundColor?: string;
   borders?: TableBorders;
   verticalAlign?: 'top' | 'middle' | 'bottom';
+  /** 功能：单元格自定义内边距（w:tcMar），缺省沿用表格级 tblCellMar；时间：2026-11-03；作者：lq。 */
+  marginPx?: TableCellMargin;
+}
+
+/**
+ * 功能：表格与单元格的单元格内边距；时间：2026-11-03；作者：lq。
+ *
+ * Word 默认上下为 0、左右 108 twips（≈5.4px）。tblCellMar 定义表格级默认值，
+ * tcMar 定义单个单元格的覆盖值。
+ */
+export interface TableCellMargin {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
 }
 
 export interface DocTableRow {
   id: string;
   cells: DocTableCell[];
   heightPx?: number;
+  /**
+   * 功能：行高规则（w:trHeight@w:hRule）；缺省为 atLeast，与 Word 一致；时间：2026-11-03；作者：lq。
+   *
+   * atLeast = 最小高度，内容更高时行会被撑开；exact = 固定高度，内容溢出被裁剪。
+   */
+  heightRule?: 'atLeast' | 'exact';
   isHeader?: boolean;
 }
 
@@ -224,6 +261,17 @@ export interface DocTable {
   alignment?: WordAlignment;
   borders?: TableBorders;
   styleId?: string;
+  /**
+   * 功能：表格列宽布局模式（w:tblLayout@w:type）；时间：2026-11-03；作者：lq。
+   *
+   * fixed = 严格使用 tblGrid 指定的列宽；autofit = 按正文可用宽度自适应收敛。
+   * OOXML 中缺省为 autofit，但仅在 tblW 为 auto 时才真正生效。
+   */
+  layout?: 'fixed' | 'autofit';
+  /** 功能：表格左缩进（w:tblInd）；时间：2026-11-03；作者：lq。 */
+  indentPx?: number;
+  /** 功能：表格级单元格内边距（w:tblCellMar）；时间：2026-11-03；作者：lq。 */
+  cellMarginPx?: TableCellMargin;
 }
 
 export interface PageBreakBlock {
@@ -252,6 +300,34 @@ export interface PageSetup {
   columns?: number;
   /** 功能：页码起始值，独立于物理页序；时间：2026-10-24；作者：lq。 */
   pageNumberStart?: number;
+  /** 功能：文档网格（w:docGrid）；中文公文按网格逐行对齐，缺省表示未启用；时间：2026-11-02；作者：lq。 */
+  docGrid?: DocGrid;
+}
+
+/**
+ * 功能：文档网格设置；时间：2026-11-02；作者：lq。
+ *
+ * Word 在启用网格时用 `linePitch` 作为「单倍行距」的行高，多倍行距按倍数叠加，
+ * 因此排版不能只看字体度量，否则公文类文档每页行数会对不上。
+ */
+export interface DocGrid {
+  type: 'none' | 'lines' | 'linesAndChars' | 'snapToChars';
+  linePitchPx?: number;
+  charSpacePx?: number;
+}
+
+/** 功能：页眉页脚中只读显示的 DrawingML 文本框，保留原绘图 XML 供保存回写；时间：2026-11-05；作者：lq。 */
+export interface HeaderFooterTextBox {
+  id: string;
+  blocks: DocBlock[];
+  widthPx: number;
+  heightPx: number;
+  anchor?: ImageAnchor;
+  autoFit: boolean;
+  /** 功能：自动适应且不折行时按内容宽度收缩，允许折行时仍保留声明的框宽；时间：2026-11-05；作者：lq。 */
+  noWrap: boolean;
+  insetsPx: { left: number; top: number; right: number; bottom: number };
+  sourceXml: string;
 }
 
 export interface HeaderFooter {
@@ -262,6 +338,8 @@ export interface HeaderFooter {
   edited?: boolean;
   /** 功能：保留页眉页脚部件路径以正确复用图片关系；时间：2026-10-24；作者：lq。 */
   sourcePart?: string;
+  /** 功能：锚定文本框不挤占普通页眉页脚段落，页码域随所在页面动态显示；时间：2026-11-05；作者：lq。 */
+  textBoxes?: HeaderFooterTextBox[];
 }
 
 /** 功能：描述一个报告节的页面与页眉页脚；时间：2026-10-24；作者：lq。 */
@@ -312,6 +390,19 @@ export interface DocModel {
   styles?: DocStyleDefinition[];
   /** 功能：文档默认制表位间距（settings.xml 的 w:defaultTabStop），未设置时按 0.5 英寸处理；时间：2026-10-30；作者：lq。 */
   defaultTabStopPx?: number;
+  /** 功能：保留导入 XML 与块基线，用于仅回写用户修改的正文；时间：2026-11-03；作者：lq。 */
+  source?: WordSourceSnapshot;
+}
+
+/** 功能：记录源正文区间及编辑基线，不参与渲染或导出内容；时间：2026-11-03；作者：lq。 */
+export interface WordSourceSnapshot {
+  xml: string;
+  bodyStart: number;
+  bodyEnd: number;
+  signature: string;
+  page: string;
+  styles: string;
+  groups: { start: number; end: number; ids: string[]; baseline: string }[];
 }
 
 export const A4_PAGE: PageSetup = {

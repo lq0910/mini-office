@@ -34,7 +34,8 @@ export const wordFormatHandler: FormatHandler<DocModel> = {
         fileName: input.name,
         knownFonts: input.knownFonts,
       });
-      const data = await parseDocxPackage(pkg, { fileName: input.name });
+      // 功能：将真实字体清单传入解析器，缺失旧字体才应用兼容显示备用名；时间：2026-11-05；作者：lq。
+      const data = await parseDocxPackage(pkg, { fileName: input.name, knownFonts: input.knownFonts });
       return {
         data,
         capability,

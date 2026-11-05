@@ -45,6 +45,9 @@ describe('DOCX fixture compatibility', () => {
       const doc = await parseDocxPackage(pkg, { fileName: 'contract.docx' });
       expect(doc.page.sizeName).toBe('A4');
       expect(Math.round(doc.page.widthPx)).toBe(794);
+      // 功能：合同样本带 w:docGrid/@linePitch=360，排版需按 24px 行网格对齐；时间：2026-11-02；作者：lq。
+      expect(doc.page.docGrid?.type).toBe('lines');
+      expect(Math.round(doc.page.docGrid?.linePitchPx ?? 0)).toBe(24);
       const text = allText(doc.blocks);
       expect(text).toContain('房屋租赁合同');
       expect(text).toContain('北京示例科技有限公司');

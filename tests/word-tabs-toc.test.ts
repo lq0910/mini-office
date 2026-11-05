@@ -6,7 +6,7 @@
  * 1. 正文 Tab 与标尺制表位此前没有任何结构化数据，渲染只能退化成空格，右对齐与点线前导无法实现；
  * 2. 目录此前只能靠手动敲点线和页码，增删内容后页码不会跟随。
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import JSZip from 'jszip';
 import { createBlankDoc, type DocBlock, type DocModel, type DocParagraph } from '@mini-office/document-model';
 import { DEFAULT_TAB_STOP_PX, applyTabStops, nextTabStop } from '../packages/editor-word/src/tab-stops';
@@ -16,6 +16,10 @@ import { parseDocxPackage } from '../packages/editor-word/src/parse';
 import { serializeDomRuns } from '../packages/editor-word/src/editing';
 import { loadOoxmlPackage } from '@mini-office/ooxml';
 import type { PageSlice } from '../packages/editor-word/src/pagination';
+import { renderRunsHtml } from '../packages/editor-word/src/html';
+
+// 功能：恢复新增几何测量回归中的 DOM mock，防止影响其他制表位用例；时间：2026-11-03；作者：lq。
+afterEach(() => vi.restoreAllMocks());
 
 function paragraph(overrides: Partial<DocParagraph> & { id: string; text?: string }): DocParagraph {
   const { text, ...rest } = overrides;
@@ -65,6 +69,52 @@ describe('制表位定位', () => {
 });
 
 describe('制表符渲染后置处理', () => {
+  // 功能：覆盖真实语料的文字内 Tab，保留字符样式和编辑后的 Tab 语义；时间：2026-11-03；作者：lq。
+  it('文字内 Tab 与结构化 Tab 都输出可测量的占位，且往返编辑不丢失', () => {
+    const runs = [{ text: '标题\t12', style: { fontSizePt: 11, bold: true } }];
+    const root = document.createElement('p');
+    root.innerHTML = renderRunsHtml(runs);
+    expect(root.querySelectorAll('[data-tab]')).toHaveLength(1);
+    expect(root.querySelector('[data-tab]')?.parentElement?.style.fontWeight).toBe('700');
+    const restored = serializeDomRuns(root, {}, new Map());
+    expect(restored.map((run) => run.tab ? '\t' : run.text ?? '').join('')).toBe('标题\t12');
+    expect(runs[0].text).toBe('标题\t12');
+  });
+
+  /** 功能：构造带嵌套文字矩形的真实制表位几何，区分同一行多矩形与多行；时间：2026-11-03；作者：lq。 */
+  function tabGeometry(multiline = false) {
+    const root = document.createElement('div');
+    root.innerHTML = '<p data-paragraph-id="p-indent"><span>标题</span><span data-tab="1"></span><span><b>12</b></span></p>';
+    const paragraph = root.firstElementChild as HTMLElement;
+    const tab = root.querySelector<HTMLElement>('[data-tab]')!;
+    Object.defineProperty(paragraph, 'offsetWidth', { value: 400 });
+    vi.spyOn(paragraph, 'getBoundingClientRect').mockReturnValue({ left: 32, width: 400 } as DOMRect);
+    vi.spyOn(tab, 'getBoundingClientRect').mockReturnValue({ left: 132 } as DOMRect);
+    const create = document.createRange.bind(document);
+    vi.spyOn(document, 'createRange').mockImplementation(() => {
+      const range = create();
+      Object.assign(range, { getClientRects: () => [
+        { left: 132, right: 152, top: 0, bottom: 20, width: 20, height: 20 },
+        { left: 132, right: 152, top: multiline ? 24 : 0, bottom: multiline ? 44 : 20, width: 20, height: 20 },
+      ] });
+      return range;
+    });
+    return { root, tab };
+  }
+
+  it('右对齐按同一行矩形并集扣除页码宽度，并消除段落缩进漂移', () => {
+    const { root, tab } = tabGeometry();
+    applyTabStops(root, () => ({ stops: [{ posPx: 400, alignment: 'right', leader: 'dot' }], indentLeftPx: 32 }));
+    expect(parseFloat(tab.style.width)).toBe(248);
+    expect(tab.style.borderBottom).toContain('dotted');
+  });
+
+  it('真正跨行的后续内容仍回退左对齐，避免错误扣除整段宽度', () => {
+    const { root, tab } = tabGeometry(true);
+    applyTabStops(root, () => ({ stops: [{ posPx: 400, alignment: 'right' }], indentLeftPx: 32 }));
+    expect(parseFloat(tab.style.width)).toBe(268);
+  });
+
   it('按实测位置补宽度，并按前导符画下边框', () => {
     const root = document.createElement('div');
     root.innerHTML =

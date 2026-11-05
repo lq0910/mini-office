@@ -84,6 +84,12 @@ export interface OpenBytesInput {
   path?: string;
   handle?: FileSystemFileHandle;
   restored?: { dirty: boolean };
+  /**
+   * 功能：旧版格式（DOC/XLS/PPT）转换后的原始文件名；存在时按只读兼容会话打开，保存默认另存为；时间：2026-11-02；作者：lq。
+   */
+  sourceName?: string;
+  /** 功能：携带旧格式转换器报告的兼容警告；时间：2026-11-03；作者：lq。 */
+  conversionWarnings?: string[];
 }
 
 export type NotificationLevel = 'info' | 'success' | 'warning' | 'error';
@@ -149,7 +155,7 @@ export interface WorkspaceState {
     data: AnyDocumentData | ((current: AnyDocumentData) => AnyDocumentData),
     options?: { dirty?: boolean },
   ): void;
-  updateDocMeta(id: string, metaPatch: Partial<DocModel['meta']> | ((current: DocModel['meta']) => DocModel['meta'])): void;
+  updateDocMeta(id: string, metaPatch: Partial<DocModel['meta']> | ((current: DocModel['meta']) => DocModel['meta']), options?: { dirty?: boolean }): void;
   updateView(id: string, patch: SessionView): void;
   saveSession(id: string, options?: { asNew?: boolean }): Promise<boolean>;
   saveActive(options?: { asNew?: boolean }): Promise<boolean>;
@@ -427,6 +433,8 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           bytes: opened.bytes,
           path: opened.path,
           handle: opened.handle,
+          sourceName: opened.sourceName,
+          conversionWarnings: opened.conversionWarnings,
         });
       } catch (error) {
         get().notify(
@@ -440,11 +448,28 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
 
     async openBytes(input) {
       const adapter = getPlatformAdapter();
-      // 功能：旧版 DOC/XLS/PPT 先经 Rust 兼容桥转换为 OOXML，再复用现有编辑器；时间：2026-10-27；作者：lq。
+      // 功能：路径、拖拽、Web 字节入口统一使用保留字体/样式的 DOC 转换器，失败不静默改走有损通道；时间：2026-11-03；作者：lq。
+      if (/\.doc$/i.test(input.name)) {
+        try {
+          const { convertLegacyDoc } = await import('../../platform-adapter/src/legacy-doc');
+          return get().openBytes(await convertLegacyDoc(input.bytes, input.name));
+        } catch (error) {
+          get().notify('error', '旧版 DOC 转换失败', error instanceof Error ? error.message : String(error));
+          return null;
+        }
+      }
+      // 功能：旧版 DOC/XLS/PPT 在内存中转换为 OOXML，源目录零写入，并以只读兼容会话打开；时间：2026-11-02；作者：lq。
       if (input.path && /\.(doc|xls|ppt)$/i.test(input.name) && adapter.convertLegacy) {
         try {
           const converted = await adapter.convertLegacy(input.path);
-          if (converted) return get().openBytes(converted);
+          if (converted) {
+            return get().openBytes({
+              name: converted.name,
+              bytes: converted.bytes,
+              sourceName: converted.sourceName,
+              conversionWarnings: converted.conversionWarnings,
+            });
+          }
         } catch (error) {
           get().notify('error', '旧版文件转换失败', error instanceof Error ? error.message : String(error));
           return null;
@@ -462,10 +487,12 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
       const id = uid('doc');
       const now = Date.now();
       const displayName = decodeDisplayName(input.name);
+      // 功能：标签从占位阶段就显示原始旧格式文件名，避免先闪出 .docx 再改名；时间：2026-11-02；作者：lq。
+      const legacyDisplayName = input.sourceName ? decodeDisplayName(input.sourceName) : undefined;
       const placeholder: DocumentSession = {
         id,
         kind: handler.kind,
-        displayName,
+        displayName: legacyDisplayName ?? displayName,
         path: input.path,
         readonly: false,
         capability: emptyCapability(),
@@ -500,7 +527,24 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           knownFonts: fonts.flatMap((font) => [font.family, ...(font.aliases ?? [])]),
         };
         const result: FormatOpenResult = await handler.open(openInput);
+        // 功能：旧版格式转换产物只用于解析，标签仍显示用户原始文件名，且不绑定原路径，避免把 DOCX 写回 .doc；时间：2026-11-02；作者：lq。
+        const legacySource = input.sourceName && /\.(doc|xls|ppt)$/i.test(input.sourceName) ? input.sourceName : undefined;
         const readonly = result.readonly === true || result.capability.level <= 1;
+        const capability = legacySource
+          ? {
+              ...result.capability,
+              warnings: [
+                {
+                  code: 'legacy.compat',
+                  severity: 'info' as const,
+                  message: `${legacySource} 以兼容模式打开`,
+                  detail: '旧版格式经兼容通道转换，复杂版式可能与原文件不同；保存时会另存为 OOXML，不会覆盖原文件。',
+                },
+                ...(input.conversionWarnings ?? []).map((detail) => ({ code: 'legacy.loss', severity: 'warning' as const, message: '旧格式转换存在兼容限制', detail })),
+                ...result.capability.warnings,
+              ],
+            }
+          : result.capability;
         const restoredDirty = input.restored?.dirty === true;
         const nextState: LifecycleState = readonly
           ? 'READ_ONLY'
@@ -510,18 +554,23 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
         const session: DocumentSession = {
           ...placeholder,
           data: result.data,
-          capability: result.capability,
+          capability,
           readonly,
           state: nextState,
           dirty: restoredDirty,
-          displayName: decodeDisplayName(result.displayName ?? displayName),
-          path: restoredDirty ? undefined : input.path,
+          displayName: legacySource
+            ? decodeDisplayName(legacySource)
+            : decodeDisplayName(result.displayName ?? displayName),
+          // 功能：兼容会话不绑定源路径，保存只能另存为 OOXML，杜绝把 DOCX 字节写回 .doc；时间：2026-11-02；作者：lq。
+          path: restoredDirty || legacySource ? undefined : input.path,
           canSaveInPlace:
             !readonly &&
+            !legacySource &&
             !restoredDirty &&
             result.capability.level >= 3 &&
             !!(input.handle || input.path),
-          saveAsCopyRequired: !readonly && (restoredDirty || result.capability.level === 2),
+          saveAsCopyRequired:
+            !readonly && (!!legacySource || restoredDirty || result.capability.level === 2),
           isNew: false,
           updatedAt: Date.now(),
         };
@@ -535,6 +584,14 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           dirty: restoredDirty,
           bytes: input.bytes,
         });
+        // 功能：一次性告知兼容模式与保存去向，避免用户以为原 .doc 会被直接改写；时间：2026-11-02；作者：lq。
+        if (legacySource) {
+          get().notify(
+            'info',
+            '以兼容模式打开',
+            `${legacySource} 已转换打开，复杂版式可能与原文件不同；保存时将另存为 ${saveNameFor(session)}。`,
+          );
+        }
 
         const needsAttention = result.capability.warnings.some(
           (warning) =>
@@ -583,7 +640,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           get().notify('error', '无法打开文件', '当前平台不支持通过路径打开文件。');
           return null;
         }
-        return get().openBytes({ name: opened.name, bytes: opened.bytes, path: opened.path });
+        return get().openBytes({ name: opened.name, bytes: opened.bytes, path: opened.path, sourceName: opened.sourceName, conversionWarnings: opened.conversionWarnings });
       } catch (error) {
         get().notify('error', '打开文件失败', error instanceof Error ? error.message : String(error));
         return null;
@@ -599,7 +656,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
               name: file.name,
               bytes: new Uint8Array(await file.arrayBuffer()),
             };
-        return get().openBytes({ name: opened.name, bytes: opened.bytes, path: opened.path });
+        return get().openBytes({ name: opened.name, bytes: opened.bytes, path: opened.path, sourceName: opened.sourceName, conversionWarnings: opened.conversionWarnings });
       } catch (error) {
         get().notify('error', '打开文件失败', error instanceof Error ? error.message : String(error));
         return null;
@@ -722,7 +779,8 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
       const session = get().sessions[id];
       if (!session || session.readonly) return;
       const next = typeof data === 'function' ? data(session.data) : data;
-      const dirty = options?.dirty !== false;
+      // 功能：默认不置脏，只有用户编辑动作才显式传入 dirty；避免统计刷新、重排等内部写入把文档标成已修改；时间：2026-11-02；作者：lq。
+      const dirty = session.dirty || options?.dirty === true;
       patchSession(id, {
         data: next,
         dirty,
@@ -733,13 +791,15 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
     },
 
     // 功能：只更新文档 meta，不触碰正文；邮件合并面板状态/Word 兼容信息写入这里；时间：2026-10-29；作者：lq。
-    updateDocMeta(id, metaPatch) {
+    updateDocMeta(id, metaPatch, options) {
       const session = get().sessions[id];
       if (!session || session.readonly) return;
       const wordData = session.data as DocModel;
       const next = typeof metaPatch === 'function' ? metaPatch(wordData.meta) : { ...wordData.meta, ...metaPatch };
-      patchSession(id, { data: { ...session.data, meta: next }, dirty: true, state: saveInFlight.has(id) ? 'SAVING' : 'DIRTY' });
-      scheduleSnapshot(id);
+      // 功能：面板状态等非正文写入默认不置脏，只有正文语义变化才由调用方显式声明；时间：2026-11-02；作者：lq。
+      const dirty = session.dirty || options?.dirty === true;
+      patchSession(id, { data: { ...session.data, meta: next }, dirty, state: saveInFlight.has(id) ? 'SAVING' : dirty ? 'DIRTY' : 'EDIT_READY' });
+      if (dirty) scheduleSnapshot(id);
     },
 
     updateView(id, patch) {

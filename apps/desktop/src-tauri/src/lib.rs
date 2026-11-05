@@ -212,22 +212,42 @@ fn inspect_document(path: String) -> Result<DocumentInspectionDto, String> {
     })
 }
 
-/// 功能：将旧版 DOC/XLS/PPT 转换为可编辑的 OOXML 副本，供前端兼容模式调用；时间：2026-10-27；作者：lq。
+/// 功能：在内存中把旧版 DOC/XLS/PPT 转换为 OOXML 字节，源目录不产生任何文件；时间：2026-11-02；作者：lq。
 #[tauri::command]
-fn convert_legacy_document(input: String) -> Result<String, String> {
-    if !Path::new(&input).is_file() {
+fn convert_legacy_document(input: String) -> Result<ConvertedDocumentDto, String> {
+    let path = Path::new(&input);
+    if !path.is_file() {
         return Err("源文件不存在。".to_string());
     }
-    let output = office_compat::default_output_path(&input)
-        .ok_or_else(|| "无法根据源文件扩展名生成转换路径。".to_string())?;
-    office_compat::convert_legacy(&input, &output).map_err(|error| error.to_string())?;
-    Ok(output.to_string_lossy().into_owned())
+    let bytes = std::fs::read(path).map_err(|error| format!("无法读取源文件：{error}"))?;
+    let source_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| "无法识别源文件名。".to_string())?
+        .to_string();
+    let converted = office_compat::convert_legacy_bytes(&bytes, &source_name)
+        .map_err(|error| error.to_string())?;
+    let stem = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("未命名文档");
+    let extension = office_compat::LegacyKind::from_path(path)
+        .map(|kind| kind.target_extension())
+        .unwrap_or("docx");
+    Ok(ConvertedDocumentDto {
+        name: format!("{stem}.{extension}"),
+        source_name,
+        bytes: converted,
+    })
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ConvertedDocumentDto {
+    /// 转换后可直接交给编辑器打开的文件名（扩展名为 OOXML）。
     name: String,
+    /// 用户原始文件名（旧格式扩展名），用于标签显示与只读兼容模式判定。
+    source_name: String,
     bytes: Vec<u8>,
 }
 
@@ -251,7 +271,11 @@ fn convert_legacy_bytes(name: String, bytes: Vec<u8>) -> Result<ConvertedDocumen
         .and_then(|value| value.to_str())
         .unwrap_or("未命名文档");
     let display_name = format!("{stem}.{output_extension}");
-    Ok(ConvertedDocumentDto { name: display_name, bytes: converted })
+    Ok(ConvertedDocumentDto {
+        name: display_name,
+        source_name: name,
+        bytes: converted,
+    })
 }
 
 #[tauri::command]

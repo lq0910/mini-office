@@ -86,44 +86,59 @@ fn has_chinese_name(family: &str) -> bool {
     }
 }
 
-/// 功能：读取字体文件内全部家族名，中文名优先作为展示名，其余作为别名；时间：2026-10-29；作者：lq。
-///
-/// 背景：中文字体常同时带 Windows(英文/中文) 与 Macintosh 两套 name 记录。旧实现只取第一条，
-/// 结果展示成 "FZXiaoBiaoSong-B05S" 这类英文名，文档里的 "方正小标宋简体" 就被误判为缺失字体。
+/// 功能：按字体记录的语言选择名称，优先简体中文、其他中文、英文，全部有效名称仍保留为别名；时间：2026-11-03；作者：lq。
+fn preferred_font_names<'a>(
+    names: impl IntoIterator<Item = ttf_parser::name::Name<'a>>,
+    name_ids: [u16; 2],
+) -> Option<(String, Vec<String>)> {
+    use ttf_parser::{Language, PlatformId};
+    let mut values = Vec::new();
+    let mut primary: Option<(String, (u8, usize))> = None;
+    for name in names {
+        let Some(kind) = name_ids.iter().position(|id| *id == name.name_id) else {
+            continue;
+        };
+        let Some(value) = name.to_string() else { continue };
+        let value = value.trim();
+        if value.is_empty() || value.chars().any(|c| c.is_control() || c == '\u{fffd}') {
+            continue;
+        }
+        // 功能：语言判断使用 name 表的元数据，不用 Songti/Hiragino 等字体名关键字代替语言；时间：2026-11-03；作者：lq。
+        let language = match name.language() {
+            Language::Chinese_PeoplesRepublicOfChina | Language::Chinese_Singapore => 0,
+            Language::Chinese_Taiwan | Language::Chinese_HongKongSAR | Language::Chinese_MacaoSAR => 1,
+            _ if name.platform_id == PlatformId::Windows
+                && name.language_id < 0x8000
+                && name.language_id & 0x03ff == 0x09 => 2,
+            _ if value.is_ascii() => 3,
+            _ => 4,
+        };
+        let priority = (language, kind);
+        if primary.as_ref().map_or(true, |(_, previous)| priority < *previous) {
+            primary = Some((value.to_string(), priority));
+        }
+        if !values.iter().any(|item| item == value) {
+            values.push(value.to_string());
+        }
+    }
+    let (primary, _) = primary?;
+    values.retain(|value| value != &primary);
+    Some((primary, values))
+}
+
+/// 功能：分别读取字体族与字面样式；同语言优先排版族/子族，并保留中英文族别名供文档匹配；时间：2026-11-03；作者：lq。
 fn face_names(data: &[u8], index: u32) -> Option<(String, String, Vec<String>)> {
+    use ttf_parser::name_id;
     let face = ttf_parser::Face::parse(data, index).ok()?;
-    let mut families: Vec<String> = Vec::new();
-    let mut style: Option<String> = None;
-    for name in face.names() {
-        // 只认家族与排版家族两类记录，子家族（Regular/Bold）单独作为 style。
-        if name.name_id == ttf_parser::name_id::FAMILY
-            || name.name_id == ttf_parser::name_id::TYPOGRAPHIC_FAMILY
-        {
-            if let Some(value) = name.to_string() {
-                let trimmed = value.trim();
-                if !trimmed.is_empty() && !families.iter().any(|item| item == trimmed) {
-                    families.push(trimmed.to_string());
-                }
-            }
-        }
-        if name.name_id == ttf_parser::name_id::SUBFAMILY && style.is_none() {
-            style = name.to_string();
-        }
-    }
-    if families.is_empty() {
-        return None;
-    }
-    // 展示名优先取含中日韩字符的名称，找不到再退回第一条记录。
-    let primary = families
-        .iter()
-        .find(|family| has_chinese_name(family))
-        .cloned()
-        .unwrap_or_else(|| families[0].clone());
-    let aliases = families
-        .into_iter()
-        .filter(|family| family != &primary)
-        .collect::<Vec<_>>();
-    Some((primary, style.unwrap_or_else(|| "Regular".to_string()), aliases))
+    let (family, aliases) = preferred_font_names(
+        face.names(),
+        [name_id::TYPOGRAPHIC_FAMILY, name_id::FAMILY],
+    )?;
+    let style = preferred_font_names(
+        face.names(),
+        [name_id::TYPOGRAPHIC_SUBFAMILY, name_id::SUBFAMILY],
+    ).map(|(style, _)| style).unwrap_or_else(|| "Regular".to_string());
+    Some((family, style, aliases))
 }
 
 fn parse_font_file(path: &Path, output: &mut Vec<FontInfo>, seen: &mut HashSet<String>) {
@@ -249,6 +264,57 @@ pub fn require_font(family: &str) -> Result<FontInfo, OfficeError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 功能：构造多语言 name 表记录，验证字体选择与别名保留，不依赖测试机安装字体；时间：2026-11-03；作者：lq。
+    fn family_names(entries: &[(u16, u16, &str)]) -> Option<(String, Vec<String>)> {
+        let encoded: Vec<Vec<u8>> = entries.iter().map(|(_, _, value)| {
+            value.encode_utf16().flat_map(u16::to_be_bytes).collect()
+        }).collect();
+        let names = entries.iter().zip(&encoded).map(|((name_id, language_id, _), bytes)| {
+            ttf_parser::name::Name {
+                platform_id: ttf_parser::PlatformId::Windows,
+                encoding_id: 1,
+                language_id: *language_id,
+                name_id: *name_id,
+                name: bytes,
+            }
+        });
+        preferred_font_names(names, [ttf_parser::name_id::TYPOGRAPHIC_FAMILY, ttf_parser::name_id::FAMILY])
+    }
+
+    /// 功能：简体中文展示名优先，其他语言仍保留为文档匹配别名；时间：2026-11-03；作者：lq。
+    #[test]
+    fn prefers_simplified_chinese_without_losing_other_names() {
+        let (family, aliases) = family_names(&[
+            (1, 0x0409, "Songti SC"),
+            (1, 0x0404, "宋體-簡"),
+            (1, 0x0804, "宋体-简"),
+        ]).unwrap();
+        assert_eq!(family, "宋体-简");
+        assert_eq!(aliases, ["Songti SC", "宋體-簡"]);
+    }
+
+    /// 功能：字体有英文名时不随记录顺序显示阿拉伯文；只有外文名时仍保留正常字体；时间：2026-11-03；作者：lq。
+    #[test]
+    fn prefers_english_but_preserves_foreign_only_fonts() {
+        let (family, aliases) = family_names(&[
+            (1, 0x0401, "دمشق"), (1, 0x0409, "Damascus"),
+        ]).unwrap();
+        assert_eq!(family, "Damascus");
+        assert_eq!(aliases, ["دمشق"]);
+        assert_eq!(family_names(&[(1, 0x0401, "دمشق")]).unwrap().0, "دمشق");
+    }
+
+    /// 功能：同语言下优先排版族，忽略异常名称，保留旧字体族名以兼容原文档；时间：2026-11-03；作者：lq。
+    #[test]
+    fn prefers_typographic_family_and_ignores_invalid_names() {
+        let (family, aliases) = family_names(&[
+            (1, 0x0804, "坏\0字体"), (1, 0x0804, "坏\u{fffd}字体"),
+            (1, 0x0409, "Example Bold"), (16, 0x0409, "Example"),
+        ]).unwrap();
+        assert_eq!(family, "Example");
+        assert_eq!(aliases, ["Example Bold"]);
+    }
 
     #[test]
     fn scans_system_font_directories() {

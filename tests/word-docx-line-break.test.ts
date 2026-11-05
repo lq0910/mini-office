@@ -6,6 +6,8 @@ import { parseDocxPackage } from '../packages/editor-word/src/parse';
 import { serializeDocx } from '../packages/editor-word/src/serialize';
 import { paragraphTextStyle, renderParagraphHtml, renderRunsHtml } from '../packages/editor-word/src/html';
 import type { DocBlock, DocImage, DocParagraph } from '@mini-office/document-model';
+// 功能：对比图片倍数行距保留的额外间距与文字单行度量；时间：2026-11-05；作者：lq。
+import { singleLineHeightPx } from '../packages/editor-word/src/metrics';
 
 /**
  * 功能：DOCX 换行与浮动图片回归测试；时间：2026-10-31；作者：lq。
@@ -90,6 +92,45 @@ describe('DOCX 段内换行语义', () => {
       expect(paragraphs[1].runs.filter((run) => run.lineBreak)).toHaveLength(1);
       // 功能：段内换行渲染成 <br>，不能退化成段落分隔；时间：2026-10-31；作者：lq。
       expect(renderRunsHtml(paragraphs[0].runs)).toContain('<br>');
+    } finally {
+      pkg.dispose();
+    }
+  });
+
+  it('w:firstLineChars 按字符换算首行缩进，且优先于 twips', async () => {
+    const { doc, pkg } = await parseBody(
+      '<w:p><w:pPr><w:ind w:firstLineChars="200"/></w:pPr><w:r><w:t>缩进两字</w:t></w:r></w:p>' +
+        '<w:p><w:pPr><w:ind w:firstLineChars="200" w:firstLine="0"/></w:pPr><w:r><w:t>字符优先</w:t></w:r></w:p>',
+    );
+    try {
+      const [first, second] = paragraphsOf(doc.blocks);
+      // 默认 10.5pt 的汉字宽约 14px，2 字符约 28px。
+      expect(first.style.firstLineIndentPx).toBeCloseTo(28, 1);
+      expect(second.style.firstLineIndentPx).toBeCloseTo(28, 1);
+    } finally {
+      pkg.dispose();
+    }
+  });
+
+  // 功能：字符缩进使用段落标记明确声明的字号，不能退回到文档默认字号；时间：2026-11-05；作者：lq。
+  it('大字号段落的字符缩进按该段字号计算', async () => {
+    const { doc, pkg } = await parseBody('<w:p><w:pPr><w:ind w:firstLineChars="300"/><w:rPr><w:sz w:val="32"/></w:rPr></w:pPr><w:r><w:t>三字缩进</w:t></w:r></w:p>');
+    try {
+      expect(paragraphsOf(doc.blocks)[0].style.firstLineIndentPx).toBeCloseTo(64, 1);
+    } finally { pkg.dispose(); }
+  });
+
+  it('w:keepLines 与 w:widowControl 解析为分页属性', async () => {
+    const { doc, pkg } = await parseBody(
+      '<w:p><w:pPr><w:keepLines/><w:widowControl w:val="0"/></w:pPr><w:r><w:t>条款</w:t></w:r></w:p>' +
+        '<w:p><w:pPr><w:widowControl/></w:pPr><w:r><w:t>正文</w:t></w:r></w:p>',
+    );
+    try {
+      const [first, second] = paragraphsOf(doc.blocks);
+      expect(first.style.keepLines).toBe(true);
+      expect(first.style.widowControl).toBe(false);
+      // 功能：w:widowControl 不带 w:val 等价于开启，缺省同样视为开启；时间：2026-11-03；作者：lq。
+      expect(second.style.widowControl).toBe(true);
     } finally {
       pkg.dispose();
     }
@@ -482,6 +523,32 @@ describe('浮动图定位策略', () => {
     widthPx: 240,
     heightPx: 120,
     ...over,
+  });
+
+  // 功能：回归纯图片自动行距不重复预留下伸部空间，同时保留显式行距、网格与混排语义；时间：2026-11-05；作者：lq。
+  it('纯内嵌图片自动行距清除文字行盒，文字混排、网格和固定/最小行距保持原规则', () => {
+    const paragraph: DocParagraph = { id: 'inline-only', type: 'paragraph', style: {},
+      runs: [{ style: {}, image: imageOf() }, { style: {}, image: imageOf({ heightPx: 80 }) }] };
+    expect(paragraphTextStyle(paragraph, 'Calibri', 11).lineHeight).toBe('0px');
+    for (const style of [{ lineHeightExactPx: 16 }, { lineHeightAtLeastPx: 0 }]) {
+      expect(paragraphTextStyle({ ...paragraph, style }, 'Calibri', 11).lineHeight).not.toBe('0px');
+    }
+    expect(paragraphTextStyle(paragraph, 'Calibri', 11, 24).lineHeight).toBe('24px');
+    expect(paragraphTextStyle({ ...paragraph, runs: [...paragraph.runs, { text: ' tail text', style: {} }] }, 'Calibri', 11).lineHeight).not.toBe('0px');
+    expect(paragraphTextStyle({ ...paragraph, runs: [] }, 'Calibri', 11).lineHeight).not.toBe('0px');
+  });
+
+  // 功能：图片倍数行距只增加字体行高的增量，不叠加整份文字下伸部，也不按倍数拉伸图片；时间：2026-11-05；作者：lq。
+  it('纯图片的自动倍数保留额外间距，低倍数不产生负占位', () => {
+    const paragraph: DocParagraph = { id: 'image-multiple', type: 'paragraph', style: { lineHeight: 1.15 },
+      runs: [{ style: {}, image: imageOf() }] };
+    const style = paragraphTextStyle(paragraph, 'Calibri', 11);
+    expect(style.lineHeight).toBe('0px');
+    const extra = (value: ReturnType<typeof paragraphTextStyle>) => Number.parseFloat(
+      (value as Record<string, string>)['--mo-inline-image-line-extra']);
+    expect(extra(style)).toBeCloseTo(singleLineHeightPx('Calibri', 11) * 0.15, 5);
+    expect(extra(paragraphTextStyle({ ...paragraph, style: { lineHeight: 0.5 } }, 'Calibri', 11))).toBe(0);
+    expect(extra(paragraphTextStyle({ ...paragraph, style: { lineHeight: 1 } }, 'Calibri', 11))).toBe(0);
   });
 
   it('普通四周型图片仍走 float，保留文字绕排能力', () => {

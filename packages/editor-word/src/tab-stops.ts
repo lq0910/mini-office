@@ -64,16 +64,18 @@ function measureTrailing(tab: HTMLElement, scale: number): number | null {
   if (end) range.setEndBefore(end);
   else range.setEnd(parent, parent.childNodes.length);
   if (range.collapsed) return 0;
-  const rects = range.getClientRects();
-  // 跨行内容无法用单一右边界对齐，退回左对齐，避免把文字推到页外。
-  if (rects.length > 1) return null;
-  const width = rects.length === 1 ? rects[0].width : range.getBoundingClientRect().width;
+  // 功能：嵌套样式 span 与文字会在同一行返回多个矩形；按共同垂直带和水平并集量宽，不把它误判为换行；时间：2026-11-03；作者：lq。
+  const rects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0);
+  if (rects.length > 1 && Math.max(...rects.map((rect) => rect.top)) >= Math.min(...rects.map((rect) => rect.bottom))) return null;
+  const width = rects.length ? Math.max(...rects.map((rect) => rect.right)) - Math.min(...rects.map((rect) => rect.left)) : range.getBoundingClientRect().width;
   return Number.isFinite(width) ? width / scale : null;
 }
 
 export interface TabStopSource {
   stops?: TabStop[];
   defaultStepPx?: number;
+  /** 功能：段落相对正文栏的左缩进，用于恢复制表位的原始坐标基准；时间：2026-11-03；作者：lq。 */
+  indentLeftPx?: number;
 }
 
 /**
@@ -98,7 +100,8 @@ export function applyTabStops(
     const layoutWidth = paragraphElement.offsetWidth;
     const scale = layoutWidth > 0 ? box.width / layoutWidth : 1;
     if (!Number.isFinite(scale) || scale <= 0) return;
-    const origin = box.left;
+    // 功能：段落外层 margin-left 已移动文字盒，测量原点须退回正文栏以免二次叠加缩进；时间：2026-11-03；作者：lq。
+    const origin = box.left - (config.indentLeftPx ?? 0) * scale;
     // 最多两轮：第一轮设宽度可能引起换行，第二轮修正被挤到下一行的制表符。
     for (let pass = 0; pass < 2; pass += 1) {
       let passChanged = false;

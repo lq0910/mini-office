@@ -29,3 +29,11 @@
 | `../fixtures/pptx/deck.pptx` | PPTX | 文本、备注、页面复制、对象增量回写 |
 
 后续新增真实样本时，先脱敏并在此表登记，再加入对应的解析、保存和视觉回归测试。
+
+## GenOffice 固定公开语料（2026-11-03）
+
+功能：增加可离线复现的 Word 专项回归入口；作者：lq。
+
+另有 8 份公开 Word 语料，清单与 SHA-256 位于 third_party/genoffice/fixtures/manifest.json。其中 4 份合成 DOCX 保留生成器和许可证据，四份 DOC 的附件来源证据边界单独记录，不把仓库许可类推为附件授权审计完成。
+
+执行 python3 scripts/verify-genoffice-fixtures.py 校验哈希与生成结果。解析与保存回归见 tests/word-genoffice-corpus.test.ts；逐页浏览器验收与外部 Office 基准格式见 docs/word-corpus-acceptance.md，缺失 Office 基准时必须标为待验证。
