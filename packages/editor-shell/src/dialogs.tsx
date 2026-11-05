@@ -550,6 +550,12 @@ function SettingsContent({ onClose }: { onClose: () => void }) {
                     />
                   }
                 />
+                {/* 功能：持久保存裁剪标记开关，显示状态不影响文档内容和输出；时间：2026-11-05；作者：lq。 */}
+                <SettingRow
+                  title="Word 裁剪标记"
+                  description="在正文区域四角显示灰色直角标记，随页边距和页面缩放定位；打印与 PDF 不显示。"
+                  control={<Switch checked={settings.wordCropMarks !== false} onChange={(checked) => updateSettings({ wordCropMarks: checked })} label="Word 裁剪标记" />}
+                />
                 {canVibrancy ? (
                   <SettingRow
                     title="毛玻璃效果"

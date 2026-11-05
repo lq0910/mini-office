@@ -234,14 +234,14 @@ export function renderParagraphHtml(
 
 export function paragraphWrapperStyle(
   paragraph: DocParagraph,
-  options: { dropSpaceBefore?: boolean } = {},
+  options: { dropSpaceBefore?: boolean; spaceBeforePx?: number; spaceAfterPx?: number } = {},
 ): React.CSSProperties {
   const style = paragraph.style;
   const borderCss = (border: NonNullable<ParagraphStyle['borders']>['top']) => border && border.style !== 'none' ? `${Math.max(0.5, border.widthPx)}px ${border.style} ${border.color}` : undefined;
   return {
     // 功能：段前距在页首按 Word 规则丢弃，避免每个新页顶部多出一段空白；时间：2026-11-02；作者：lq。
-    paddingTop: options.dropSpaceBefore ? 0 : style.spaceBeforePx ?? 0,
-    paddingBottom: style.spaceAfterPx ?? 0,
+    paddingTop: options.dropSpaceBefore ? 0 : options.spaceBeforePx ?? style.spaceBeforePx ?? 0,
+    paddingBottom: options.spaceAfterPx ?? style.spaceAfterPx ?? 0,
     marginLeft: style.indentLeftPx ?? 0,
     marginRight: style.indentRightPx ?? 0,
     textAlign: style.alignment ?? 'left',

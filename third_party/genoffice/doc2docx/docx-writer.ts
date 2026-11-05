@@ -698,6 +698,8 @@ function tableCellXml(cell: TableCell, context: GenerateContext, pictures: Pictu
   else if (cell.verticalMerge === 'continue') properties.push('<w:vMerge/>')
   const borders = cellBordersXml(cell)
   if (borders !== '') properties.push(borders)
+  // 功能：按 CT_TcPr 顺序在边框之后写出单元格垂直对齐，不改变列宽和段落格式；时间：2026-11-05；作者：lq。
+  if (cell.verticalAlign) properties.push('<w:vAlign w:val="' + cell.verticalAlign + '"/>')
   const paragraphs =
     cell.paragraphs.length === 0
       ? '<w:p/>'
@@ -735,17 +737,24 @@ function tableRowXml(row: TableRow, context: GenerateContext, pictures: PictureR
   )
 }
 
-/** a complete <w:tbl> for one reconstructed table (fixed layout, explicit grid) */
+/** 功能：按源首选宽度和布局模式重建表格，列网格仅作原始几何保留；时间：2026-11-05；作者：lq。 */
 export function generateTableXml(
   table: TableModel,
   context: GenerateContext = GENERATE_CONTEXT,
   pictures: PictureRefs = NO_PICTURES,
 ): string {
   const tableProperties = [
-    '<w:tblW w:w="0" w:type="auto"/>',
+    '<w:tblW w:w="' + (table.preferredWidth?.value ?? 0) + '" w:type="' + (table.preferredWidth?.type ?? 'auto') + '"/>',
     ...(table.alignment ? ['<w:jc w:val="' + table.alignment + '"/>'] : []),
+    // 功能：输出零值或源缩进以恢复旧 Word 的表格文字对齐位置；时间：2026-11-05；作者：lq。
+    ...(table.indentTwips !== undefined ? ['<w:tblInd w:w="' + table.indentTwips + '" w:type="dxa"/>'] : []),
     tableBordersXml(table.borders, table.borderStyles),
-    '<w:tblLayout w:type="fixed"/>',
+    '<w:tblLayout w:type="' + (table.autofit ? 'autofit' : 'fixed') + '"/>',
+    // 功能：把已解析的 DOC 内边距写进 OOXML，避免 Word 与浏览器分别采用不同缺省值并改变窄列换行；时间：2026-11-05；作者：lq。
+    ...(table.cellPadding ? ['<w:tblCellMar>' + (['top', 'left', 'bottom', 'right'] as const)
+      .filter((side) => table.cellPadding![side] !== undefined)
+      .map((side) => '<w:' + side + ' w:w="' + table.cellPadding![side] + '" w:type="dxa"/>')
+      .join('') + '</w:tblCellMar>'] : []),
   ].filter((part) => part !== '')
   const grid =
     '<w:tblGrid>' +

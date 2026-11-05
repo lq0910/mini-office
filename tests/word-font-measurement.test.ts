@@ -1,5 +1,7 @@
 /** 功能：模拟浏览器字体边界取整，回归小字号行高精度、倍数行距及字体加载后的缓存失效；时间：2026-11-05；作者：lq。 */
 import { afterEach, describe, expect, it, vi } from 'vitest';
+// 功能：回归只有行网格参与段落行高，字符网格属性仍可独立保留；时间：2026-11-05；作者：lq。
+import { documentGridLinePitch } from '../packages/editor-word/src/metrics';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -24,6 +26,14 @@ async function browserMetrics() {
 }
 
 describe('浏览器字体边界精度', () => {
+  // 功能：snapToChars 不得把可能存在的 linePitch 当作正文垂直网格；时间：2026-11-05；作者：lq。
+  it('仅 lines 与 linesAndChars 提供垂直行距', () => {
+    expect(documentGridLinePitch({ type: 'lines', linePitchPx: 24 })).toBe(24);
+    expect(documentGridLinePitch({ type: 'linesAndChars', linePitchPx: 24 })).toBe(24);
+    expect(documentGridLinePitch({ type: 'snapToChars', linePitchPx: 24 })).toBeUndefined();
+    expect(documentGridLinePitch({ type: 'lines' })).toBeUndefined();
+  });
+
   it('11pt 的单倍和倍数行距不会把取整误差累计到每一行', async () => {
     const metrics = await browserMetrics();
     const expected = 11 * 4 / 3 * (0.952 + 0.269);

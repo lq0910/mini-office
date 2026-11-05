@@ -69,6 +69,9 @@ const SPRM_T_SET_BRC = 0x2f
 const SPRM_T_DYA_ROW_HEIGHT = 0x07
 const SPRM_T_TDEF_TABLE = 0x08
 const SPRM_T_CELL_PADDING = 0x34
+// 功能：读取表格首选宽度与自动布局开关，不再把源百分比表格强制写成固定列宽；时间：2026-11-05；作者：lq。
+const SPRM_T_WIDTH = 0x14
+const SPRM_T_AUTOFIT = 0x15
 /** LibreOffice's table/cell border variants: 0xD612 / 0xD62F / 0xD670 */
 const SPRM_T_BORDER_VARIANTS = new Set([0x12, 0x70])
 /** sprmPItap: table nesting level stored in the paragraph PAPX */
@@ -123,6 +126,8 @@ export interface TableCell {
   widthTwips: number
   /** vertical merge state from the TC rgf bits */
   verticalMerge?: 'restart' | 'continue'
+  /** 功能：保留 TC80 的 vertAlign 位，避免垂直居中的短文字被贴到单元格顶部；时间：2026-11-05；作者：lq。 */
+  verticalAlign?: 'top' | 'center' | 'bottom'
   /** visible borders of this cell (undefined when the TC carries none) */
   borders?: CellBorders
   borderStyles?: BorderStyles
@@ -151,6 +156,12 @@ export interface TableModel {
   gridWidths: number[]
   rows: TableRow[]
   alignment?: 'left' | 'center' | 'right'
+  /** 功能：源表格首选宽度，pct 使用五十分之一百分比，dxa 使用 twips；时间：2026-11-05；作者：lq。 */
+  preferredWidth?: { type: 'auto' | 'pct' | 'dxa'; value: number }
+  /** 功能：DOC 的 sprmTFAutofit，缺失时保留既有固定布局；时间：2026-11-05；作者：lq。 */
+  autofit?: boolean
+  /** 功能：OOXML 以首格文字起点定义缩进，DOC 原始边界需加回首格左内边距；时间：2026-11-05；作者：lq。 */
+  indentTwips?: number
   /** visible table borders */
   borders: TableBorders
   /** line styles of the visible borders (sprmTTableBorders); sides without one are single 0.5pt */
@@ -233,6 +244,9 @@ interface TapProperties {
   borders: TableBorders
   borderStyles: BorderStyles
   cellPadding?: TableCellPadding
+  /** 功能：保留行末 TAP 携带的表格整体宽度和布局模式；时间：2026-11-05；作者：lq。 */
+  preferredWidth?: TableModel['preferredWidth']
+  autofit?: boolean
 }
 
 /** a structural problem of one row or table; the caller falls back to paragraphs */
@@ -449,6 +463,23 @@ function parseTap(grpprl: Uint8Array, rowIndex: number, warnings: string[]): Tap
   for (const sprm of read.sprms) {
     const operation = sprm.opcode & 0x1ff
     switch (operation) {
+      // 功能：sprmTTableWidth 的 FtsWWidth 为 1 字节单位加 2 字节无符号宽度；时间：2026-11-05；作者：lq。
+      case SPRM_T_WIDTH: {
+        // 功能：TAP 混有段落属性，完整操作码可排除同编号的段后距等属性；时间：2026-11-05；作者：lq。
+        if (sprm.opcode !== 0xf614) break
+        const unit = readSprmU8(sprm.operand)
+        const value = readSprmU16(sprm.operand, 1)
+        const type = unit === 1 ? 'auto' : unit === 2 ? 'pct' : unit === 3 ? 'dxa' : undefined
+        if (type && value !== undefined) properties.preferredWidth = { type, value }
+        break
+      }
+      // 功能：保留显式关闭值，使固定表格不会因假值被重新解释成自动布局；时间：2026-11-05；作者：lq。
+      case SPRM_T_AUTOFIT: {
+        if (sprm.opcode !== 0x3615) break
+        const value = readSprmU8(sprm.operand)
+        if (value !== undefined) properties.autofit = value !== 0
+        break
+      }
       case SPRM_T_JC: {
         const value = readSprmU16(sprm.operand)
         if (value === 0) properties.alignment = 'left'
@@ -515,7 +546,8 @@ function parseTap(grpprl: Uint8Array, rowIndex: number, warnings: string[]): Tap
         const ftsWidth = sprm.operand[3]!
         const width = u16At(sprm.operand, 4)
         // only dxa widths are modelled; the fixtures use dxa for every side
-        if (ftsWidth === 3 && width > 0) {
+        // 功能：零也是显式内边距，必须覆盖继承值并写入转换包；时间：2026-11-05；作者：lq。
+        if (ftsWidth === 3) {
           const padding = properties.cellPadding ?? {}
           if (grfbrc & 0x01) padding.top = width
           if (grfbrc & 0x02) padding.left = width
@@ -776,6 +808,8 @@ function buildTable(
       cells.push({
         gridSpan,
         widthTwips,
+        // 功能：TC80 第 7–8 位为垂直对齐，保留顶部默认值，忽略保留编码 3；时间：2026-11-05；作者：lq。
+        verticalAlign: (['top', 'center', 'bottom'] as const)[(rgf >> 7) & 3],
         ...(rgf & TC_VERT_RESTART
           ? { verticalMerge: 'restart' as const }
           : rgf & TC_VERT_MERGE
@@ -807,6 +841,12 @@ function buildTable(
   })
   const alignment = raw.rows.find((row) => row.tap.alignment !== undefined)?.tap.alignment
   const cellPadding = raw.rows.find((row) => row.tap.cellPadding !== undefined)?.tap.cellPadding
+  // 功能：保留表格的绝对水平起点，显式零缩进与缺省 tblInd 在旧版 Word 下并不等价；时间：2026-11-05；作者：lq。
+  const firstBoundary = raw.rows[0]?.tap.table?.centers[0]
+  const indentTwips = firstBoundary !== undefined ? firstBoundary + (cellPadding?.left ?? 108) : undefined
+  // 功能：表格整体属性取首个明确声明的行，列网格保持原始值；时间：2026-11-05；作者：lq。
+  const preferredWidth = raw.rows.find((row) => row.tap.preferredWidth !== undefined)?.tap.preferredWidth
+  const autofit = raw.rows.find((row) => row.tap.autofit !== undefined)?.tap.autofit
   const borderStyles = raw.rows.find((row) => Object.keys(row.tap.borderStyles).length > 0)?.tap
     .borderStyles
   return {
@@ -816,6 +856,9 @@ function buildTable(
     borders: tableBorders,
     ...(borderStyles ? { borderStyles } : {}),
     ...(cellPadding ? { cellPadding } : {}),
+    ...(preferredWidth ? { preferredWidth } : {}),
+    ...(autofit !== undefined ? { autofit } : {}),
+    ...(indentTwips !== undefined ? { indentTwips } : {}),
     warnings: [...new Set(tableWarnings)],
   }
 }

@@ -319,6 +319,10 @@ function applyParagraphStyle(base: ParagraphStyle, pPr: Element | null, ctx: Par
     }
   }
 
+  // 功能：继承并解析同段落样式间距抑制，显式 false 可覆盖样式定义；时间：2026-11-05；作者：lq。
+  const contextualSpacing = firstChild(pPr, 'w:contextualSpacing');
+  if (contextualSpacing) style.contextualSpacing = toggleValue(contextualSpacing);
+
   const keepNext = firstChild(pPr, 'w:keepNext');
   if (keepNext) style.keepNext = toggleValue(keepNext);
   // 功能：解析整段不拆页与孤行控制，分页时据此决定段落能否跨页切开；时间：2026-11-03；作者：lq。
@@ -1178,18 +1182,16 @@ async function parseParagraph(
     run: ctx.styles.docDefaults.run,
     para: ctx.styles.docDefaults.para,
   };
-  // 功能：先解析段落标记字号，再换算字符缩进；避免 16pt 正文的三字缩进被按文档默认 10pt 缩小；时间：2026-11-05；作者：lq。
-  const paragraphRun = applyRunStyle({}, firstChild(pPr, 'w:rPr'), ctx);
-  const runBase = mergeRun(
-    mergeRun(mergeRun(ctx.styles.docDefaults.run, styleBase.run), baseStyle?.run),
-    paragraphRun,
-  );
+  // 功能：pPr/rPr 只描述段落结束标记，正文继承样式表；标记字号仍用于字符缩进和空段落；时间：2026-11-05；作者：lq。
+  const runBase = mergeRun(mergeRun(ctx.styles.docDefaults.run, styleBase.run), baseStyle?.run);
+  const markNode = firstChild(pPr, 'w:rPr');
+  const markStyle = markNode ? applyRunStyle(runBase, markNode, ctx) : undefined;
   let paragraphStyle = applyParagraphStyle(
     mergeParagraph(styleBase.para, baseStyle?.para),
     pPr,
     ctx,
     // 功能：按段落样式的字号换算字符缩进，标题等大字号段落的缩进量才准确；时间：2026-11-03；作者：lq。
-    runBase.fontSizePt,
+    markStyle?.fontSizePt ?? runBase.fontSizePt,
   );
   const numbering = parseProjectedParagraphNumbering(pPr);
   const numId = numbering.numId ?? styleFromId?.numId;
@@ -1211,8 +1213,7 @@ async function parseParagraph(
     }
   }
 
-  // 功能：继承段落属性中的文字格式（Word 将段落级加粗、字号等写入 w:pPr/w:rPr）；时间：2026-10-27；作者：lq。
-  // 旧逻辑只合并样式表和字符级 w:rPr，导致从原生 Word 打开的段落格式在编辑区丢失。
+  // 功能：每个文字 run 仅使用自身直接格式覆盖正文样式，避免段落标记污染未显式设为非粗体的正文；时间：2026-11-05；作者：lq。
   const state: ParseInlineState = { fieldStack: [] };
   const runs = await parseInlineChildren(element, runBase, ctx, state);
 
@@ -1221,6 +1222,7 @@ async function parseParagraph(
     id: uid('p'),
     runs,
     style: paragraphStyle,
+    ...(markStyle ? { markStyle } : {}),
     list,
     styleId,
   };
@@ -1241,7 +1243,7 @@ async function parseParagraph(
     else parts[parts.length - 1].push(run);
   }
   if (parts.length === 1) {
-    if (paragraph.runs.length === 0) paragraph.runs = [{ text: '', style: runBase }];
+    if (paragraph.runs.length === 0) paragraph.runs = [{ text: '', style: markStyle ?? runBase }];
     return [paragraph];
   }
 
@@ -1259,7 +1261,7 @@ async function parseParagraph(
       blocks.push({
         ...paragraph,
         id: first ? paragraph.id : uid('p'),
-        runs: parts[index].length > 0 ? parts[index] : [{ text: '', style: runBase }],
+        runs: parts[index].length > 0 ? parts[index] : [{ text: '', style: markStyle ?? runBase }],
         style: {
           ...paragraphStyle,
           ...(!first ? { spaceBeforePx: 0, pageBreakBefore: false, firstLineIndentPx: 0 } : {}),
@@ -1627,12 +1629,13 @@ function parsePageSetup(sectPr: Element | null, ctx: ParseContext): PageSetup {
       : 'lines';
   const linePitch = numericAttr(docGridNode, 'w:linePitch');
   const charSpace = numericAttr(docGridNode, 'w:charSpace');
+  // 功能：字符网格可以只声明字符间距，不以 linePitch 的存在作为导入门槛；保留显式零值用于回写；时间：2026-11-05；作者：lq。
   const docGrid =
-    docGridNode && gridType !== 'none' && linePitch
+    docGridNode && gridType !== 'none'
       ? {
           type: gridType,
-          linePitchPx: twipsToPx(linePitch),
-          charSpacePx: charSpace ? (charSpace / 4096) * (96 / 72) : undefined,
+          linePitchPx: linePitch !== undefined ? twipsToPx(linePitch) : undefined,
+          charSpacePx: charSpace !== undefined ? (charSpace / 4096) * (96 / 72) : undefined,
         }
       : undefined;
   return {

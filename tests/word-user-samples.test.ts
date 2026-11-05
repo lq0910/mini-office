@@ -41,6 +41,10 @@ describe.skipIf(!directory)('用户三个样本：真实结构与无操作往返
       expect(doc.footer?.textBoxes?.[0].anchor?.hAlign).toBe('center');
       const page = doc.footer?.textBoxes?.[0].blocks[0];
       expect(page?.type === 'paragraph' && page.runs.some((run) => run.field === 'PAGE')).toBe(true);
+      // 功能：采购首表按原件保留 99.96% 首选宽度与 autofit 模式；时间：2026-11-05；作者：lq。
+      const table = doc.blocks.find((block) => block.type === 'table');
+      expect(table?.type === 'table' && table.widthPct).toBe(99.96);
+      expect(table?.type === 'table' && table.layout).toBe('autofit');
     }
     expect(doc.source).toBeDefined();
     expect(await serializeDocx(doc, { sourceBytes: result.bytes, name: result.name })).toEqual(result.bytes);

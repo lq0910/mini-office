@@ -157,7 +157,8 @@ try {
       // 功能：输出白纸且不改变正文布局，保持源码文字颜色并清除光标和页边距辅助线；时间：2026-11-03；作者：lq。
       await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
       // 功能：格式标记只属于编辑辅助，零宽隐藏不改行盒，避免蓝色 Tab 箭头和换行符进入 Office 对照图；时间：2026-11-03；作者：lq。
-      await page.addStyleTag({ content: '.mo-word-page{box-shadow:none!important;background:white!important;--mo-paper:#fff;--mo-paper-ink:#000} *{caret-color:transparent!important} [data-margin-guides],.mo-word-page [data-tab] [aria-hidden],.mo-word-page [data-line-break]{visibility:hidden!important}' });
+      // 功能：Office PDF 基准不含屏幕裁剪标记，逐页对照只比较文档本身；时间：2026-11-05；作者：lq。
+      await page.addStyleTag({ content: '.mo-word-page{box-shadow:none!important;background:white!important;--mo-paper:#fff;--mo-paper-ink:#000} *{caret-color:transparent!important} [data-word-crop-marks],[data-margin-guides],.mo-word-page [data-tab] [aria-hidden],.mo-word-page [data-line-break]{visibility:hidden!important}' });
       await page.evaluate(async () => {
         await document.fonts.ready;
         await Promise.all([...document.querySelectorAll('.mo-word-page img')].map((image) => image.decode()));

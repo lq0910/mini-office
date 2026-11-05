@@ -124,6 +124,8 @@ export interface AppSettings {
   eyeCare: boolean;
   /** 功能：Word 编辑区顶部标尺（含缩进与制表位标记），默认隐藏，与 Word / WPS 一致；时间：2026-10-30；作者：lq。 */
   wordRuler: boolean;
+  /** 功能：Word 编辑页显示正文区域四角裁剪标记，仅作屏幕辅助；时间：2026-11-05；作者：lq。 */
+  wordCropMarks: boolean;
   /** 功能：表格阅读模式——十字高亮当前单元格所在行列；时间：2026-10-30；作者：lq。 */
   sheetCrosshair: boolean;
 }
@@ -145,6 +147,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fontSize: 'default',
   eyeCare: false,
   wordRuler: false,
+  wordCropMarks: true,
   sheetCrosshair: false,
 };
 

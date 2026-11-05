@@ -13,6 +13,8 @@ import {
   singleLineHeightPx,
 } from '../packages/editor-word/src/metrics';
 import { paginateBlocks, type ParagraphLayout } from '../packages/editor-word/src/pagination';
+// 功能：验证段落样式上下文间距按真实相邻块折叠；时间：2026-11-05；作者：lq。
+import { effectiveParagraphSpacing } from '../packages/editor-word/src/paragraph-spacing';
 
 function paragraph(id: string, style: ParagraphStyle = {}, runs: DocParagraph['runs'] = []): DocParagraph {
   return { type: 'paragraph', id, runs, style };
@@ -86,6 +88,24 @@ describe('字体度量与行距换算', () => {
 });
 
 describe('分页规则', () => {
+  // 功能：同样式上下文间距影响渲染与分页；异样式及显式关闭仍保留声明间距；时间：2026-11-05；作者：lq。
+  it('同样式相邻段落折叠段前后距并同步分页高度', () => {
+    const first = { ...paragraph('ctx-a', { spaceBeforePx: 12, spaceAfterPx: 8, contextualSpacing: true }), styleId: 'Body' };
+    const second = { ...paragraph('ctx-b', { spaceBeforePx: 12, spaceAfterPx: 8, contextualSpacing: true }), styleId: 'Body' };
+    const blocks: DocBlock[] = [first, second];
+    expect(effectiveParagraphSpacing(blocks, 0)).toEqual({ beforePx: 12, afterPx: 0 });
+    expect(effectiveParagraphSpacing(blocks, 1)).toEqual({ beforePx: 0, afterPx: 8 });
+    // 隐藏测量高为 52px、48px；首段置于页首移除 12px 段前距后，合计 88px，85px 页面必须分两页。
+    const pages = paginateBlocks(blocks, new Map([['ctx-a', 52], ['ctx-b', 48]]), 85);
+    expect(pages).toHaveLength(2);
+
+    const different = { ...second, id: 'ctx-c', styleId: 'Other' };
+    expect(effectiveParagraphSpacing([first, different], 0)).toEqual({ beforePx: 12, afterPx: 8 });
+    const explicitlyDisabled = { ...second, id: 'ctx-off', style: { ...second.style, contextualSpacing: false } };
+    expect(effectiveParagraphSpacing([first, explicitlyDisabled], 0)?.afterPx).toBe(0);
+    expect(effectiveParagraphSpacing([first, explicitlyDisabled], 1)?.beforePx).toBe(12);
+  });
+
   it('页首丢弃段前距，不把整段挤到下一页', () => {
     const first = paragraph('a', { spaceBeforePx: 20 });
     const second = paragraph('b');
@@ -112,6 +132,19 @@ describe('分页规则', () => {
     expect(pages).toHaveLength(2);
     expect(pages[0].blocks.map((block) => block.id)).toEqual(['x']);
     expect(pages[1].blocks.map((block) => block.id)).toEqual(['a', 'b']);
+  });
+
+  // 功能：当前页剩余空间可放标题但放不下标题加正文时，使用页首段前距规则计算整链高度；时间：2026-11-05；作者：lq。
+  it('keepNext 链按新页折叠段前距后仍能整体排下', () => {
+    const lead = paragraph('lead');
+    const heading = paragraph('heading', { keepNext: true, spaceBeforePx: 20 });
+    const body = paragraph('body');
+    const blocks = [lead, heading, body];
+    const heights = new Map([['lead', 35], ['heading', 65], ['body', 40]]);
+    const pages = paginateBlocks(blocks, heights, 100);
+    expect(pages).toHaveLength(2);
+    expect(pages[0].blocks.map((block) => block.id)).toEqual(['lead']);
+    expect(pages[1].blocks.map((block) => block.id)).toEqual(['heading', 'body']);
   });
 
   it('keepNext 链本身超过一页时不做整体移动，避免死循环或空页', () => {

@@ -49,20 +49,27 @@ function leaderStyle(leader: TabLeader | undefined): string {
   }
 }
 
-/** 功能：量出制表符右侧到行尾（下一个制表符或换行）的宽度，多行时返回 null 表示无法右对齐；时间：2026-10-30；作者：lq。 */
-function measureTrailing(tab: HTMLElement, scale: number): number | null {
-  const parent = tab.parentNode;
-  if (!parent) return null;
-  let end: Node | null = tab.nextSibling;
-  while (end) {
-    if (end instanceof HTMLElement && end.hasAttribute('data-tab')) break;
-    if (end instanceof HTMLElement && end.tagName === 'BR') break;
-    end = end.nextSibling;
+/** 功能：量出制表符后方跨样式节点的文字宽度，多行时返回 null 表示无法右对齐；时间：2026-11-05；作者：lq。 */
+function measureTrailing(tab: HTMLElement, paragraph: HTMLElement, scale: number): number | null {
+  const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_ELEMENT);
+  let end: Node | null = null;
+  let passedTab = false;
+  while (walker.nextNode()) {
+    const element = walker.currentNode as HTMLElement;
+    if (element === tab) {
+      passedTab = true;
+      continue;
+    }
+    if (!passedTab) continue;
+    if (element.hasAttribute('data-tab') || element.tagName === 'BR') {
+      end = element;
+      break;
+    }
   }
   const range = document.createRange();
   range.setStartAfter(tab);
   if (end) range.setEndBefore(end);
-  else range.setEnd(parent, parent.childNodes.length);
+  else range.setEnd(paragraph, paragraph.childNodes.length);
   if (range.collapsed) return 0;
   // 功能：嵌套样式 span 与文字会在同一行返回多个矩形；按共同垂直带和水平并集量宽，不把它误判为换行；时间：2026-11-03；作者：lq。
   const rects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0);
@@ -111,7 +118,7 @@ export function applyTabStops(
         const target = nextTabStop(config.stops, x, config.defaultStepPx);
         let width = Math.max(0, target.posPx - x);
         if (target.alignment === 'right' || target.alignment === 'center' || target.alignment === 'decimal') {
-          const trailing = measureTrailing(tab, scale);
+          const trailing = measureTrailing(tab, paragraphElement, scale);
           if (trailing !== null) {
             width = Math.max(0, target.posPx - x - (target.alignment === 'center' ? trailing / 2 : trailing));
           }

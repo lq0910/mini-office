@@ -13,13 +13,20 @@ import { fontStackFor } from '@mini-office/design-system';
 import { PX_PER_PT } from './typography';
 import type { ParagraphLayout } from './pagination';
 // 功能：使用实际 run 字体、字号与备用名计算段落行高；时间：2026-11-05；作者：lq。
-import type { ParagraphStyle, RunStyle } from '@mini-office/document-model';
+import type { DocGrid, ParagraphStyle, RunStyle } from '@mini-office/document-model';
 // 功能：常用中文字体按 Word 的设计行高布局，字体字形仍由本机实际字体绘制；时间：2026-11-05；作者：lq。
 import { wordFontLineFactor } from './word-font-metrics';
 
 /** 无法测量时的兜底单行高度系数：中文常用字体约 1.30–1.35，西文约 1.15。 */
 const CJK_FALLBACK_RATIO = 1.32;
 const LATIN_FALLBACK_RATIO = 1.15;
+
+/** 功能：仅行网格和行字符网格参与行高计算，字符网格不得改变垂直布局；时间：2026-11-05；作者：lq。 */
+export function documentGridLinePitch(grid?: DocGrid): number | undefined {
+  const pitch = grid?.linePitchPx;
+  return (grid?.type === 'lines' || grid?.type === 'linesAndChars') && pitch !== undefined && Number.isFinite(pitch) && pitch > 0
+    ? pitch : undefined;
+}
 // 功能：放大字体度量后换算回实际字号，减少 Canvas 在小字号下将升降部取整引起的逐行累积误差；时间：2026-11-05；作者：lq。
 const METRIC_FONT_SIZE_PX = 4096;
 

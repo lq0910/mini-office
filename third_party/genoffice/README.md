@@ -18,4 +18,6 @@
 - `doc2docx/formatting.ts`、`docx-writer.ts`：保留孤行控制和网格开关的显式关闭值；`docx-engine/generate.ts` 将网格开关纳入三态段落标志生成。
 - `doc2docx/lists.ts`：补 NFC 37 到 `chineseCounting` 的映射。
 - `doc2docx/drawings.ts`、`docx-writer.ts`：保留形状的 `posh` 水平对齐和 `WrapText` 不折行属性，恢复自动适应页码框的实际定位。
+- `doc2docx/tables.ts`、`docx-writer.ts`：从 TC80 的第 7–8 位恢复单元格上、中、下对齐，写入独立的 `w:vAlign`；把已经解析的表格内边距（包括零值）写入 `w:tblCellMar`。公开 DOC 的内存变体覆盖转换及修改保存回读；尚未扩展为逐格内边距覆盖模型。
+- `doc2docx/tables.ts`、`docx-writer.ts`：保留 auto/pct/dxa 首选宽度、显式 autofit；按首格原始边界和内边距换算文字起点，写出包括零值的 `w:tblInd`。公开 DOC 内存变体覆盖三种宽度、布局开关、段落操作码隔离与平移后的缩进保存。功能：表格宽度及水平位置保留；时间：2026-11-05；作者：lq。
 - Mini Office 的 `packages/editor-word/src/word-font-metrics.ts` 摘取同一提交的 `packages/font-metrics/word-faces.json` 中五个常用中文字体族设计行高，并按 `src/resolve.ts` 的东亚字体规则换算。不包含字体文件，未引入整个字体索引或编辑内核。

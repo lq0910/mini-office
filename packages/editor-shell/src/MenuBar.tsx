@@ -197,6 +197,13 @@ export function MenuBar({ onHome }: { onHome: () => void }) {
             onSelect: () => updateSettings({ wordRuler: settings.wordRuler !== true }),
           },
           {
+            // 功能：裁剪标记独立于编辑标记和标尺，按 Word 习惯单独控制；时间：2026-11-05；作者：lq。
+            id: 'toggle-word-crop-marks',
+            label: '裁剪标记',
+            checked: settings.wordCropMarks !== false,
+            onSelect: () => updateSettings({ wordCropMarks: settings.wordCropMarks === false }),
+          },
+          {
             id: 'toggle-eyecare',
             label: '护眼模式',
             icon: <Eye size={13} />,
@@ -278,6 +285,7 @@ export function MenuBar({ onHome }: { onHome: () => void }) {
     settings.showToolbar,
     settings.theme,
     settings.wordRuler,
+    settings.wordCropMarks,
     updateSettings,
   ]);
 

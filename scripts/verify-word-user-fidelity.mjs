@@ -55,7 +55,8 @@ try {
       await writeFile(join(output, `${name}.converted.docx`), Buffer.from(opened.source, 'base64'));
       // 功能：采用与公开语料一致的白纸、缩放及隐藏辅助标记规则，保留实际文字和布局；时间：2026-11-05；作者：lq。
       await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
-      await page.addStyleTag({ content: '.mo-word-page{box-shadow:none!important;background:white!important;--mo-paper:#fff;--mo-paper-ink:#000} *{caret-color:transparent!important} [data-margin-guides],.mo-word-page [data-tab] [aria-hidden],.mo-word-page [data-line-break]{visibility:hidden!important}' });
+      // 功能：裁剪标记是 Word 界面辅助，PDF 基准不包含该标记，正文保真对照需隐藏它；时间：2026-11-05；作者：lq。
+      await page.addStyleTag({ content: '.mo-word-page{box-shadow:none!important;background:white!important;--mo-paper:#fff;--mo-paper-ink:#000} *{caret-color:transparent!important} [data-word-crop-marks],[data-margin-guides],.mo-word-page [data-tab] [aria-hidden],.mo-word-page [data-line-break]{visibility:hidden!important}' });
       await page.evaluate(async () => { await document.fonts.ready; await Promise.all([...document.querySelectorAll('.mo-word-page img')].map((image) => image.decode())); });
       let previous = ''; let stable = 0;
       for (let attempt = 0; attempt < 100 && stable < 5; attempt++) {
@@ -121,7 +122,22 @@ try {
             return { id: paragraph.dataset.paragraphId, text: paragraph.textContent, top: box.top - pageBox.top,
               height: box.height, font: style.fontFamily, fontSize: style.fontSize, lineHeight: style.lineHeight };
           }) }));
-        await paper.screenshot({ path: join(output, file), animations: 'disabled', caret: 'hide' });
+        // 功能：把纸张截图起点对齐设备像素，避免分数坐标使隔页多截 1px；仅移动截图位置，不缩放或裁剪页面内容；时间：2026-11-05；作者：lq。
+        await paper.scrollIntoViewIfNeeded();
+        const capture = await paper.evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          const previous = element.style.translate;
+          element.style.translate = `${Math.round(rect.left) - rect.left}px ${Math.round(rect.top) - rect.top}px`;
+          return { previous, width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
+        });
+        try {
+          const png = await paper.screenshot({ path: join(output, file), animations: 'disabled', caret: 'hide' });
+          const width = png.readUInt32BE(16); const height = png.readUInt32BE(20);
+          if (width !== capture.width || height !== capture.height) throw new Error(`纸张截图尺寸异常：${width}×${height}，期望 ${capture.width}×${capture.height}`);
+          layout.captureSize = { width, height };
+        } finally {
+          await paper.evaluate((element, previous) => { element.style.translate = previous; }, capture.previous);
+        }
         sample.pages.push({ number: index + 1, file, ...layout });
       }
       if (errors.length) throw new Error(errors.join('\n'));

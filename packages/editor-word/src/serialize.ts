@@ -213,11 +213,20 @@ function paragraphProperties(
     }
   }
   if (indentParts.length) parts.push(`<w:ind ${indentParts.join(' ')}/>`);
+  // 功能：保存同样式段落的间距抑制及显式关闭值；时间：2026-11-05；作者：lq。
+  if (style.contextualSpacing !== undefined) parts.push(boolTag('contextualSpacing', style.contextualSpacing));
   if (style.alignment) {
     const map: Record<string, string> = { left: 'left', center: 'center', right: 'right', justify: 'both' };
     parts.push(`<w:jc w:val="${map[style.alignment] ?? 'left'}"/>`);
   }
   if (style.outlineLevel !== undefined) parts.push(`<w:outlineLvl w:val="${style.outlineLevel}"/>`);
+  // 功能：重建已编辑段落时独立写回结束标记格式，保留空段字号且不把标记格式套到文字；时间：2026-11-05；作者：lq。
+  if (paragraph.markStyle) {
+    const only = paragraph.runs.length === 1 ? paragraph.runs[0] : undefined;
+    // 功能：空段落的工具栏格式修改保存在占位 run 中，写回时同步到段落标记，避免重新打开后字号回退；时间：2026-11-05；作者：lq。
+    const emptyStyle = only && !only.text && Object.keys(only).every((key) => key === 'text' || key === 'style') ? only.style : undefined;
+    parts.push(runProperties({ ...paragraph.markStyle, ...emptyStyle }));
+  }
   return parts.length ? `<w:pPr>${parts.join('')}</w:pPr>` : '';
 }
 
@@ -695,8 +704,9 @@ function buildSectPr(page: PageSetup, state: SerializeState): string {
     }
   }
   // 功能：新建或缺失原始 sectPr 时补写文档网格，保证另存后网格设置不丢失；时间：2026-11-02；作者：lq。
+  // 功能：重建节属性时保留网格显式零值，避免字符间距在另存后退回应用默认值；时间：2026-11-05；作者：lq。
   const grid = page.docGrid && page.docGrid.type !== 'none'
-    ? `<w:docGrid w:type="${page.docGrid.type}"${page.docGrid.linePitchPx ? ` w:linePitch="${Math.round(pxToTwips(page.docGrid.linePitchPx))}"` : ''}${page.docGrid.charSpacePx ? ` w:charSpace="${Math.round((page.docGrid.charSpacePx * 72 / 96) * 4096)}"` : ''}/>`
+    ? `<w:docGrid w:type="${page.docGrid.type}"${page.docGrid.linePitchPx !== undefined ? ` w:linePitch="${Math.round(pxToTwips(page.docGrid.linePitchPx))}"` : ''}${page.docGrid.charSpacePx !== undefined ? ` w:charSpace="${Math.round((page.docGrid.charSpacePx * 72 / 96) * 4096)}"` : ''}/>`
     : '';
   return `<w:sectPr>${pgSz}${pgMar}${page.pageNumberStart !== undefined ? `<w:pgNumType w:start="${page.pageNumberStart}"/>` : ''}${page.columns && page.columns > 1 ? `<w:cols w:num="${page.columns}"/>` : ''}${grid}</w:sectPr>`;
 }

@@ -123,6 +123,8 @@ export interface ParagraphStyle {
   firstLineIndentPx?: number;
   spaceBeforePx?: number;
   spaceAfterPx?: number;
+  /** 功能：同段落样式相邻时合并段前段后距（w:contextualSpacing）；时间：2026-11-05；作者：lq。 */
+  contextualSpacing?: boolean;
   /** Multiplier, e.g. 1.5. */
   lineHeight?: number;
   /** Exact line height in CSS px (fixed line spacing). */
@@ -183,6 +185,8 @@ export interface DocParagraph {
   id: string;
   runs: DocRun[];
   style: ParagraphStyle;
+  /** 功能：独立保留段落结束标记的字符格式，不将其加粗、字号等传播到正文；时间：2026-11-05；作者：lq。 */
+  markStyle?: RunStyle;
   list?: ListInfo;
   styleId?: string;
   /** Source paragraph index for stable round-trips. */
@@ -312,7 +316,9 @@ export interface PageSetup {
  */
 export interface DocGrid {
   type: 'none' | 'lines' | 'linesAndChars' | 'snapToChars';
+  /** 功能：行距只对 lines/linesAndChars 生效；snapToChars 可无此属性；时间：2026-11-05；作者：lq。 */
   linePitchPx?: number;
+  /** 功能：字符间距增量保留零值及负值；当前不据此承诺字符网格排版完整支持；时间：2026-11-05；作者：lq。 */
   charSpacePx?: number;
 }
 

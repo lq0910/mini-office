@@ -8,6 +8,8 @@ import { paragraphTextStyle, renderParagraphHtml, renderRunsHtml } from '../pack
 import type { DocBlock, DocImage, DocParagraph } from '@mini-office/document-model';
 // 功能：对比图片倍数行距保留的额外间距与文字单行度量；时间：2026-11-05；作者：lq。
 import { singleLineHeightPx } from '../packages/editor-word/src/metrics';
+// 功能：检查导入后相邻段落实际使用的上下文间距；时间：2026-11-05；作者：lq。
+import { effectiveParagraphSpacing } from '../packages/editor-word/src/paragraph-spacing';
 
 /**
  * 功能：DOCX 换行与浮动图片回归测试；时间：2026-10-31；作者：lq。
@@ -112,11 +114,105 @@ describe('DOCX 段内换行语义', () => {
     }
   });
 
+  // 功能：保留无 linePitch 的字符网格和显式零 charSpace，避免解析或另存时丢弃设置；时间：2026-11-05；作者：lq。
+  it('读取并往返保存仅含字符间距的 snapToChars 网格', async () => {
+    const { doc, pkg } = await parseBody(
+      '<w:p><w:r><w:t>网格文本</w:t></w:r></w:p><w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/><w:docGrid w:type="snapToChars" w:charSpace="0"/></w:sectPr>',
+    );
+    try {
+      expect(doc.page.docGrid).toEqual({ type: 'snapToChars', charSpacePx: 0 });
+      const reopened = await loadOoxmlPackage(await serializeDocx(doc, { name: 'character-grid.docx' }));
+      try {
+        const xml = await reopened.text('word/document.xml');
+        expect(xml).toContain('<w:docGrid w:type="snapToChars" w:charSpace="0"');
+        const roundTrip = await parseDocxPackage(reopened);
+        expect(roundTrip.page.docGrid).toEqual({ type: 'snapToChars', charSpacePx: 0 });
+      } finally {
+        reopened.dispose();
+      }
+    } finally {
+      pkg.dispose();
+    }
+  });
+
   // 功能：字符缩进使用段落标记明确声明的字号，不能退回到文档默认字号；时间：2026-11-05；作者：lq。
   it('大字号段落的字符缩进按该段字号计算', async () => {
     const { doc, pkg } = await parseBody('<w:p><w:pPr><w:ind w:firstLineChars="300"/><w:rPr><w:sz w:val="32"/></w:rPr></w:pPr><w:r><w:t>三字缩进</w:t></w:r></w:p>');
     try {
       expect(paragraphsOf(doc.blocks)[0].style.firstLineIndentPx).toBeCloseTo(64, 1);
+    } finally { pkg.dispose(); }
+  });
+
+  // 功能：段落样式继承 contextualSpacing，直接 false 可关闭，并在重建保存后保留；时间：2026-11-05；作者：lq。
+  it('继承和保存 contextualSpacing，显式 false 覆盖样式', async () => {
+    const { doc, pkg, bytes } = await parseBody(
+      '<w:p><w:pPr><w:pStyle w:val="Body"/></w:pPr><w:r><w:t>同样式一</w:t></w:r></w:p>' +
+      '<w:p><w:pPr><w:pStyle w:val="Body"/></w:pPr><w:r><w:t>同样式二</w:t></w:r></w:p>' +
+      '<w:p><w:pPr><w:pStyle w:val="Body"/><w:contextualSpacing w:val="0"/></w:pPr><w:r><w:t>显式关闭</w:t></w:r></w:p>',
+      { 'word/styles.xml': '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:styleId="Body"><w:pPr><w:spacing w:before="120" w:after="80"/><w:contextualSpacing/></w:pPr></w:style></w:styles>' },
+    );
+    try {
+      const [first, second, disabled] = paragraphsOf(doc.blocks);
+      expect(first.style).toMatchObject({ spaceBeforePx: 8, contextualSpacing: true });
+      expect(first.style.spaceAfterPx).toBeCloseTo(5.3333333333, 8);
+      expect(second.style.contextualSpacing).toBe(true);
+      expect(disabled.style.contextualSpacing).toBe(false);
+      expect(effectiveParagraphSpacing(doc.blocks, 0)).toEqual({ beforePx: 8, afterPx: 0 });
+      expect(effectiveParagraphSpacing(doc.blocks, 1)).toMatchObject({ beforePx: 0 });
+      expect(effectiveParagraphSpacing(doc.blocks, 1)?.afterPx).toBe(0);
+      expect(effectiveParagraphSpacing(doc.blocks, 2)).toMatchObject({ beforePx: 8 });
+      expect(effectiveParagraphSpacing(doc.blocks, 2)?.afterPx).toBeCloseTo(5.3333333333, 8);
+      expect(await serializeDocx(doc, { sourceBytes: bytes, name: 'context-spacing.docx' })).toEqual(bytes);
+
+      first.runs[0].style.color = '#123456';
+      disabled.runs[0].style.color = '#654321';
+      const saved = await serializeDocx(doc, { sourceBytes: bytes, name: 'context-spacing.docx' });
+      const reopened = await loadOoxmlPackage(saved);
+      try {
+        const xml = await reopened.text('word/document.xml');
+        expect(xml).toContain('<w:contextualSpacing w:val="0"/>');
+        const roundTrip = paragraphsOf((await parseDocxPackage(reopened)).blocks);
+        expect(roundTrip[0].style.contextualSpacing).toBe(true);
+        expect(roundTrip[2].style.contextualSpacing).toBe(false);
+      } finally { reopened.dispose(); }
+    } finally { pkg.dispose(); }
+  });
+
+  // 功能：段落结束标记的加粗、字号与正文独立，空段、样式继承及编辑重建均保留各自格式；时间：2026-11-05；作者：lq。
+  it('段落标记不污染正文，格式修改保存后仍独立', async () => {
+    const mark = '<w:pPr><w:rPr><w:b/><w:i/><w:sz w:val="40"/></w:rPr></w:pPr>';
+    const { doc, pkg, bytes } = await parseBody(
+      `<w:p>${mark}<w:r><w:t>普通正文</w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>加粗正文</w:t></w:r></w:p>` +
+      `<w:p>${mark}</w:p>` +
+      '<w:p><w:pPr><w:pStyle w:val="Bold"/><w:rPr><w:b w:val="0"/></w:rPr></w:pPr><w:r><w:t>样式加粗</w:t></w:r></w:p>',
+      { 'word/styles.xml': '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:styleId="Bold"><w:rPr><w:b/></w:rPr></w:style></w:styles>' },
+    );
+    try {
+      const [body, empty, styled] = paragraphsOf(doc.blocks);
+      expect(body.markStyle).toMatchObject({ bold: true, italic: true, fontSizePt: 20 });
+      expect(body.runs[0].style.bold).not.toBe(true);
+      expect(body.runs[0].style.italic).not.toBe(true);
+      expect(body.runs[0].style.fontSizePt).not.toBe(20);
+      expect(body.runs[1].style.bold).toBe(true);
+      expect(empty.runs[0].style).toMatchObject({ bold: true, italic: true, fontSizePt: 20 });
+      expect(styled.markStyle?.bold).toBe(false);
+      expect(styled.runs[0].style.bold).toBe(true);
+      expect(await serializeDocx(doc, { sourceBytes: bytes, name: 'marks.docx' })).toEqual(bytes);
+      // 功能：修改正文格式强制走段落重建，防止仅靠原 XML 透传掩盖标记丢失；时间：2026-11-05；作者：lq。
+      body.runs[0].style.color = '#123456';
+      empty.runs[0].style.fontSizePt = 24;
+      const saved = await serializeDocx(doc, { sourceBytes: bytes, name: 'marks.docx' });
+      const reopenedPkg = await loadOoxmlPackage(saved);
+      try {
+        const reopenedParagraphs = paragraphsOf((await parseDocxPackage(reopenedPkg)).blocks);
+        const reopened = reopenedParagraphs[0];
+        expect(reopened.markStyle).toMatchObject({ bold: true, italic: true, fontSizePt: 20 });
+        expect(reopened.runs[0].style).toMatchObject({ color: '#123456' });
+        expect(reopened.runs[0].style.bold).not.toBe(true);
+        expect(reopened.runs[0].style.fontSizePt).not.toBe(20);
+        expect(reopenedParagraphs[1].markStyle?.fontSizePt).toBe(24);
+        expect(reopenedParagraphs[1].runs[0].style.fontSizePt).toBe(24);
+      } finally { reopenedPkg.dispose(); }
     } finally { pkg.dispose(); }
   });
 

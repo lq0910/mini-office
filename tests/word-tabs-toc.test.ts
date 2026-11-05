@@ -109,6 +109,29 @@ describe('制表符渲染后置处理', () => {
     expect(tab.style.borderBottom).toContain('dotted');
   });
 
+  it('目录标题与页码分属嵌套样式节点时仍测量页码宽度，避免右对齐 Tab 将页码挤到下一行', () => {
+    const root = document.createElement('div');
+    root.innerHTML = '<p data-paragraph-id="toc"><span>较长的目录标题</span><span><span data-tab="1"></span></span><span><b>12</b></span></p>';
+    const paragraph = root.firstElementChild as HTMLElement;
+    const tab = root.querySelector<HTMLElement>('[data-tab]')!;
+    Object.defineProperty(paragraph, 'offsetWidth', { value: 500 });
+    vi.spyOn(paragraph, 'getBoundingClientRect').mockReturnValue({ left: 0, width: 500 } as DOMRect);
+    vi.spyOn(tab, 'getBoundingClientRect').mockReturnValue({ left: 300 } as DOMRect);
+    const create = document.createRange.bind(document);
+    vi.spyOn(document, 'createRange').mockImplementation(() => {
+      const range = create();
+      Object.assign(range, { getClientRects: () => [
+        { left: 300, right: 320, top: 0, bottom: 20, width: 20, height: 20 },
+      ] });
+      return range;
+    });
+
+    applyTabStops(root, () => ({ stops: [{ posPx: 480, alignment: 'right', leader: 'dot' }] }));
+
+    expect(Number.parseFloat(tab.style.width)).toBeCloseTo(160, 2);
+    expect(tab.style.borderBottom).toContain('dotted');
+  });
+
   it('真正跨行的后续内容仍回退左对齐，避免错误扣除整段宽度', () => {
     const { root, tab } = tabGeometry(true);
     applyTabStops(root, () => ({ stops: [{ posPx: 400, alignment: 'right' }], indentLeftPx: 32 }));

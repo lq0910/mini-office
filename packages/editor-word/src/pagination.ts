@@ -1,5 +1,6 @@
 import type { DocBlock, DocModel, DocSection, DocTable, DocTableRow } from '@mini-office/document-model';
 import { tableCellPlacements } from './doc-utils';
+import { effectiveParagraphSpacing } from './paragraph-spacing';
 import { documentSections } from './sections';
 
 export interface PageSlice {
@@ -102,6 +103,11 @@ export function paginateBlocks(
   let locked: string[] = [];
   let splits: Record<string, ParagraphSplit> = {};
   let used = 0;
+  const spacingById = new Map<string, { beforePx: number; afterPx: number }>();
+  blocks.forEach((block, index) => {
+    const spacing = effectiveParagraphSpacing(blocks, index);
+    if (block.type === 'paragraph' && spacing) spacingById.set(block.id, spacing);
+  });
 
   const flush = () => {
     if (current.length === 0) return;
@@ -119,11 +125,14 @@ export function paginateBlocks(
     used = 0;
   };
 
-  // 功能：页首不叠加段前距，与渲染时丢弃 padding-top 的行为一致；时间：2026-11-02；作者：lq。
+  // 功能：隐藏测量已包含上下文段距，仅在分页把段落移至页首时移除有效段前距；时间：2026-11-05；作者：lq。
   const heightOf = (block: DocBlock, firstOnPage: boolean): number => {
     const raw = Math.max(0, heights.get(block.id) ?? 0);
-    if (!firstOnPage || block.type !== 'paragraph') return raw;
-    return Math.max(0, raw - (block.style.spaceBeforePx ?? 0));
+    if (block.type !== 'paragraph') return raw;
+    const effective = spacingById.get(block.id);
+    const before = effective?.beforePx ?? block.style.spaceBeforePx ?? 0;
+    // 功能：避免再次扣除已在隐藏测量层折叠的段前段后距；时间：2026-11-05；作者：lq。
+    return Math.max(0, raw - (firstOnPage ? before : 0));
   };
 
   /**
@@ -160,15 +169,21 @@ export function paginateBlocks(
     if (block.type === 'paragraph' && block.style.keepNext && current.length > 0) {
       const chain = keepChain(index);
       if (chain.length > 1) {
-        const chainHeight = chain.reduce((sum, item) => sum + Math.max(0, heights.get(item.id) ?? 0), 0);
-        if (chainHeight <= contentHeight + 0.5 && used + chainHeight > contentHeight + 0.5) flush();
+        const chainHeight = chain.reduce((sum, item) => {
+          // 功能：当前页已有内容，链内段落保留各自实测的有效段前距；时间：2026-11-05；作者：lq。
+          return sum + heightOf(item, false);
+        }, 0);
+        const freshPageHeight = chain.reduce((sum, item, itemIndex) => sum + heightOf(item, itemIndex === 0), 0);
+        // 功能：当前页容不下但新页可容纳时，整条 keepNext 链在标题进入前换页；时间：2026-11-05；作者：lq。
+        if (freshPageHeight <= contentHeight + 0.5 && used + chainHeight > contentHeight + 0.5) flush();
       }
     }
     // 功能：段落行级切分——整段放不下时按行盒切开，避免整段移到下一页在页底留下半页空白；时间：2026-11-03；作者：lq。
     const paragraphLayout = block.type === 'paragraph' && !block.toc ? paragraphs?.get(block.id) : undefined;
     if (block.type === 'paragraph' && paragraphLayout && paragraphLayout.lineTops.length > 1) {
-      const spaceBefore = block.style.spaceBeforePx ?? 0;
-      const spaceAfter = block.style.spaceAfterPx ?? 0;
+      const spacing = spacingById.get(block.id);
+      const spaceBefore = spacing?.beforePx ?? block.style.spaceBeforePx ?? 0;
+      const spaceAfter = spacing?.afterPx ?? block.style.spaceAfterPx ?? 0;
       const total = paragraphLayout.lineTops.length;
       const atTop = current.length === 0;
       const lead = atTop ? 0 : spaceBefore;

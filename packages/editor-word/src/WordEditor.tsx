@@ -42,7 +42,10 @@ import {
   shadeColor,
 } from './html';
 import { replaceDocumentSelection, selectionHtml, selectionText } from './document-selection';
-import { measureParagraphLines, resetFontMetrics } from './metrics';
+// 功能：渲染和测量均按节网格类型选择行距，字符网格不参与行高；时间：2026-11-05；作者：lq。
+import { documentGridLinePitch, measureParagraphLines, resetFontMetrics } from './metrics';
+// 功能：分页、隐藏测量和可见正文共享上下文段落的有效间距；时间：2026-11-05；作者：lq。
+import { effectiveParagraphSpacing, type EffectiveParagraphSpacing } from './paragraph-spacing';
 import { pageMetrics, paginateDocument, type PageSlice, type ParagraphLayout, type ParagraphSplit, type TableLayout } from './pagination';
 import { documentSections } from './sections';
 import { WordToolbar } from './WordToolbar';
@@ -402,8 +405,13 @@ function paragraphWrapperStyleWithClip(
   paragraph: DocParagraph,
   firstOnPage: boolean | undefined,
   clip?: ParagraphSplit,
+  spacing?: EffectiveParagraphSpacing,
 ): React.CSSProperties {
-  const style: React.CSSProperties = { ...paragraphWrapperStyle(paragraph, { dropSpaceBefore: firstOnPage }), display: 'flow-root' };
+  const style: React.CSSProperties = { ...paragraphWrapperStyle(paragraph, {
+    dropSpaceBefore: firstOnPage,
+    spaceBeforePx: spacing?.beforePx,
+    spaceAfterPx: spacing?.afterPx,
+  }), display: 'flow-root' };
   if (!clip) return style;
   return {
     ...style,
@@ -423,6 +431,7 @@ const StaticParagraph = memo(function StaticParagraph({
   tocEntries,
   firstOnPage,
   clip,
+  spacing,
 }: {
   paragraph: DocParagraph;
   doc: DocModel;
@@ -433,20 +442,21 @@ const StaticParagraph = memo(function StaticParagraph({
   firstOnPage?: boolean;
   /** 功能：跨页段落的裁剪窗口；时间：2026-11-03；作者：lq。 */
   clip?: ParagraphSplit;
+  spacing?: EffectiveParagraphSpacing;
 }) {
   const html = useMemo(
     () => renderParagraphHtml(paragraph, { pageNumber, totalPages, sectionPages: doc.sectionPageCount, tocEntries }),
     [paragraph, pageNumber, totalPages, doc.sectionPageCount, tocEntries],
   );
   return (
-    <div style={paragraphWrapperStyleWithClip(paragraph, firstOnPage, clip)}>
+    <div style={paragraphWrapperStyleWithClip(paragraph, firstOnPage, clip, spacing)}>
       <div
         // 功能：静态续页不继承外层可编辑状态，防止浏览器修改无法映射回模型的片段；时间：2026-11-03；作者：lq。
         contentEditable={false}
         // 功能：续页片段不占用段落 id，避免焦点与编辑回调落到被裁剪的不可见行上；时间：2026-11-03；作者：lq。
         data-paragraph-id={clip && clip.start > 0 ? undefined : paragraph.id}
         style={{
-          ...paragraphTextStyle(paragraph, doc.defaultFont, doc.defaultFontSizePt, doc.page.docGrid?.linePitchPx),
+          ...paragraphTextStyle(paragraph, doc.defaultFont, doc.defaultFontSizePt, documentGridLinePitch(doc.page.docGrid)),
           marginTop: clip && clip.offset ? -clip.offset : undefined,
         }}
         dangerouslySetInnerHTML={{ __html: html }}
@@ -466,6 +476,7 @@ const EditableParagraph = memo(function EditableParagraph({
   showFormattingMarks,
   firstOnPage,
   clip,
+  spacing,
 }: {
   paragraph: DocParagraph;
   doc: DocModel;
@@ -479,6 +490,7 @@ const EditableParagraph = memo(function EditableParagraph({
   firstOnPage?: boolean;
   /** 功能：跨页段落首片的裁剪窗口；时间：2026-11-03；作者：lq。 */
   clip?: ParagraphSplit;
+  spacing?: EffectiveParagraphSpacing;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const lastSyncToken = useRef(handlers.syncToken);
@@ -520,7 +532,7 @@ const EditableParagraph = memo(function EditableParagraph({
   }, [handlers.selectedImageId, html]);
 
   return (
-    <div style={paragraphWrapperStyleWithClip(paragraph, firstOnPage, clip)}>
+    <div style={paragraphWrapperStyleWithClip(paragraph, firstOnPage, clip, spacing)}>
       <div
         ref={ref}
         // 功能：继承整篇文档的编辑宿主，允许跨段和跨页选区；时间：2026-10-18；作者：lq。
@@ -532,7 +544,7 @@ const EditableParagraph = memo(function EditableParagraph({
         aria-multiline="true"
         aria-label="文档段落"
         style={{
-          ...paragraphTextStyle(paragraph, doc.defaultFont, doc.defaultFontSizePt, doc.page.docGrid?.linePitchPx),
+          ...paragraphTextStyle(paragraph, doc.defaultFont, doc.defaultFontSizePt, documentGridLinePitch(doc.page.docGrid)),
           outline: 'none',
           marginTop: clip && clip.offset ? -clip.offset : undefined,
         }}
@@ -607,6 +619,9 @@ function TableGrid({
   const tableMargin = table.cellMarginPx;
   // 功能：Word 左对齐表格按首格文字起点对齐版心，边框需扣除首格左内边距；时间：2026-11-05；作者：lq。
   const firstCellLeft = table.rows[0]?.cells[0]?.marginPx?.left ?? tableMargin?.left ?? 7.2;
+  // 功能：百分比 tblW 以版心为基准，补回首尾单元格外侧内边距以匹配 Word 表格外框；时间：2026-11-05；作者：lq。
+  const lastCell = table.rows[0]?.cells.at(-1);
+  const horizontalEdgePadding = firstCellLeft + (lastCell?.marginPx?.right ?? tableMargin?.right ?? 7.2);
   const gridStyle: CSSProperties = {
     display: 'grid',
     // 功能：为左上角表格手柄提供定位上下文，手柄绝对定位后不参与网格布局；时间：2026-10-31；作者：lq。
@@ -623,9 +638,9 @@ function TableGrid({
           : `minmax(${row.heightPx ?? 20}px, auto)`,
       )
       .join(' '),
-    width: widthPct ? `${widthPct}%` : totalWidth,
+    width: widthPct ? `calc(${widthPct}% + ${horizontalEdgePadding}px)` : totalWidth,
     // 功能：固定布局允许使用原件列宽，不再强制把超出版心的表格缩窄；时间：2026-11-03；作者：lq。
-    maxWidth: table.layout === 'fixed' ? undefined : '100%',
+    maxWidth: widthPct || table.layout === 'fixed' ? undefined : '100%',
     // 功能：显式居中/右对齐优先；左对齐的缩进以首格文字而非外边框为基准；时间：2026-11-05；作者：lq。
     marginLeft: table.alignment === 'center'
         ? 'auto'
@@ -705,7 +720,7 @@ function TableGrid({
               <span data-table-resize contentEditable={false} title="拖动调整列宽" onPointerDown={(event) => handlers.onTableResize(event, table, col + cell.colSpan - 1, 'column')} style={{ position: 'absolute', zIndex: 2, right: -3, top: 0, bottom: 6, width: 6, cursor: 'col-resize', touchAction: 'none' }} />
               <span data-table-resize contentEditable={false} title="拖动调整行高" onPointerDown={(event) => handlers.onTableResize(event, table, row + cell.rowSpan - 1, 'row')} style={{ position: 'absolute', zIndex: 2, bottom: -3, left: 0, right: 6, height: 6, cursor: 'row-resize', touchAction: 'none' }} />
             </> : null}
-            {cell.blocks.map((block) =>
+            {cell.blocks.map((block, blockIndex) =>
               block.type === 'paragraph' ? (
                 staticMode || !handlers ? (
                   <StaticParagraph
@@ -715,6 +730,7 @@ function TableGrid({
                     pageNumber={pageNumber}
                     totalPages={totalPages}
                     tocEntries={tocEntries}
+                    spacing={effectiveParagraphSpacing(cell.blocks, blockIndex)}
                   />
                 ) : (
                   <EditableParagraph
@@ -726,6 +742,7 @@ function TableGrid({
                     readonly={readonly}
                     handlers={handlers}
                     tocEntries={tocEntries}
+                    spacing={effectiveParagraphSpacing(cell.blocks, blockIndex)}
                   />
                 )
               ) : block.type === 'table' ? (
@@ -764,7 +781,7 @@ function HeaderFooterView({
 }) {
   return (
     <div contentEditable={false} style={{ position: 'relative' }}>
-      {blocks.map((block) =>
+      {blocks.map((block, blockIndex) =>
         block.type === 'paragraph' ? (
           <StaticParagraph
             key={block.id}
@@ -772,6 +789,7 @@ function HeaderFooterView({
             doc={doc}
             pageNumber={pageNumber}
             totalPages={totalPages}
+            spacing={effectiveParagraphSpacing(blocks, blockIndex)}
           />
         ) : block.type === 'table' ? (
           <TableGrid
@@ -1169,8 +1187,8 @@ export function WordEditor({ session }: { session: WordSession }) {
   // 功能：样式库面板与样式集状态，样式集从本机读取一次；时间：2026-10-29；作者：lq。
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const [showMoreStyles, setShowMoreStyles] = useState(false);
-  // 功能：编辑态默认显示 Word 风格的换行符与制表符标记，便于核对导入结果；时间：2026-10-31；作者：lq。
-  const [showFormattingMarks, setShowFormattingMarks] = useState(true);
+  // 功能：编辑标记默认关闭以保持文档原貌，用户可从「显示编辑标记」主动开启；时间：2026-11-05；作者：lq。
+  const [showFormattingMarks, setShowFormattingMarks] = useState(false);
   const [newStyleOpen, setNewStyleOpen] = useState(false);
   const [styleSetDialogOpen, setStyleSetDialogOpen] = useState(false);
   const [styleSets, setStyleSets] = useState<WordStyleSet[]>(() => readStyleSets());
@@ -1357,6 +1375,18 @@ export function WordEditor({ session }: { session: WordSession }) {
     }
     return result;
   }, [doc]);
+  // 功能：按节内相邻段落计算上下文间距，避免跨节边界错误折叠段距；时间：2026-11-05；作者：lq。
+  const paragraphSpacing = useMemo(() => {
+    const result = new Map<string, EffectiveParagraphSpacing>();
+    for (const section of documentSections(doc)) {
+      section.blocks.forEach((block, index) => {
+        if (block.type !== 'paragraph') return;
+        const spacing = effectiveParagraphSpacing(section.blocks, index);
+        if (spacing) result.set(block.id, spacing);
+      });
+    }
+    return result;
+  }, [doc]);
   const effectiveZoom = exporting ? 1 : zoom;
 
   const blockMap = useMemo(() => new Map(doc.blocks.map((block) => [block.id, block])), [doc.blocks]);
@@ -1506,6 +1536,8 @@ export function WordEditor({ session }: { session: WordSession }) {
         paper.style.margin = '0';
       }
       clone.querySelectorAll<HTMLElement>('[contenteditable]').forEach((element) => element.removeAttribute('contenteditable'));
+      // 功能：打印预览的屏幕克隆也需移除裁剪标记等界面辅助，不能只依赖打印媒体样式；时间：2026-11-05；作者：lq。
+      clone.querySelectorAll('.mo-no-print').forEach((element) => element.remove());
       // 功能：选区灰底只用于屏幕提示，打印与预览页一律去掉，避免整块灰印在纸上；时间：2026-11-01；作者：lq。
       clone.querySelectorAll<HTMLElement>('[data-cell-id]').forEach((cell) => {
         cell.style.boxShadow = '';
@@ -3393,6 +3425,7 @@ export function WordEditor({ session }: { session: WordSession }) {
                 index={index}
                 total={pages.length}
                 blockMap={blockMap}
+                paragraphSpacing={paragraphSpacing}
                 doc={page.section ? { ...doc, ...page.section, sectionPageCount: page.sectionTotal } : doc}
                 zoom={effectiveZoom}
                 readonly={readonly || exporting}
@@ -3400,6 +3433,7 @@ export function WordEditor({ session }: { session: WordSession }) {
                 tocEntries={tocEntries}
                 showFormattingMarks={showFormattingMarks}
                 showMarginGuides={marginGuides && !exporting}
+                showCropMarks={settings.wordCropMarks !== false && !exporting}
                 onChangeMargin={readonly ? undefined : dragPageMargin}
                 onEditHeaderFooter={setHeaderFooterRegion}
                 onTocEntryClick={handleTocEntryClick}
@@ -3442,7 +3476,7 @@ export function WordEditor({ session }: { session: WordSession }) {
             pointerEvents: 'none',
           }}
         >
-          {doc.blocks.map((block) =>
+          {doc.blocks.map((block, blockIndex) =>
             block.type === 'pageBreak' ? null : (
               <div key={block.id} data-measure-id={block.id} style={{ display: 'flow-root', width: pageMetrics(measureSections.get(block.id)?.page ?? doc.page).contentWidth }}>
                 {block.type === 'paragraph' ? (
@@ -3451,6 +3485,7 @@ export function WordEditor({ session }: { session: WordSession }) {
                     doc={measureSections.get(block.id) ?? doc}
                     pageNumber={1}
                     totalPages={pages.length}
+                    spacing={paragraphSpacing.get(block.id)}
                     // 功能：目录段落必须用同一份条目参与测量，否则目录页高度与实际不符；时间：2026-10-30；作者：lq。
                     tocEntries={block.toc ? tocEntries : undefined}
                   />
@@ -3750,6 +3785,7 @@ function WordPageView({
   index,
   total,
   blockMap,
+  paragraphSpacing,
   doc,
   zoom,
   readonly,
@@ -3759,12 +3795,15 @@ function WordPageView({
   onTocEntryClick,
   showFormattingMarks,
   showMarginGuides,
+  showCropMarks,
   onChangeMargin,
 }: {
   page: PageSlice;
   index: number;
   total: number;
   blockMap: Map<string, DocBlock>;
+  /** 功能：可见段落和分页测量共用的有效上下文间距；时间：2026-11-05；作者：lq。 */
+  paragraphSpacing: ReadonlyMap<string, EffectiveParagraphSpacing>;
   doc: DocModel;
   zoom: number;
   readonly: boolean;
@@ -3777,6 +3816,8 @@ function WordPageView({
   showFormattingMarks?: boolean;
   /** 功能：调整页边距时在页面上显示正文边界参考线；时间：2026-11-01；作者：lq。 */
   showMarginGuides?: boolean;
+  /** 功能：四角灰色裁剪标记显示在正文区域外侧，独立于页边距调整参考线；时间：2026-11-05；作者：lq。 */
+  showCropMarks?: boolean;
   /** 功能：拖动页面边缘直接改页边距，值单位为未缩放页面像素；时间：2026-11-01；作者：lq。 */
   onChangeMargin?: (edge: 'left' | 'right' | 'top' | 'bottom', valuePx: number) => void;
 }) {
@@ -3889,6 +3930,8 @@ function WordPageView({
           {blocks.map((block, blockIndex) => {
             // 功能：跨页段落片段以原段落 id 为 sourceId，内容回取原段落，片段 id 只用于渲染分片；时间：2026-11-03；作者：lq。
             const split = block.type === 'paragraph' ? page.splits?.[block.id] : undefined;
+            const spacingId = split?.sourceId ?? block.id;
+            const spacing = paragraphSpacing.get(spacingId);
             return block.type === 'paragraph' ? (
               // 功能：目录段落由标题实时生成，不进入可编辑流，点击条目跳转到标题；时间：2026-10-30；作者：lq。
               block.toc ? (
@@ -3907,6 +3950,7 @@ function WordPageView({
                     totalPages={total}
                     tocEntries={tocEntries}
                     firstOnPage={blockIndex === 0}
+                    spacing={spacing}
                   />
                 </div>
               ) : split && split.start > 0 ? (
@@ -3920,6 +3964,7 @@ function WordPageView({
                   tocEntries={tocEntries}
                   clip={split}
                   firstOnPage={blockIndex === 0}
+                  spacing={spacing}
                 />
               ) : (
                 <EditableParagraph
@@ -3933,6 +3978,7 @@ function WordPageView({
                   showFormattingMarks={showFormattingMarks}
                   firstOnPage={blockIndex === 0}
                   clip={split}
+                  spacing={spacing}
                 />
               )
             ) : block.type === 'table' ? (
@@ -3966,6 +4012,17 @@ function WordPageView({
               pageNumber={pageNumber}
               totalPages={total}
             />
+          </div>
+        ) : null}
+        {/* 功能：仿 Word 的四角裁剪标记，24px 直角朝向版心边界，纯屏幕显示且不参与排版和编辑；时间：2026-11-05；作者：lq。 */}
+        {showCropMarks ? (
+          <div data-word-crop-marks aria-hidden="true" contentEditable={false} data-html2canvas-ignore="true" className="mo-no-print" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', userSelect: 'none', zIndex: 7 }}>
+            {[
+              { key: 'tl', left: guideLeft - 24, top: guideTop - 24, borderBottom: '1px solid #aaa', borderRight: '1px solid #aaa' },
+              { key: 'tr', right: liveMargins.right - 24, top: guideTop - 24, borderBottom: '1px solid #aaa', borderLeft: '1px solid #aaa' },
+              { key: 'bl', left: guideLeft - 24, bottom: liveMargins.bottom - 24, borderTop: '1px solid #aaa', borderRight: '1px solid #aaa' },
+              { key: 'br', right: liveMargins.right - 24, bottom: liveMargins.bottom - 24, borderTop: '1px solid #aaa', borderLeft: '1px solid #aaa' },
+            ].map(({ key, ...corner }) => <span key={key} data-crop-corner={key} style={{ position: 'absolute', width: 24, height: 24, ...corner }} />)}
           </div>
         ) : null}
         {/* 功能：调整页边距时显示正文边界与四角标记，边距数值直接标注在页面上；时间：2026-11-01；作者：lq。 */}
