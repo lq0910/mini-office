@@ -134,6 +134,26 @@ fn read_file(path: String) -> Result<Vec<u8>, String> {
     std::fs::read(&path).map_err(|error| format!("无法读取文件：{error}"))
 }
 
+// 功能：同目录文件重命名，使用硬链接原子拒绝覆盖同名文件，失败时保留源文件；时间：2026-11-07；作者：lq。
+#[tauri::command]
+fn rename_file(path: String, name: String) -> Result<String, String> {
+    if name.trim().is_empty() || name.contains(['/', '\\', ':', '*', '?', '"', '<', '>', '|']) || name.ends_with(['.', ' ']) || name.chars().any(char::is_control) {
+        return Err("文件名包含无效字符。".to_string());
+    }
+    let source = Path::new(&path);
+    if !source.is_file() || source.extension() != Path::new(&name).extension() {
+        return Err("只能重命名现有文件，不能修改扩展名。".to_string());
+    }
+    let target = source.with_file_name(&name);
+    if target == source { return Ok(path); }
+    std::fs::hard_link(source, &target).map_err(|error| format!("重命名失败（请确认名称未被占用）：{error}"))?;
+    if let Err(error) = std::fs::remove_file(source) {
+        let _ = std::fs::remove_file(&target);
+        return Err(format!("重命名失败：{error}"));
+    }
+    Ok(target.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 fn write_file(path: String, bytes: Vec<u8>) -> Result<SaveOutcome, String> {
     if bytes.is_empty() {
@@ -474,6 +494,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_file,
             write_file,
+            rename_file,
             list_fonts,
             refresh_fonts,
             inspect_document,

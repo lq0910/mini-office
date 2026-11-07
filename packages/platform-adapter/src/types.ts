@@ -44,6 +44,8 @@ export interface PlatformAdapter {
   openPath(path: string): Promise<OpenedFile | null>;
   /** 功能：将旧版 Office 文件在内存中转换为 OOXML，不写临时文件、不污染源目录；时间：2026-11-02；作者：lq。 */
   convertLegacy?(path: string): Promise<ConvertedLegacy | null>;
+  /** 功能：在原目录安全重命名文件，目标存在时拒绝覆盖；时间：2026-11-07；作者：lq。 */
+  renameFile?(path: string, name: string): Promise<string>;
   saveBytes(bytes: Uint8Array, target: SaveTarget, mime: string): Promise<SaveOutcome>;
   listFonts(): Promise<FontInfo[]>;
   /** 功能：强制重新扫描字体，供用户安装字体后即时生效；时间：2026-10-29；作者：lq。 */

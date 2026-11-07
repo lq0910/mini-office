@@ -33,7 +33,7 @@ function outsideRuns(paragraph: DocParagraph, slice: ParagraphSlice): [DocRun[],
 }
 
 /** 功能：同一正文/单元格内合并选区端点；跨单元格仅替换内容以保留有效表格；时间：2026-10-18；作者：lq。 */
-export function replaceDocumentSelection(doc: DocModel, slices: ParagraphSlice[], text: string): { doc: DocModel; paragraphId: string; offset: number } | null {
+export function replaceDocumentSelection(doc: DocModel, slices: ParagraphSlice[], text: string, rich?: DocParagraph[]): { doc: DocModel; paragraphId: string; offset: number } | null {
   const paragraphs = collectParagraphs(doc);
   const byId = new Map(paragraphs.map((paragraph) => [paragraph.id, paragraph]));
   const first = slices[0];
@@ -44,7 +44,9 @@ export function replaceDocumentSelection(doc: DocModel, slices: ParagraphSlice[]
   const style = start.runs[0]?.style ?? {};
   const [before] = outsideRuns(start, first);
   const [, after] = outsideRuns(end, last);
-  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  // 功能：富文本粘贴复用选区替换，逐段保留安全解析后的样式；时间：2026-11-07；作者：lq。
+  const lines = rich ? rich.map((paragraph) => runsPlainText(paragraph.runs)) : text.replace(/\r\n?/g, '\n').split('\n');
+  const insertedRuns = (index: number): DocRun[] => rich?.[index]?.runs ?? [{ text: lines[index], style }];
   let paragraphId = start.id;
   let offset = first.start + lines[0].length;
   const selected = new Map(slices.map((slice) => [slice.paragraphId, slice]));
@@ -54,7 +56,7 @@ export function replaceDocumentSelection(doc: DocModel, slices: ParagraphSlice[]
   });
   // 全文替换移除正文表格，但保留页面设置和只读页眉页脚；时间：2026-10-18；作者：lq。
   if (coversAll) {
-    const blocks = lines.map((line) => makeParagraph([{ text: line, style }], start));
+    const blocks = lines.map((line, index) => makeParagraph(insertedRuns(index), rich?.[index] ?? start));
     return { doc: { ...doc, blocks }, paragraphId: blocks.at(-1)!.id, offset: lines.at(-1)!.length };
   }
   let replaced = false;
@@ -64,9 +66,9 @@ export function replaceDocumentSelection(doc: DocModel, slices: ParagraphSlice[]
     if (startIndex >= 0 && endIndex >= startIndex) {
       replaced = true;
       const replacement = lines.map((line, index): DocParagraph => ({
-        ...makeParagraph([], start),
+        ...makeParagraph([], rich?.[index] ?? start),
         id: index === 0 ? start.id : makeParagraph().id,
-        runs: [...(index === 0 ? before : []), { text: line, style }, ...(index === lines.length - 1 ? after : [])],
+        runs: [...(index === 0 ? before : []), ...insertedRuns(index), ...(index === lines.length - 1 ? after : [])],
       }));
       paragraphId = replacement.at(-1)!.id;
       offset = lines.length === 1 ? first.start + lines[0].length : lines.at(-1)!.length;
@@ -82,7 +84,7 @@ export function replaceDocumentSelection(doc: DocModel, slices: ParagraphSlice[]
       const slice = selected.get(paragraph.id);
       if (!slice) return paragraph;
       const [prefix, suffix] = outsideRuns(paragraph, slice);
-      return { ...paragraph, runs: [...prefix, { text: paragraph.id === start.id ? text : '', style }, ...suffix] };
+      return { ...paragraph, runs: [...prefix, ...(paragraph.id === start.id ? (rich ? rich.flatMap((part, index) => [...(index ? [{ text: '', style, lineBreak: true }] : []), ...part.runs]) : [{ text, style }]) : []), ...suffix] };
     });
     offset = first.start + text.length;
   }

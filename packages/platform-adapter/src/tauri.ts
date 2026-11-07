@@ -41,6 +41,11 @@ function extensionOfName(name: string): string[] {
 export class TauriPlatformAdapter implements PlatformAdapter {
   readonly kind = 'tauri' as const;
 
+  /** 功能：调用桌面文件重命名并返回新路径；时间：2026-11-07；作者：lq。 */
+  async renameFile(path: string, name: string): Promise<string> {
+    return tauriInvoke<string>('rename_file', { path, name });
+  }
+
   async openPath(path: string): Promise<OpenedFile | null> {
     try {
       const result = await tauriInvoke<ArrayBuffer | number[]>('read_file', { path });

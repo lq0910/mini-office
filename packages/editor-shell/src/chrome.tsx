@@ -1,4 +1,4 @@
-import { BrandIcon } from '@mini-office/ui';
+import { BrandIcon, FileIcon } from '@mini-office/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
@@ -23,9 +23,6 @@ import {
   Sun,
   Table2,
   X,
-  FileCode2,
-  FileType2,
-  FileKey,
 } from 'lucide-react';
 import { useWorkspaceStore, type DocumentSession } from '@mini-office/document-model';
 import { Button, Dialog, Dropdown, IconButton, Kbd, Select, Tooltip, type MenuItem } from '@mini-office/ui';
@@ -49,15 +46,6 @@ import {
   toggleWindowMaximize,
 } from '@mini-office/platform-adapter';
 import { useUpdateStore } from './update-check';
-
-const KIND_ICONS: Record<OfficeKind, typeof FileText> = {
-  docx: FileText,
-  xlsx: Table2,
-  pptx: Presentation,
-  pdf: FileKey,
-  md: FileType2,
-  html: FileCode2,
-};
 
 const KIND_TINTS: Record<OfficeKind, string> = {
   docx: '#2B579A',
@@ -460,6 +448,18 @@ export function TabStrip({
   const createDocument = useWorkspaceStore((state) => state.createDocument);
   const openFileDialog = useWorkspaceStore((state) => state.openFileDialog);
 
+  // 功能：单击名称切换文档，双击进入重命名，Enter 提交、Escape 取消；时间：2026-11-07；作者：lq。
+  const renameSession = useWorkspaceStore((state) => state.renameSession);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [renameBusy, setRenameBusy] = useState(false);
+  const submitRename = async () => {
+    if (!renaming || renameBusy) return;
+    setRenameBusy(true);
+    try { if (await renameSession(renaming, renameValue)) setRenaming(null); }
+    finally { setRenameBusy(false); }
+  };
+
   const newItems: MenuItem[] = [
     {
       id: 'new-docx',
@@ -489,14 +489,13 @@ export function TabStrip({
       {tabOrder.map((id) => {
         const session = sessions[id];
         if (!session) return null;
-        const Icon = KIND_ICONS[session.kind];
         const active = id === activeId;
         return (
           <div
             key={id}
             role="tab"
             aria-selected={active}
-            draggable
+            draggable={renaming !== id}
             onDragStart={(event) => {
               event.dataTransfer.setData('text/plain', id);
               event.dataTransfer.effectAllowed = 'move';
@@ -532,9 +531,26 @@ export function TabStrip({
               className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px]"
               style={{ background: `${KIND_TINTS[session.kind]}14`, color: KIND_TINTS[session.kind] }}
             >
-              <Icon size={11} />
+              <FileIcon kind={session.kind} name={session.displayName} size={19} />
             </span>
-            <span className="min-w-0 flex-1 truncate">{session.displayName}</span>
+            {renaming === id ? (
+              <input autoFocus title="Enter 确认，Esc 取消" aria-label="文档名称" value={renameValue} disabled={renameBusy}
+                className="min-w-0 flex-1 rounded border border-[var(--mo-accent)] bg-[var(--mo-surface)] px-1 outline-none"
+                onFocus={(event) => event.target.select()} onClick={(event) => event.stopPropagation()}
+                onChange={(event) => setRenameValue(event.target.value)}
+                onBlur={() => { if (!renameBusy) setRenaming(null); }}
+                onKeyDown={(event) => {
+                  event.stopPropagation();
+                  if (event.key === 'Escape') setRenaming(null);
+                  if (event.key === 'Enter') { event.preventDefault(); void submitRename(); }
+                }} />
+            ) : <button type="button" className="min-w-0 flex-1 truncate text-left" title="双击重命名"
+              disabled={session.state === 'SAVING'}
+              onDoubleClick={() => {
+                if (session.kind !== 'docx' && session.kind !== 'xlsx') return;
+                setRenameValue(session.displayName.replace(/\.[^.]+$/, ''));
+                setRenaming(id);
+              }}>{session.displayName}</button>}
             {session.dirty ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--mo-warning)]" /> : null}
             <button
               type="button"
@@ -793,7 +809,7 @@ export function CloseConfirmDialog({
       <div className="space-y-3.5">
         <div className="flex items-center gap-2.5 rounded-xl border border-[var(--mo-line)] bg-[var(--mo-surface-2)]/45 p-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--mo-surface)] text-[var(--mo-text-muted)] shadow-sm">
-            {session.kind === 'xlsx' ? <Table2 size={17} /> : session.kind === 'pptx' ? <Presentation size={17} /> : <FileText size={17} />}
+            <FileIcon kind={session.kind} name={session.displayName} size={30} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="truncate text-[12px] font-medium" title={session.displayName}>

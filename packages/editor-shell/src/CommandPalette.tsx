@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { useWorkspaceStore } from '@mini-office/document-model';
 import { collectMacroCommands, usePluginRegistry } from '@mini-office/plugin-host';
-import { Kbd } from '@mini-office/ui';
+import { Kbd, FileIcon } from '@mini-office/ui';
 import { MOD_KEY, type OfficeKind } from '@mini-office/shared';
 import { ACCENT_PRESETS, applyAppearance } from '@mini-office/design-system';
 import { canRunMacro, executePluginMacro } from './plugin-macro';
@@ -327,7 +327,8 @@ export function CommandPalette({
       id: `recent-${item.id}`,
       label: `打开最近：${item.displayName}`,
       section: '最近',
-      icon: item.kind === 'xlsx' ? <Table2 size={15} /> : item.kind === 'pptx' ? <Presentation size={15} /> : <FileText size={15} />,
+      // 功能：最近文档命令复用类型图标；时间：2026-11-07；作者：lq。
+      icon: <FileIcon kind={item.kind} name={item.displayName} size={22} />,
       run: () => void openSnapshot(item.id),
     }));
     // 插件宏：只列当前文档类型能跑的，避免在 Word 里出现 Excel 命令。

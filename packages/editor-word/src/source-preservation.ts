@@ -2,6 +2,8 @@
 import type { DocBlock, DocModel, WordSourceSnapshot } from '@mini-office/document-model';
 import { scanBody } from '../../platform-adapter/src/vendor/genoffice/xml-scan.js';
 import { patchParagraphTexts } from '../../platform-adapter/src/vendor/genoffice/xml-text-patch.js';
+// 功能：普通段落与嵌套表格共用属性组局部补丁；时间：2026-11-07；作者：lq。
+import { patchSourceBlock } from './source-block-patch';
 
 /** 功能：排除分页统计和来源数据，稳定比较实际可保存内容；时间：2026-11-03；作者：lq。 */
 export function documentSignature(doc: DocModel): string {
@@ -12,7 +14,7 @@ export function documentSignature(doc: DocModel): string {
 export function captureDocumentSource(doc: DocModel, xml: string, groups: string[][]): WordSourceSnapshot | undefined {
   try {
     const scan = scanBody(xml);
-    if (scan.elements.length !== groups.length || doc.blocks.some((block) => block.type === 'paragraph' && block.toc)) return undefined;
+    if (scan.elements.length !== groups.length) return undefined;
     const byId = new Map(doc.blocks.map((block) => [block.id, block]));
     return {
       xml, bodyStart: scan.bodyContentStart, bodyEnd: scan.bodyContentEnd,
@@ -48,6 +50,8 @@ function patchText(raw: string, baseline: string, blocks: DocBlock[]): string | 
 export function patchSourceDocument(doc: DocModel, generated: Map<string, string>): string | undefined {
   const source = doc.source;
   if (!source || JSON.stringify(doc.page) !== source.page) return undefined;
+  // 功能：目录仍由目录写入器刷新，但保留来源快照供表格保存与无操作透传使用；时间：2026-11-07；作者：lq。
+  if (doc.blocks.some(block => block.type === 'paragraph' && block.toc)) return undefined;
   // 功能：显式修改节或页眉页脚时交回节写入器，避免保留旧引用而丢掉用户修改；时间：2026-11-03；作者：lq。
   if (doc.header?.edited || doc.footer?.edited || doc.blocks.some((block) => block.type === 'paragraph' && (block.sectionEnd?.header?.edited || block.sectionEnd?.footer?.edited))) return undefined;
   const current = new Map(doc.blocks.map((block) => [block.id, block]));
@@ -93,7 +97,10 @@ export function patchSourceDocument(doc: DocModel, generated: Map<string, string
           i += group.ids.length - 1;
           continue;
         }
-        const patched = patchText(raw, group.baseline, candidates);
+        const previous = JSON.parse(group.baseline) as DocBlock[];
+        const patched = previous.length === 1 && candidates.length === 1
+          ? patchSourceBlock(raw, previous[0], candidates[0], generated.get(block.id) ?? '') ?? patchText(raw, group.baseline, candidates)
+          : patchText(raw, group.baseline, candidates);
         if (patched !== null) {
           body += patched;
           i += group.ids.length - 1;

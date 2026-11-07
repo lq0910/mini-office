@@ -33,6 +33,20 @@ function seed(id: string) {
 }
 
 describe('安全保存生命周期', () => {
+  // 功能：重命名同步磁盘路径并保留未保存内容，失败不改变会话；时间：2026-11-07；作者：lq。
+  it('重命名后保存使用新路径且保留 dirty', async () => {
+    const platform = { ...adapter(), renameFile: vi.fn().mockResolvedValue('/tmp/新合同.docx') };
+    setPlatformAdapter(platform);
+    const session = seed('rename');
+    expect(await useWorkspaceStore.getState().renameSession('rename', '新合同')).toBe(true);
+    expect(platform.renameFile).toHaveBeenCalledWith(session.path, '新合同.docx');
+    expect(useWorkspaceStore.getState().sessions.rename).toMatchObject({ displayName: '新合同.docx', path: '/tmp/新合同.docx', dirty: true });
+    platform.renameFile.mockRejectedValue(new Error('目标存在'));
+    expect(await useWorkspaceStore.getState().renameSession('rename', '已有合同')).toBe(false);
+    expect(useWorkspaceStore.getState().sessions.rename.displayName).toBe('新合同.docx');
+    expect(await useWorkspaceStore.getState().renameSession('rename', '../文件')).toBe(false);
+  });
+
   // 功能：面板与内部刷新不能清除已有未保存正文的退出保护；时间：2026-11-03；作者：lq。
   it('非用户刷新保留已有 dirty 状态', () => {
     seed('keep-dirty');

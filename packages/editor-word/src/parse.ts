@@ -1870,6 +1870,8 @@ export async function parseDocxPackage(
     ...(defaultTabStopPx ? { defaultTabStopPx } : {}),
   };
   model.source = captureDocumentSource(model, documentXml, provisional.sourceGroups);
+  // 功能：解析结果无法对应原 XML 时明确标记，保存不能悄悄全量重建；时间：2026-11-07；作者：lq。
+  if (!model.source) model.sourceMappingFailed = true;
   return model;
 }
 

@@ -1,18 +1,15 @@
-import { BrandIcon } from '@mini-office/ui';
+import { BrandIcon, FileIcon } from '@mini-office/ui';
 import { useMemo, useState } from 'react';
 import {
   ArrowRight,
   Clock3,
   ExternalLink,
   FilePlus2,
-  FileText,
   FolderOpen,
   HardDrive,
-  Presentation,
   Search,
   ShieldCheck,
   Sparkles,
-  Table2,
   Trash2,
   UploadCloud,
 } from 'lucide-react';
@@ -25,15 +22,7 @@ import { useLatestRelease } from './update-check';
 
 const RELEASES_URL = 'https://github.com/lq0910/mini-office/releases';
 
-const KIND_ICONS: Record<OfficeKind, typeof FileText> = {
-  docx: FileText,
-  xlsx: Table2,
-  pptx: Presentation,
-  pdf: FileText,
-  md: FileText,
-  html: FileText,
-};
-
+// 功能：首页、模板和最近文件统一使用类型字标图标；时间：2026-11-07；作者：lq。
 const KIND_TINTS: Record<OfficeKind, { bg: string; color: string }> = {
   docx: { bg: '#EEF3FF', color: '#2B579A' },
   xlsx: { bg: '#E9F7EF', color: '#217346' },
@@ -279,26 +268,25 @@ export function HomePage() {
             </div>
             <div className="space-y-2">
               <TemplateRow
-                icon={<FileText size={15} />}
+                icon={<FileIcon kind="docx" size={25} />}
                 tint="#2B579A"
                 title="房屋租赁合同"
                 description="标准条款、首行缩进与签章区"
                 onClick={() => void createContract()}
               />
               <TemplateRow
-                icon={<Table2 size={15} />}
+                icon={<FileIcon kind="xlsx" size={25} />}
                 tint="#217346"
                 title="费用报销单"
                 description="含 SUM 公式、日期与金额格式"
                 onClick={() => void createExpense()}
               />
               {pluginTemplates.map(({ key, pluginId, pluginName, template }) => {
-                const Icon = KIND_ICONS[template.kind];
                 const tint = KIND_TINTS[template.kind];
                 return (
                   <TemplateRow
                     key={key}
-                    icon={<Icon size={15} />}
+                    icon={<FileIcon kind={template.kind} size={22} />}
                     tint={tint.color}
                     title={template.label}
                     description={template.description ?? `来自插件 ${pluginName}`}
@@ -397,7 +385,6 @@ export function HomePage() {
             ) : (
               <ul className="divide-y divide-[var(--mo-line)]">
                 {filtered.map((item) => {
-                  const Icon = KIND_ICONS[item.kind];
                   const tint = KIND_TINTS[item.kind];
                   return (
                     <li key={item.id}>
@@ -411,7 +398,7 @@ export function HomePage() {
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                             style={{ background: tint.bg, color: tint.color }}
                           >
-                            <Icon size={17} />
+                            <FileIcon kind={item.kind} name={item.displayName} size={30} />
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="flex items-center gap-2">
@@ -539,7 +526,6 @@ function CreateCard({
   actionLabel: string;
   onAction: () => void;
 }) {
-  const Icon = KIND_ICONS[kind];
   const tint = KIND_TINTS[kind];
   return (
     <button
@@ -551,7 +537,7 @@ function CreateCard({
         className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg"
         style={{ background: tint.bg, color: tint.color }}
       >
-        <Icon size={19} />
+        <FileIcon kind={kind} size={36} />
       </span>
       <span className="text-[13px] font-semibold text-[var(--mo-text-primary)]">{title}</span>
       <span className="mt-1 text-[10.5px] leading-4 text-[var(--mo-text-muted)]">{description}</span>

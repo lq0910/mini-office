@@ -157,6 +157,8 @@ export interface WorkspaceState {
   ): void;
   updateDocMeta(id: string, metaPatch: Partial<DocModel['meta']> | ((current: DocModel['meta']) => DocModel['meta']), options?: { dirty?: boolean }): void;
   updateView(id: string, patch: SessionView): void;
+  /** 功能：同步文档名称、磁盘路径与恢复快照；时间：2026-11-07；作者：lq。 */
+  renameSession(id: string, baseName: string): Promise<boolean>;
   saveSession(id: string, options?: { asNew?: boolean }): Promise<boolean>;
   saveActive(options?: { asNew?: boolean }): Promise<boolean>;
   exportBytes(bytes: Uint8Array, fileName: string, mime: string): Promise<void>;
@@ -806,6 +808,35 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
       const session = get().sessions[id];
       if (!session) return;
       patchSession(id, { view: { ...session.view, ...patch } });
+    },
+
+    /** 功能：文件名称修改保留扩展名，桌面同步重命名；浏览器下次保存选择新位置；时间：2026-11-07；作者：lq。 */
+    async renameSession(id, baseName) {
+      const session = get().sessions[id];
+      if (!session || saveInFlight.has(id)) return false;
+      const base = baseName.trim();
+      if (!base || /[\/\\:*?"<>|\x00-\x1f]/.test(base) || /[. ]$/.test(base) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(base)) {
+        get().notify('warning', '名称无效', '请输入有效文件名，不要包含路径或特殊字符。');
+        return false;
+      }
+      const displayName = base + extensionOf(session.displayName);
+      if (displayName === session.displayName) return true;
+      saveInFlight.add(id);
+      try {
+        const adapter = getPlatformAdapter();
+        const path = session.path && adapter.renameFile ? await adapter.renameFile(session.path, displayName) : session.path;
+        patchSession(id, { displayName, path, ...(fileHandles.has(id) || (session.path && !adapter.renameFile) ? { saveAsCopyRequired: true } : {}) });
+        await persistSnapshot(id);
+        return true;
+      } catch (error) {
+        get().notify('error', '重命名失败', error instanceof Error ? error.message : String(error));
+        return false;
+      } finally {
+        saveInFlight.delete(id);
+        // 功能：重命名期间的正文编辑不能让保存状态永久停在忙碌；时间：2026-11-07；作者：lq。
+        const latest = get().sessions[id];
+        if (latest?.state === 'SAVING') patchSession(id, { state: latest.dirty ? 'DIRTY' : 'EDIT_READY' });
+      }
     },
 
     async saveSession(id, options) {

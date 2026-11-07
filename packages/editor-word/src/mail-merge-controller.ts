@@ -74,6 +74,9 @@ export function useMailMergeController({ session, doc, renderBlocks, onOpenDocum
   const notify = useWorkspaceStore((state) => state.notify);
   const updateDocMeta = useWorkspaceStore((state) => state.updateDocMeta);
   const cached = useRef(mergeDrafts.get(session.id) ?? loadPersistedMailMergeState(doc)).current;
+  // 功能：挂载面板只恢复界面，不把默认状态写入原文件或清除原邮件合并关系；时间：2026-11-07；作者：lq。
+  const initialPanelState = useRef<string>();
+  const panelWasEdited = useRef(false);
   const [source, setSource] = useState<MergeSource | undefined>(cached?.source);
   const [sheetId, setSheetId] = useState(cached?.sheetId ?? '');
   const [headerRow, setHeaderRow] = useState(cached?.headerRow ?? 1);
@@ -90,7 +93,8 @@ export function useMailMergeController({ session, doc, renderBlocks, onOpenDocum
   const [selected, setSelected] = useState<Set<number>>(new Set(cached?.selected ?? []));
   const [tablePage, setTablePage] = useState(0);
   const [previewIndex, setPreviewIndex] = useState(0);
-  const [allowEmpty, setAllowEmpty] = useState(true);
+  // 功能：恢复已有模板的空值策略，避免挂载时更改原配置；时间：2026-11-07；作者：lq。
+  const [allowEmpty, setAllowEmpty] = useState(cached?.allowEmpty ?? true);
   const [namePattern, setNamePattern] = useState(cached?.namePattern ?? '报告_{序号}');
   const [output, setOutput] = useState<OutputKind>(cached?.output ?? 'print');
   // 功能：合并范围与 0.1.4 一致，支持全部选中、当前记录和序号区间；时间：2026-10-30；作者：lq。
@@ -195,9 +199,15 @@ export function useMailMergeController({ session, doc, renderBlocks, onOpenDocum
       conditions, search, sort, descending, allowEmpty, output, mergeRange, rangeStart, rangeEnd,
       dataSource: source ? { name: source.name, path: source.path ?? '' } : undefined,
     });
-    const mailMergeTemplate = wordCompatible;
+    const currentMeta = (useWorkspaceStore.getState().sessions[session.id]?.data as DocModel | undefined)?.meta;
+    // 功能：尚未重新选择数据源时保留导入模板关系，调整筛选不能把已有 Word 合并配置清空；时间：2026-11-07；作者：lq。
+    const mailMergeTemplate = wordCompatible ?? (source ? undefined : currentMeta?.mailMergeTemplate);
+    // 功能：仅在用户实际改变配置后持久化，恢复初值时也能同步，避免打开即污染 settings.xml；时间：2026-11-07；作者：lq。
+    const signature = JSON.stringify({ mailMergeState, mailMergeTemplate });
+    if (initialPanelState.current === undefined) initialPanelState.current = signature;
+    if (signature !== initialPanelState.current) panelWasEdited.current = true;
+    if (!panelWasEdited.current) return;
     // 以 store 中的最新元数据为准，避免组件持有旧 doc 引用时反复写入；时间：2026-10-29；作者：lq。
-    const currentMeta = (useWorkspaceStore.getState().sessions[session.id]?.data as DocModel | undefined)?.meta as { mailMergeState?: string; mailMergeTemplate?: unknown } | undefined;
     if (currentMeta && (currentMeta.mailMergeState !== mailMergeState || JSON.stringify(currentMeta.mailMergeTemplate) !== JSON.stringify(mailMergeTemplate))) {
       updateDocMeta(session.id, { mailMergeState, mailMergeTemplate });
     }

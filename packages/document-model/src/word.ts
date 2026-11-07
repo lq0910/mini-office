@@ -398,6 +398,8 @@ export interface DocModel {
   defaultTabStopPx?: number;
   /** 功能：保留导入 XML 与块基线，用于仅回写用户修改的正文；时间：2026-11-03；作者：lq。 */
   source?: WordSourceSnapshot;
+  /** 功能：区分导入定位失败与正常新建文档，定位失败时禁止有损生成覆盖；时间：2026-11-07；作者：lq。 */
+  sourceMappingFailed?: boolean;
 }
 
 /** 功能：记录源正文区间及编辑基线，不参与渲染或导出内容；时间：2026-11-03；作者：lq。 */

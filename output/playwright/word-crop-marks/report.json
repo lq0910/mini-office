@@ -1,0 +1,252 @@
+{
+  "generatedAt": "2026-11-05T08:19:59.195Z",
+  "checks": [
+    {
+      "zoom": 0.5,
+      "corners": [
+        [
+          {
+            "section": 1,
+            "key": "tl",
+            "errorX": 0,
+            "errorY": 0,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 1,
+            "key": "tr",
+            "errorX": 0.006250000000022737,
+            "errorY": 0,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 1,
+            "key": "bl",
+            "errorX": 0,
+            "errorY": 0.002187499999990905,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 1,
+            "key": "br",
+            "errorX": 0.006250000000022737,
+            "errorY": 0.002187499999990905,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          }
+        ],
+        [
+          {
+            "section": 2,
+            "key": "tl",
+            "errorX": 0,
+            "errorY": 0,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 2,
+            "key": "tr",
+            "errorX": 0.006250000000022737,
+            "errorY": 0,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 2,
+            "key": "bl",
+            "errorX": 0,
+            "errorY": 0.002187499999990905,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 2,
+            "key": "br",
+            "errorX": 0.006250000000022737,
+            "errorY": 0.002187499999990905,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          }
+        ]
+      ]
+    },
+    {
+      "zoom": 1,
+      "corners": [
+        [
+          {
+            "section": 1,
+            "key": "tl",
+            "errorX": 0,
+            "errorY": 0,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 1,
+            "key": "tr",
+            "errorX": 0.012500000000045475,
+            "errorY": 0,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 1,
+            "key": "bl",
+            "errorX": 0,
+            "errorY": 0.00437499999998181,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 1,
+            "key": "br",
+            "errorX": 0.012500000000045475,
+            "errorY": 0.00437499999998181,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          }
+        ],
+        [
+          {
+            "section": 2,
+            "key": "tl",
+            "errorX": 0,
+            "errorY": 0,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 2,
+            "key": "tr",
+            "errorX": 0.012500000000045475,
+            "errorY": 0,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 2,
+            "key": "bl",
+            "errorX": 0,
+            "errorY": 0.00437499999998181,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 2,
+            "key": "br",
+            "errorX": 0.012500000000045475,
+            "errorY": 0.00437499999998181,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          }
+        ]
+      ]
+    },
+    {
+      "zoom": 1.5,
+      "corners": [
+        [
+          {
+            "section": 1,
+            "key": "tl",
+            "errorX": 0,
+            "errorY": 0,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 1,
+            "key": "tr",
+            "errorX": 0.0187500000001819,
+            "errorY": 0,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 1,
+            "key": "bl",
+            "errorX": 0,
+            "errorY": 0.006562499999972715,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 1,
+            "key": "br",
+            "errorX": 0.0187500000001819,
+            "errorY": 0.006562499999972715,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          }
+        ],
+        [
+          {
+            "section": 2,
+            "key": "tl",
+            "errorX": 0,
+            "errorY": 0,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 2,
+            "key": "tr",
+            "errorX": 0.0187500000001819,
+            "errorY": 0,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 2,
+            "key": "bl",
+            "errorX": 0,
+            "errorY": 0.006562499999972715,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          },
+          {
+            "section": 2,
+            "key": "br",
+            "errorX": 0.0187500000001819,
+            "errorY": 0.006562499999972715,
+            "horizontal": "1px",
+            "vertical": "1px",
+            "pointerEvents": "none"
+          }
+        ]
+      ]
+    }
+  ],
+  "toggleDoesNotEditDocument": true,
+  "hiddenInPrintMedia": true,
+  "hiddenInPrintPreview": true,
+  "status": "passed"
+}

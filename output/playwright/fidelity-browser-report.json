@@ -1,0 +1,241 @@
+[
+  {
+    "name": "采购文件.doc",
+    "dirty": false,
+    "warnings": [
+      {
+        "code": "legacy.compat",
+        "severity": "info",
+        "message": "采购文件.doc 以兼容模式打开",
+        "detail": "旧版格式经兼容通道转换，复杂版式可能与原文件不同；保存时会另存为 OOXML，不会覆盖原文件。"
+      },
+      {
+        "code": "legacy.loss",
+        "severity": "warning",
+        "message": "旧格式转换存在兼容限制",
+        "detail": "the PAGEREF field is not supported yet; its result text is imported as plain text"
+      },
+      {
+        "code": "legacy.loss",
+        "severity": "warning",
+        "message": "旧格式转换存在兼容限制",
+        "detail": "the TOC field is not supported yet; its result text is imported as plain text"
+      },
+      {
+        "code": "legacy.loss",
+        "severity": "warning",
+        "message": "旧格式转换存在兼容限制",
+        "detail": "a floating shape has no size and was omitted"
+      },
+      {
+        "code": "fonts.missing",
+        "message": "缺少 仿宋、Calibri、DejaVuSans、仿宋_GB2312 等字体，将使用替代字体显示，版面可能与原件不同。",
+        "severity": "warning",
+        "detail": "仿宋, Calibri, DejaVuSans, 仿宋_GB2312, 等线, Helvetica"
+      }
+    ],
+    "sourceGroups": 687,
+    "tableWidths": [
+      [
+        38,
+        156.66666666666666,
+        38.53333333333333,
+        86.93333333333334,
+        160.73333333333332,
+        160.73333333333332
+      ],
+      [
+        50.733333333333334,
+        130.46666666666667,
+        460.6666666666667
+      ],
+      [
+        149,
+        496.3333333333333
+      ],
+      [
+        42.4,
+        79.46666666666667,
+        86.73333333333333,
+        83.4,
+        236.13333333333333,
+        62.86666666666667,
+        50.46666666666667
+      ],
+      [
+        40.13333333333333,
+        255.2,
+        160.6,
+        176.2
+      ],
+      [
+        30.466666666666665,
+        194.2,
+        417.2
+      ],
+      [
+        75.4,
+        149.26666666666668,
+        417.2
+      ],
+      [
+        264.1333333333333,
+        126.33333333333333,
+        126.06666666666666,
+        125.06666666666666
+      ],
+      [
+        331.8666666666667,
+        305.6
+      ],
+      [
+        331.8666666666667,
+        305.6
+      ],
+      [
+        159.46666666666667,
+        159.53333333333333,
+        159.53333333333333,
+        158.93333333333334
+      ],
+      [
+        54.4,
+        95.86666666666666,
+        52.53333333333333,
+        84.8,
+        199.53333333333333,
+        95.86666666666666,
+        54.46666666666667
+      ],
+      [
+        100.53333333333333,
+        79,
+        84.6,
+        86.4,
+        94.66666666666667,
+        96.13333333333334,
+        96.13333333333334
+      ],
+      [
+        104.66666666666667,
+        133.2,
+        133.2,
+        133.2,
+        133.2
+      ]
+    ],
+    "pages": 50,
+    "paragraphs": 1222,
+    "fontOptions": [
+      "默认",
+      "PingFang SC",
+      "Songti SC",
+      "Heiti SC",
+      "Kaiti SC",
+      "Helvetica Neue",
+      "Arial",
+      "Times New Roman",
+      "Courier New",
+      "Hiragino Sans GB",
+      "STSong",
+      "STHeiti",
+      "Georgia",
+      "Verdana",
+      "Tahoma",
+      "Trebuchet MS",
+      "Menlo",
+      "仿宋"
+    ],
+    "noOpByteExact": true,
+    "errors": []
+  },
+  {
+    "name": "测试分包合同.doc",
+    "dirty": false,
+    "warnings": [
+      {
+        "code": "legacy.compat",
+        "severity": "info",
+        "message": "测试分包合同.doc 以兼容模式打开",
+        "detail": "旧版格式经兼容通道转换，复杂版式可能与原文件不同；保存时会另存为 OOXML，不会覆盖原文件。"
+      },
+      {
+        "code": "fonts.missing",
+        "message": "缺少 仿宋_GB2312、Calibri字体，将使用替代字体显示，版面可能与原件不同。",
+        "severity": "warning",
+        "detail": "仿宋_GB2312, Calibri"
+      }
+    ],
+    "sourceGroups": 60,
+    "tableWidths": [],
+    "pages": 4,
+    "paragraphs": 63,
+    "fontOptions": [
+      "默认",
+      "PingFang SC",
+      "Songti SC",
+      "Heiti SC",
+      "Kaiti SC",
+      "Helvetica Neue",
+      "Arial",
+      "Times New Roman",
+      "Courier New",
+      "Hiragino Sans GB",
+      "STSong",
+      "STHeiti",
+      "Georgia",
+      "Verdana",
+      "Tahoma",
+      "Trebuchet MS",
+      "Menlo",
+      "仿宋_GB2312"
+    ],
+    "noOpByteExact": true,
+    "errors": []
+  },
+  {
+    "name": "测试请假单.docx",
+    "dirty": false,
+    "warnings": [
+      {
+        "code": "fonts.missing",
+        "message": "缺少 微软雅黑、仿宋_GB2312、Calibri、Calibri Light字体，将使用替代字体显示，版面可能与原件不同。",
+        "severity": "warning",
+        "detail": "微软雅黑, 仿宋_GB2312, Calibri, Calibri Light"
+      }
+    ],
+    "sourceGroups": 6,
+    "tableWidths": [
+      [
+        183.66666666666666,
+        106.4,
+        85.06666666666666,
+        228.06666666666666
+      ]
+    ],
+    "pages": 1,
+    "paragraphs": 24,
+    "fontOptions": [
+      "默认",
+      "PingFang SC",
+      "Songti SC",
+      "Heiti SC",
+      "Kaiti SC",
+      "Helvetica Neue",
+      "Arial",
+      "Times New Roman",
+      "Courier New",
+      "Hiragino Sans GB",
+      "STSong",
+      "STHeiti",
+      "Georgia",
+      "Verdana",
+      "Tahoma",
+      "Trebuchet MS",
+      "Menlo",
+      "微软雅黑"
+    ],
+    "noOpByteExact": true,
+    "errors": []
+  }
+]

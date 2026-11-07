@@ -26,7 +26,7 @@ import {
   xmlDeclaration,
   type OoxmlPackage,
 } from '@mini-office/ooxml';
-import { extensionOf, uid } from '@mini-office/shared';
+import { extensionOf, uid, OfficeError, ErrorCodes } from '@mini-office/shared';
 import { buildWordMailMergeXml, fileUriTarget, MAIL_MERGE_DATA_REL, MAIL_MERGE_ODSO_REL, MAIL_MERGE_SOURCE_REL, type WordMailMergeInfo } from './mail-merge-ooxml';
 import { documentSections } from './sections';
 // 功能：目录域保存时用同一套标题判定采集条目，保证屏幕与文件一致；时间：2026-10-30；作者：lq。
@@ -37,6 +37,8 @@ import { DEFAULT_TAB_STOP_PX } from './tab-stops';
 import { collectUsedStyleDefinitions, resolveStyleRun } from './styles';
 // 功能：未改文件直接透传，其他保存保留未修改的原始正文片段；时间：2026-11-03；作者：lq。
 import { documentSignature, patchSourceDocument, styleSignature } from './source-preservation';
+// 功能：即使页面改变需要重建文档外壳，既有表格仍须通过原 XML 局部保存；时间：2026-11-07；作者：lq。
+import { patchParagraphSection, patchSourceBlock } from './source-block-patch';
 
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
@@ -934,7 +936,14 @@ export async function serializeDocx(
   options: SerializeDocxOptions,
 ): Promise<Uint8Array> {
   // 功能：没有正文/属性/合并配置变化时返回原始字节，避免无操作保存改变文档；时间：2026-11-03；作者：lq。
-  const simpleSave = !options.sections && !options.materialized && options.mailMergeState === undefined && !options.mailMerge && !options.tocEntries;
+  // 功能：已有邮件合并配置未改变时仍允许字节透传，避免相同配置触发无意义的重新压缩；时间：2026-11-07；作者：lq。
+  const sameMergeState = options.mailMergeState === undefined || options.mailMergeState === doc.meta?.mailMergeState;
+  const sameMergeTemplate = !options.mailMerge || JSON.stringify(options.mailMerge) === JSON.stringify(doc.meta?.mailMergeTemplate);
+  const simpleSave = !options.sections && !options.materialized && sameMergeState && sameMergeTemplate && !options.tocEntries;
+  // 功能：来源映射失败的外部文档不能无提示降级为全量生成，必须在写文件之前返回错误；时间：2026-11-07；作者：lq。
+  if (options.sourceBytes && doc.sourceMappingFailed && !options.sections && !options.materialized) {
+    throw new OfficeError(ErrorCodes.SAVE_FAILED, '该文档缺少可靠的原始内容定位，无法保证保存时保留格式，原文件未被覆盖。');
+  }
   if (simpleSave && options.sourceBytes && doc.source && documentSignature(doc) === doc.source.signature) {
     const original = await JSZip.loadAsync(options.sourceBytes);
     if (await original.file('word/document.xml')?.async('text') === doc.source.xml) return options.sourceBytes;
@@ -971,6 +980,25 @@ export async function serializeDocx(
   let body = '';
   // 功能：先按现有规则生成可修改块，再让来源映射替换其中未修改的块；时间：2026-11-03；作者：lq。
   const generatedBlocks = new Map<string, string>();
+  // 功能：固定原始块锚点，连续保存仍对照导入时快照，避免把新内容当作旧来源；时间：2026-11-07；作者：lq。
+  const sourceBlocks = new Map<string, { block: DocBlock; xml: string }>();
+  // 功能：原始一个段落拆成多个模型块时，未经验证的重建必须受保护；时间：2026-11-07；作者：lq。
+  let hasCompositeSource = false;
+  if (doc.source && sourceExists && !options.sections && !options.materialized) {
+    for (const group of doc.source.groups) {
+      const baseline = JSON.parse(group.baseline) as DocBlock[];
+      if (baseline.length > 1) {
+        const first = doc.blocks.findIndex(block => group.ids.includes(block.id));
+        if (first >= 0) {
+          hasCompositeSource = true;
+          if (JSON.stringify(doc.blocks.slice(first, first + baseline.length)) !== group.baseline) {
+            throw new OfficeError(ErrorCodes.SAVE_FAILED, '该跨分页段落的修改暂不支持安全回写，原文件未被覆盖。请撤销相关操作后再保存。');
+          }
+        }
+      }
+      if (baseline.length === 1 && (baseline[0].type === 'table' || (baseline[0].type === 'paragraph' && !baseline[0].toc))) sourceBlocks.set(baseline[0].id, { block: baseline[0], xml: doc.source.xml.slice(group.start, group.end) });
+    }
+  }
   for (let index = 0; index < sections.length; index++) {
     const current = sections[index];
     state.sectPrXml = originalSection;
@@ -981,7 +1009,14 @@ export async function serializeDocx(
     const blocks = [...current.blocks];
     while (blocks.at(-1)?.type === 'pageBreak') blocks.pop();
     for (const block of blocks) {
-      const xml = await blockXml(block, state);
+      let xml = await blockXml(block, state);
+      // 功能：源段落或表格不能安全匹配时终止保存，禁止退化为有损整块生成；时间：2026-11-07；作者：lq。
+      const sourceBlock = sourceBlocks.get(block.id);
+      if (sourceBlock) {
+        const patched = patchSourceBlock(sourceBlock.xml, sourceBlock.block, block, xml);
+        if (patched === null) throw new OfficeError(ErrorCodes.SAVE_FAILED, '无法安全保存该段落或表格的结构、复杂内容修改，原文件未被覆盖。请撤销相关操作后再保存。');
+        xml = patched;
+      }
       generatedBlocks.set(block.id, xml);
       content += xml;
     }
@@ -994,15 +1029,16 @@ export async function serializeDocx(
       const sectionXml = new XMLSerializer().serializeToString(section);
       // 在正文段落内附加节属性；末块为表格时使用零高度节标记，避免额外空白页。
       if (blocks.at(-1)?.type === 'paragraph') {
-        const lastStart = content.lastIndexOf('<w:p>');
-        const last = content.slice(lastStart);
-        const withSection = last.includes('</w:pPr>') ? last.replace('</w:pPr>', `${sectionXml}</w:pPr>`) : last.replace('<w:p>', `<w:p><w:pPr>${sectionXml}</w:pPr>`);
-        content = content.slice(0, lastStart) + withSection;
+        // 功能：使用已生成末块的确切长度定位，源段落含属性时也能安全插入节属性；时间：2026-11-07；作者：lq。
+        const last = generatedBlocks.get(blocks.at(-1)!.id)!;
+        content = content.slice(0, content.length - last.length) + patchParagraphSection(last, sectionXml);
       } else content += `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="exact"/>${sectionXml}</w:pPr></w:p>`;
     }
     body += content;
   }
   const preservedDocument = sourceExists && !options.sections && !options.materialized ? patchSourceDocument(doc, generatedBlocks) : undefined;
+  // 功能：页面或目录刷新需要全量外壳重建时，拒绝丢失复合来源段落中的未知内容；时间：2026-11-07；作者：lq。
+  if (hasCompositeSource && !preservedDocument) throw new OfficeError(ErrorCodes.SAVE_FAILED, '该文档的跨分页段落无法安全重建，原文件未被覆盖。请撤销页面或节设置修改后再保存。');
   const documentContent = preservedDocument ?? buildDocumentXml(body, sections.at(-1)?.page ?? doc.page, state);
   zip.file('word/document.xml', documentContent);
 

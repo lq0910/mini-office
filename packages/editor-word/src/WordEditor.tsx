@@ -1,3 +1,5 @@
+// 功能：接入粘贴模式解析与选区快照；时间：2026-11-07；作者：lq。
+import { clipboardParagraphs, type PasteMode } from './clipboard';
 import {
   memo,
   useCallback,
@@ -374,7 +376,9 @@ function cellBorderStyle(
 
 interface ParagraphHandlers {
   syncToken: number;
-  onInput: (paragraphId: string, element: HTMLElement) => void;
+  /** 功能：共享输入法组合状态，阻止候选期间重写段落 DOM；时间：2026-11-07；作者：lq。 */
+  composition: { current: HTMLElement | null };
+  onInput: (paragraphId: string, element: HTMLElement, composing?: boolean) => void;
   onBlur: (paragraphId: string) => void;
   onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>, paragraphId: string, element: HTMLDivElement) => void;
   onTableContextMenu: (event: React.MouseEvent, table: DocTable, rowIndex: number, cellId: string) => void;
@@ -502,6 +506,8 @@ const EditableParagraph = memo(function EditableParagraph({
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
+    // 功能：候选文字由输入法持有，任何 innerHTML 回写都会打断中文确认；时间：2026-11-07；作者：lq。
+    if (handlers.composition.current) return;
     // 功能：共享编辑宿主下按选区判断焦点，避免跨段格式化时重置选区；时间：2026-10-18；作者：lq。
     const selection = window.getSelection();
     const focused = element.contains(document.activeElement) || !!(
@@ -548,7 +554,8 @@ const EditableParagraph = memo(function EditableParagraph({
           outline: 'none',
           marginTop: clip && clip.offset ? -clip.offset : undefined,
         }}
-        onInput={(event) => handlers.onInput(paragraph.id, event.currentTarget)}
+        // 功能：原生事件标志同时兜底未收到 compositionstart 的宿主；时间：2026-11-07；作者：lq。
+        onInput={(event) => handlers.onInput(paragraph.id, event.currentTarget, (event.nativeEvent as InputEvent).isComposing)}
         onPointerDown={(event) => {
           const handle = (event.target as HTMLElement).closest<HTMLElement>('[data-image-handle]');
           const frame = (event.target as HTMLElement).closest<HTMLElement>('[data-image-frame]');
@@ -1118,6 +1125,8 @@ export function WordEditor({ session }: { session: WordSession }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<HTMLDivElement>(null);
+  // 功能：记录共享编辑宿主内正在组合输入的段落，候选拼音不写入正文模型；时间：2026-11-07；作者：lq。
+  const compositionRef = useRef<HTMLElement | null>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const focusRequestRef = useRef<{ paragraphId: string; offset: number } | null>(null);
@@ -1180,6 +1189,8 @@ export function WordEditor({ session }: { session: WordSession }) {
   const [syncToken, setSyncToken] = useState(0);
   const savedSelectionRef = useRef<{ paragraphId: string; start: number; end: number } | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
+  // 功能：记录最近一次粘贴，允许原位切换格式且仅保留一个撤销步骤；时间：2026-11-07；作者：lq。
+  const [pasteOptions, setPasteOptions] = useState<{ base: DocModel; result: DocModel; slices: ReturnType<typeof selectedParagraphSlices>; html: string; text: string; mode: PasteMode } | null>(null);
   const [findOpen, setFindOpen] = useState(false);
   // 功能：格式刷与段落对话框状态，供工具栏与属性面板共用；时间：2026-10-29；作者：lq。
   const [formatPainter, setFormatPainter] = useState<{ run: RunStyle; paragraph: ParagraphStyle; sticky: boolean } | null>(null);
@@ -1416,6 +1427,8 @@ export function WordEditor({ session }: { session: WordSession }) {
   useLayoutEffect(() => {
     const container = measureRef.current;
     if (!container) return;
+    // 功能：输入法确认前保留当前页面 DOM，确认后再统一测量分页；时间：2026-11-07；作者：lq。
+    if (compositionRef.current) return;
     // 功能：先按实测位置补齐制表符宽度再量高度，否则分页高度会把制表符算成零宽；时间：2026-10-30；作者：lq。
     applyTabStops(container, (id) => tabStopSource.get(id));
     const heights = new Map<string, number>();
@@ -1464,10 +1477,14 @@ export function WordEditor({ session }: { session: WordSession }) {
   useLayoutEffect(() => {
     const container = pagesRef.current;
     if (!container) return;
+    // 功能：组合输入中不调整制表位 DOM，防止选区与候选范围失效；时间：2026-11-07；作者：lq。
+    if (compositionRef.current) return;
     applyTabStops(container, (id) => tabStopSource.get(id));
   }, [pages, syncToken, tabStopSource]);
 
   useLayoutEffect(() => {
+    // 功能：组合输入期间保留输入法自己的选区；时间：2026-11-07；作者：lq。
+    if (compositionRef.current) return;
     const request = focusRequestRef.current;
     if (!request) return;
     const element = findParagraphElement(pagesRef.current, request.paragraphId);
@@ -1894,19 +1911,55 @@ export function WordEditor({ session }: { session: WordSession }) {
   );
 
   const handleParagraphInput = useCallback(
-    (paragraphId: string, element: HTMLElement) => {
+    (paragraphId: string, element: HTMLElement, composing = false) => {
+      // 功能：只提交最终正文，不让未确认的拼音污染保存和撤销记录；时间：2026-11-07；作者：lq。
+      if (readonly || composing || compositionRef.current) return;
       const current = latestDoc();
       const paragraph = findParagraph(current, paragraphId);
       if (!paragraph) return;
       const fallback = baseRunStyle(paragraph, current);
       const runs = serializeDomRuns(element, fallback, paragraphImages(paragraph));
+      // 功能：compositionend 和最终 input 可先后回读同一结果，避免重复历史记录；时间：2026-11-07；作者：lq。
+      if (JSON.stringify(runs) === JSON.stringify(paragraph.runs)) return;
       const next = updateParagraph(current, paragraphId, (existing) => ({ ...existing, runs }));
       commit(next, { key: `type:${paragraphId}` });
       setActiveParagraphId(paragraphId);
       setActiveStyle(runs.find((run) => run.text)?.style ?? fallback);
     },
-    [commit, latestDoc],
+    [commit, latestDoc, readonly],
   );
+
+  // 功能：原生组合事件兼容共享宿主及 WebKit，结束后补读最终 DOM；时间：2026-11-07；作者：lq。
+  useEffect(() => {
+    const root = pagesRef.current;
+    if (!root || readonly) return;
+    let disposed = false;
+    /** 功能：事件指向共享宿主时，从选区定位实际段落；时间：2026-11-07；作者：lq。 */
+    const start = (event: CompositionEvent) => {
+      const node = window.getSelection()?.anchorNode;
+      const target = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-paragraph-id]') : null;
+      const paragraph = target ?? (node instanceof Element ? node : node?.parentElement)?.closest<HTMLElement>('[data-paragraph-id]');
+      if (paragraph && root.contains(paragraph)) compositionRef.current = paragraph;
+    };
+    /** 功能：延后到本轮事件完成再回读，覆盖缺少最终 input 或结束事件先到的宿主；时间：2026-11-07；作者：lq。 */
+    const end = () => {
+      const paragraph = compositionRef.current;
+      compositionRef.current = null;
+      queueMicrotask(() => {
+        if (disposed || compositionRef.current || !paragraph?.isConnected || !root.contains(paragraph)) return;
+        handleParagraphInput(paragraph.dataset.paragraphId!, paragraph);
+        setLayoutRevision(value => value + 1);
+      });
+    };
+    root.addEventListener('compositionstart', start);
+    root.addEventListener('compositionend', end);
+    return () => {
+      disposed = true;
+      compositionRef.current = null;
+      root.removeEventListener('compositionstart', start);
+      root.removeEventListener('compositionend', end);
+    };
+  }, [handleParagraphInput, readonly, mailMerge.previewOn]);
 
   const handleParagraphBlur = useCallback(() => {
     setTimeout(() => {
@@ -2115,25 +2168,52 @@ export function WordEditor({ session }: { session: WordSession }) {
     [commit, latestDoc],
   );
 
-  const handlePaste = useCallback(
-    (event: React.ClipboardEvent<HTMLDivElement>) => {
-      const text = event.clipboardData.getData('text/plain');
-      if (!text) return;
-      event.preventDefault();
-      if (readonly) return;
-      const lines = text.replace(/\r\n?/g, '\n').split('\n');
-      const node = window.getSelection()?.anchorNode;
-      const element = (node instanceof Element ? node : node?.parentElement)?.closest<HTMLElement>(
-        '[data-paragraph-id]',
-      );
-      if (element?.dataset.paragraphId) {
-        insertTextLines(element.dataset.paragraphId, element, lines);
-        return;
+  /** 功能：基于粘贴前选区重新生成内容，切换模式不重复插入；时间：2026-11-07；作者：lq。 */
+  const applyPaste = useCallback((paste: NonNullable<typeof pasteOptions>, mode: PasteMode, switching = false) => {
+    const paragraph = findParagraph(paste.base, paste.slices[0]?.paragraphId ?? '');
+    if (!paragraph) return;
+    const offset = paste.slices[0].start;
+    const [prefix, suffix] = splitRunsAtOffset(paragraph.runs, offset, baseRunStyle(paragraph, paste.base));
+    const destination = prefix.at(-1)?.style ?? suffix[0]?.style ?? baseRunStyle(paragraph, paste.base);
+    const rich = clipboardParagraphs(paste.html, paste.text, mode, destination, paragraph.style);
+    const result = replaceDocumentSelection(paste.base, paste.slices, paste.text, rich);
+    if (!result) return;
+    commit(result.doc, { reflow: true, history: !switching });
+    const committed = latestDoc();
+    setPasteOptions({ ...paste, result: committed, mode });
+    focusRequestRef.current = { paragraphId: result.paragraphId, offset: result.offset };
+    setSyncToken((value) => value + 1);
+    setActiveParagraphId(result.paragraphId);
+  }, [commit, latestDoc]);
+
+  /** 功能：读取 HTML 和纯文本并捕获单段/跨段选区，默认保留源格式；时间：2026-11-07；作者：lq。 */
+  const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (readonly) return;
+    const text = event.clipboardData.getData('text/plain');
+    const html = event.clipboardData.getData('text/html');
+    const selection = window.getSelection();
+    if ((!text && !html) || !selection?.rangeCount || !pagesRef.current) return;
+    const slices = selectedParagraphSlices(pagesRef.current, selection.getRangeAt(0));
+    // 功能：折叠选区按光标所在段落插入，非折叠选区按捕获范围替换；时间：2026-11-07；作者：lq。
+    if (!slices.length && selection.isCollapsed) {
+      const node = selection.anchorNode;
+      const element = (node instanceof Element ? node : node?.parentElement)?.closest<HTMLElement>('[data-paragraph-id]');
+      if (element?.dataset.paragraphId && pagesRef.current.contains(element)) {
+        const offset = getCaretOffset(element);
+        slices.push({ paragraphId: element.dataset.paragraphId, start: offset, end: offset });
       }
-      execCommand('insertText', lines.join(' '));
-    },
-    [execCommand, insertTextLines, readonly],
-  );
+    }
+    if (!slices.length) return;
+    const base = latestDoc();
+    applyPaste({ base, result: base, slices, text, html, mode: 'source' }, 'source');
+  }, [applyPaste, latestDoc, readonly]);
+
+  // 功能：继续输入或撤销后关闭旧粘贴选项，避免覆盖后续编辑；时间：2026-11-07；作者：lq。
+  useEffect(() => {
+    if (pasteOptions && pasteOptions.result !== doc) setPasteOptions(null);
+  }, [doc, pasteOptions]);
 
   /** 功能：跨段选区始终在模型层替换，随后统一分页并恢复插入点；时间：2026-10-18；作者：lq。 */
   const replaceCrossSelection = useCallback((text: string): boolean => {
@@ -2186,6 +2266,8 @@ export function WordEditor({ session }: { session: WordSession }) {
 
   /** 功能：键盘全选限定正文，跨段删除/输入由模型接管；时间：2026-10-18；作者：lq。 */
   const handleDocumentKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    // 功能：确认候选的回车和删除交给输入法，229 兼容 WebKit 结束时的按键标志；时间：2026-11-07；作者：lq。
+    if (compositionRef.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     const root = pagesRef.current;
     if (!root) return;
     // 功能：Esc 退出格式刷，避免误把后续选择都套上同一格式；时间：2026-10-29；作者：lq。
@@ -2291,6 +2373,8 @@ export function WordEditor({ session }: { session: WordSession }) {
     if (!root) return;
     const beforeInput = (event: InputEvent) => {
       if (!event.cancelable || readonly) return;
+      // 功能：候选替换由浏览器管理，不提前执行跨段模型替换；时间：2026-11-07；作者：lq。
+      if (compositionRef.current || event.isComposing) return;
       if (event.inputType.startsWith('insert') && event.inputType !== 'insertFromPaste') {
         const text = ['insertParagraph', 'insertLineBreak'].includes(event.inputType) ? '\n' : event.data;
         if (text !== null && replaceCrossSelection(text)) event.preventDefault();
@@ -2487,6 +2571,8 @@ export function WordEditor({ session }: { session: WordSession }) {
   const handleStyleShortcuts = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
       if (readonly) return;
+      // 功能：组合输入期间不执行样式快捷键；时间：2026-11-07；作者：lq。
+      if (compositionRef.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
       const mod = event.metaKey || event.ctrlKey;
       if (!mod) return;
       if (event.altKey && /^[1-4]$/.test(event.key)) {
@@ -3099,6 +3185,7 @@ export function WordEditor({ session }: { session: WordSession }) {
   const paragraphHandlers: ParagraphHandlers = useMemo(
     () => ({
       syncToken,
+      composition: compositionRef,
       onInput: handleParagraphInput,
       onBlur: handleParagraphBlur,
       onKeyDown: handleKeyDown,
@@ -3265,6 +3352,16 @@ export function WordEditor({ session }: { session: WordSession }) {
 
   return (
     <div ref={editorRef} data-exporting={exporting ? '1' : undefined} className="flex h-full min-h-0 w-full">
+      {/* 功能：粘贴后提供三种格式选项，鼠标操作保留正文焦点；时间：2026-11-07；作者：lq。 */}
+      {pasteOptions && (
+        <div role="group" aria-label="粘贴选项" className="mo-no-print fixed bottom-12 right-6 z-[90] rounded-xl border border-[var(--mo-line)] bg-[var(--mo-surface)] p-2 shadow-pop" onMouseDown={(event) => event.preventDefault()}>
+          <div className="mb-1 flex items-center justify-between px-2 text-[11px] text-[var(--mo-text-muted)]">粘贴选项<button type="button" aria-label="关闭粘贴选项" onClick={() => setPasteOptions(null)}>×</button></div>
+          {([['source', '保留源格式'], ['destination', '匹配目标格式'], ['text', '仅保留文本']] as const).map(([mode, label]) => (
+            <button key={mode} type="button" aria-pressed={pasteOptions.mode === mode} onClick={() => applyPaste(pasteOptions, mode, true)}
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-[12px] hover:bg-[var(--mo-surface-2)]"><span className="w-3 text-[var(--mo-accent)]">{pasteOptions.mode === mode ? '✓' : ''}</span>{label}</button>
+          ))}
+        </div>
+      )}
       <div className="flex min-w-0 flex-1 flex-col">
         {settings.showToolbar ? (
         <WordToolbar
@@ -3406,12 +3503,12 @@ export function WordEditor({ session }: { session: WordSession }) {
               if (event.target !== event.currentTarget) return;
               const node = window.getSelection()?.anchorNode;
               const paragraph = (node instanceof Element ? node : node?.parentElement)?.closest<HTMLElement>('[data-paragraph-id]');
-              if (paragraph && event.currentTarget.contains(paragraph)) handleParagraphInput(paragraph.dataset.paragraphId!, paragraph);
+              // 功能：共享宿主 input 也保留原生输入法状态；时间：2026-11-07；作者：lq。
+              if (paragraph && event.currentTarget.contains(paragraph)) handleParagraphInput(paragraph.dataset.paragraphId!, paragraph, (event.nativeEvent as InputEvent).isComposing);
             }}
             onPaste={(event) => {
               if (readonly) { event.preventDefault(); return; }
-              if (replaceCrossSelection(event.clipboardData.getData('text/plain'))) event.preventDefault();
-              else handlePaste(event);
+              handlePaste(event);
             }}
             onCopy={(event) => handleDocumentCopy(event)}
             onCut={(event) => handleDocumentCopy(event, true)}
