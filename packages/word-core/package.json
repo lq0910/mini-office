@@ -1,0 +1,30 @@
+{
+  "name": "@mini-office/word-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Mini Office 定制 Word 内核，基于固定 GenOffice 源码融合；2026-11-08，lq",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./document": "./src/upstream/packages/docx-engine/src/index.ts",
+    "./editing": "./src/editing/index.ts",
+    "./layout": "./src/layout/index.ts",
+    "./styles.css": "./src/styles/document.css",
+    "./fonts.css": "./src/styles/fonts.css",
+    "./parse-worker": "./src/upstream/apps/docs/src/renderer/parse-worker.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "node ../../scripts/build-word-core.mjs && node ../../scripts/verify-word-core-source.mjs"
+  },
+  "dependencies": {
+    "@tiptap/core": "3.31.0",
+    "@tiptap/extensions": "3.31.0",
+    "@tiptap/pm": "3.31.0",
+    "fast-xml-parser": "5.10.1",
+    "jszip": "3.10.1",
+    "utif2": "4.1.0"
+  }
+}

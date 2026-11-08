@@ -1,0 +1,1623 @@
+{
+  "_comment": "功能：固定 Word 定制内核 M0 来源与回归基线；时间：2026-11-08；作者：lq。",
+  "schemaVersion": 1,
+  "scope": "静态源码入口审计，动态菜单、组合快捷键和运行条件另见功能迁移清单；不是行为测试通过证明。",
+  "sources": [
+    {
+      "path": "packages/editor-word/src/FontSizePicker.tsx",
+      "sha256": "a3c1105b66b92f812ba1245abe1d2a39bcd39fb5eca85d80542c8af8ae3a1493",
+      "entries": [
+        {
+          "kind": "ui-label",
+          "name": "字号",
+          "line": 53
+        },
+        {
+          "kind": "ui-label",
+          "name": "字号磅值",
+          "line": 75
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Enter'",
+          "line": 79
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/HeaderFooterDialog.tsx",
+      "sha256": "66b5a9d1bed559550fbd9023dd53fd1e63d758a6d6379a5759f06287104701f2",
+      "entries": [
+        {
+          "kind": "ui-label",
+          "name": "编辑区域",
+          "line": 71
+        },
+        {
+          "kind": "ui-label",
+          "name": "常用形式",
+          "line": 73
+        },
+        {
+          "kind": "ui-label",
+          "name": "常用页码形式",
+          "line": 73
+        },
+        {
+          "kind": "ui-label",
+          "name": "对齐",
+          "line": 77
+        },
+        {
+          "kind": "ui-label",
+          "name": "页眉页脚对齐",
+          "line": 77
+        },
+        {
+          "kind": "ui-label",
+          "name": "字号",
+          "line": 78
+        },
+        {
+          "kind": "ui-label",
+          "name": "页眉页脚字号",
+          "line": 78
+        },
+        {
+          "kind": "ui-label",
+          "name": "距纸边",
+          "line": 79
+        },
+        {
+          "kind": "ui-label",
+          "name": "距纸边",
+          "line": 79
+        },
+        {
+          "kind": "ui-label",
+          "name": "起始页码",
+          "line": 81
+        },
+        {
+          "kind": "ui-label",
+          "name": "起始页码",
+          "line": 81
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/LineSpacingPicker.tsx",
+      "sha256": "3410bc491d6885d27c2d349304395a4cbb2c4057ed7e6258c89ccea8afdf2ff9",
+      "entries": [
+        {
+          "kind": "ui-label",
+          "name": "行距",
+          "line": 59
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Enter'",
+          "line": 122
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/mail-merge-controller.ts",
+      "sha256": "a14e3a48b27f68fa9ee9b87dc5a35d5d03c121791198d909d56e116c7e953f78",
+      "entries": [
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Escape'",
+          "line": 218
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/MailMergePanel.tsx",
+      "sha256": "fedb0a67800acfe91a5f7483f66f8e2ab6105156a7a509a8e1fc33374d2c4354",
+      "entries": [
+        {
+          "kind": "ui-label",
+          "name": "邮件合并面板",
+          "line": 112
+        },
+        {
+          "kind": "ui-label",
+          "name": "已打开的数据表",
+          "line": 119
+        },
+        {
+          "kind": "ui-label",
+          "name": "工作表",
+          "line": 120
+        },
+        {
+          "kind": "ui-label",
+          "name": "合并工作表",
+          "line": 120
+        },
+        {
+          "kind": "ui-label",
+          "name": "表头所在行",
+          "line": 120
+        },
+        {
+          "kind": "ui-label",
+          "name": "表头所在行",
+          "line": 120
+        },
+        {
+          "kind": "ui-label",
+          "name": "输出方式",
+          "line": 129
+        },
+        {
+          "kind": "ui-label",
+          "name": "合并输出方式",
+          "line": 129
+        },
+        {
+          "kind": "ui-label",
+          "name": "合并范围",
+          "line": 131
+        },
+        {
+          "kind": "ui-label",
+          "name": "起始页",
+          "line": 136
+        },
+        {
+          "kind": "ui-label",
+          "name": "结束页",
+          "line": 138
+        },
+        {
+          "kind": "ui-label",
+          "name": "搜索合并记录",
+          "line": 175
+        },
+        {
+          "kind": "ui-label",
+          "name": "记录排序字段",
+          "line": 178
+        },
+        {
+          "kind": "ui-label",
+          "name": "文件命名",
+          "line": 180
+        },
+        {
+          "kind": "ui-label",
+          "name": "报告文件命名",
+          "line": 180
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/MailMergePreview.tsx",
+      "sha256": "ddb1e54c6e9986e27061e4be612cad7baa819834fdeeab80ee305601ca484ca8",
+      "entries": [
+        {
+          "kind": "ui-label",
+          "name": "报告预览缩放",
+          "line": 55
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/NewStyleDialog.tsx",
+      "sha256": "7fb7c4cdd429573c9a9c7cc0043a6ddd47072a0259965bc690d08113cfdbc899",
+      "entries": [
+        {
+          "kind": "ui-label",
+          "name": "样式名称",
+          "line": 75
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Enter'",
+          "line": 82
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/ParagraphDialog.tsx",
+      "sha256": "6c27f4483128c2571441e46a66786e7c237cf1bb8459fc83f120fefc0f10f72a",
+      "entries": [
+        {
+          "kind": "ui-label",
+          "name": "左侧（字符）",
+          "line": 139
+        },
+        {
+          "kind": "ui-label",
+          "name": "右侧（字符）",
+          "line": 146
+        },
+        {
+          "kind": "ui-label",
+          "name": "特殊格式",
+          "line": 153
+        },
+        {
+          "kind": "ui-label",
+          "name": "缩进值（字符）",
+          "line": 165
+        },
+        {
+          "kind": "ui-label",
+          "name": "段前（磅）",
+          "line": 179
+        },
+        {
+          "kind": "ui-label",
+          "name": "段后（磅）",
+          "line": 186
+        },
+        {
+          "kind": "ui-label",
+          "name": "行距",
+          "line": 193
+        },
+        {
+          "kind": "ui-label",
+          "name": "对齐方式",
+          "line": 234
+        },
+        {
+          "kind": "ui-label",
+          "name": "段前分页",
+          "line": 251
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/StyleGallery.tsx",
+      "sha256": "f6f42e759fd8c3ef443ceff7b5a6bc3b9cb239cae8bc66d36f1057eaf39af98b",
+      "entries": [
+        {
+          "kind": "keyboard-condition",
+          "name": "!keys.includes(event.key)",
+          "line": 209
+        },
+        {
+          "kind": "ui-label",
+          "name": "新建样式…",
+          "line": 308
+        },
+        {
+          "kind": "ui-label",
+          "name": "清除格式",
+          "line": 314
+        },
+        {
+          "kind": "ui-label",
+          "name": "保存此文档为我的样式集",
+          "line": 325
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/StylePicker.tsx",
+      "sha256": "51727f20e8f9ec702f261ac5d6fdce7872e014aebddf1effcf66b2b2f70a7fce",
+      "entries": [
+        {
+          "kind": "ui-label",
+          "name": "样式库",
+          "line": 32
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/StyleSetDialog.tsx",
+      "sha256": "5d80ce10cc324a40e68d1a70e9de74e2a60695eb5f11689ed10c1221bd62bebb",
+      "entries": [
+        {
+          "kind": "ui-label",
+          "name": "样式集名称",
+          "line": 55
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Enter'",
+          "line": 64
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/TablePicker.tsx",
+      "sha256": "de9b06c832af10af4a66075ccc66f99e7a67939d5469e62299451e7ce4be0969",
+      "entries": [
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key !== 'Escape'",
+          "line": 49
+        },
+        {
+          "kind": "ui-label",
+          "name": "插入表格",
+          "line": 74
+        },
+        {
+          "kind": "ui-label",
+          "name": "插入表格",
+          "line": 79
+        },
+        {
+          "kind": "ui-label",
+          "name": "选择表格行列",
+          "line": 83
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "!(event.key in offsets)",
+          "line": 98
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/ToolbarPopover.tsx",
+      "sha256": "a51863494339a416896cc0ef3d93a6ec49241b19c39b53e48697d4e563fd1488",
+      "entries": [
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Escape'",
+          "line": 75
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/WordEditor.tsx",
+      "sha256": "ccd1e4975cd555e18558a46a7ddf427faf11c422666d9c6b6d28c7dfd4042328",
+      "entries": [
+        {
+          "kind": "ui-label",
+          "name": "文档段落",
+          "line": 551
+        },
+        {
+          "kind": "ui-label",
+          "name": "表格手柄：单击选中整个表格，拖动可移动表格",
+          "line": 670
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Enter'",
+          "line": 884
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Escape'",
+          "line": 889
+        },
+        {
+          "kind": "ui-label",
+          "name": "上一个",
+          "line": 898
+        },
+        {
+          "kind": "ui-label",
+          "name": "下一个",
+          "line": 901
+        },
+        {
+          "kind": "ui-label",
+          "name": "关闭",
+          "line": 904
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Enter'",
+          "line": 916
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Escape'",
+          "line": 920
+        },
+        {
+          "kind": "ui-label",
+          "name": "关闭属性面板",
+          "line": 997
+        },
+        {
+          "kind": "ui-label",
+          "name": "纸张尺寸",
+          "line": 1004
+        },
+        {
+          "kind": "ui-label",
+          "name": "方向",
+          "line": 1014
+        },
+        {
+          "kind": "ui-label",
+          "name": "页数",
+          "line": 1060
+        },
+        {
+          "kind": "ui-label",
+          "name": "字数",
+          "line": 1061
+        },
+        {
+          "kind": "ui-label",
+          "name": "字符数",
+          "line": 1062
+        },
+        {
+          "kind": "ui-label",
+          "name": "文件大小",
+          "line": 1063
+        },
+        {
+          "kind": "ui-label",
+          "name": "格式级别",
+          "line": 1064
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "mod && event.key.toLowerCase() === 'z'",
+          "line": 2048
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "mod && ['b', 'i', 'u'].includes(event.key.toLowerCase())",
+          "line": 2054
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "mod && !event.shiftKey && ['e', 'l', 'r', 'j'].includes(event.key.toLowerCase())",
+          "line": 2066
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Enter' && mod",
+          "line": 2077
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Enter' && event.shiftKey",
+          "line": 2083
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Enter' && !event.shiftKey",
+          "line": 2090
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Backspace'",
+          "line": 2095
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Backspace' || event.key === 'Delete'",
+          "line": 2251
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Escape'",
+          "line": 2257
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Escape' && formatPainter",
+          "line": 2274
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "(event.metaKey || event.ctrlKey) && event.altKey && event.key.toLowerCase() === 'm'",
+          "line": 2281
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "!readonly && event.key === 'Tab'",
+          "line": 2290
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "!readonly && event.key === 'Tab'",
+          "line": 2319
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "(event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a'",
+          "line": 2329
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Backspace' || event.key === 'Delete'",
+          "line": 2347
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Escape'",
+          "line": 2353
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "!readonly && ['Backspace', 'Delete', 'Enter'].includes(event.key) && replaceCrossSelection(event.key === 'Enter' ? '\\n' : '')",
+          "line": 2360
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.altKey && /^[1-4]$/.test(event.key)",
+          "line": 2578
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.shiftKey && event.key.toLowerCase() === 'n'",
+          "line": 2584
+        },
+        {
+          "kind": "menu",
+          "name": "table-properties",
+          "label": "表格属性…",
+          "line": 3331
+        },
+        {
+          "kind": "menu",
+          "name": "inline",
+          "label": "嵌入型",
+          "line": 3344
+        },
+        {
+          "kind": "menu",
+          "name": "square-left",
+          "label": "左侧环绕",
+          "line": 3345
+        },
+        {
+          "kind": "menu",
+          "name": "square-right",
+          "label": "右侧环绕",
+          "line": 3346
+        },
+        {
+          "kind": "menu",
+          "name": "top-bottom",
+          "label": "上下型",
+          "line": 3347
+        },
+        {
+          "kind": "menu",
+          "name": "image-delete",
+          "label": "删除图片",
+          "line": 3349
+        },
+        {
+          "kind": "menu",
+          "name": "image-done",
+          "label": "完成图片选择",
+          "line": 3350
+        },
+        {
+          "kind": "ui-label",
+          "name": "粘贴选项",
+          "line": 3357
+        },
+        {
+          "kind": "ui-label",
+          "name": "关闭粘贴选项",
+          "line": 3358
+        },
+        {
+          "kind": "ui-label",
+          "name": "文档正文",
+          "line": 3474
+        },
+        {
+          "kind": "ui-label",
+          "name": "文档打印预览",
+          "line": 3711
+        },
+        {
+          "kind": "ui-label",
+          "name": "上一页",
+          "line": 3715
+        },
+        {
+          "kind": "ui-label",
+          "name": "下一页",
+          "line": 3728
+        },
+        {
+          "kind": "ui-label",
+          "name": "纸张",
+          "line": 3739
+        },
+        {
+          "kind": "ui-label",
+          "name": "尺寸",
+          "line": 3744
+        },
+        {
+          "kind": "ui-label",
+          "name": "总页数",
+          "line": 3749
+        },
+        {
+          "kind": "ui-label",
+          "name": "显示页边距",
+          "line": 3795
+        },
+        {
+          "kind": "ui-label",
+          "name": "文件名",
+          "line": 3826
+        },
+        {
+          "kind": "ui-label",
+          "name": "页码范围",
+          "line": 3829
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/WordRuler.tsx",
+      "sha256": "e6ebb402364bbce430ac270ba71e2d47e264587c888facb727e11769f145a9e8",
+      "entries": [
+        {
+          "kind": "ui-label",
+          "name": "首行缩进",
+          "line": 260
+        },
+        {
+          "kind": "ui-label",
+          "name": "左缩进",
+          "line": 269
+        },
+        {
+          "kind": "ui-label",
+          "name": "右缩进",
+          "line": 278
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/WordToolbar.tsx",
+      "sha256": "05036a53397b0722158bacb0d4e3ff03ad8d012cd34359b265a7eafc8e5c1efd",
+      "entries": [
+        {
+          "kind": "toolbar-callback",
+          "name": "onSave",
+          "line": 57
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onSaveAs",
+          "line": 58
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onInlineCommand",
+          "line": 64
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onColorFormat",
+          "line": 65
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onFontFormat",
+          "line": 66
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onParagraphFormat",
+          "line": 67
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onInsertTable",
+          "line": 69
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onInsertImage",
+          "line": 70
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onPageBreak",
+          "line": 71
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onHeaderFooter",
+          "line": 73
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onMailMerge",
+          "line": 75
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onUndo",
+          "line": 76
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onRedo",
+          "line": 77
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onZoomChange",
+          "line": 78
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onFitWidth",
+          "line": 79
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onToggleFind",
+          "line": 80
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onToggleProperties",
+          "line": 81
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onExport",
+          "line": 82
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onPrint",
+          "line": 83
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onShowCompatibility",
+          "line": 84
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onAddNumbering",
+          "line": 85
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onAddBullets",
+          "line": 86
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onFormatPainter",
+          "line": 88
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onOpenParagraphDialog",
+          "line": 91
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onToggleRuler",
+          "line": 96
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onInsertToc",
+          "line": 97
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onToggleFormattingMarks",
+          "line": 100
+        },
+        {
+          "kind": "toolbar-callback",
+          "name": "onBeforeInteraction",
+          "line": 101
+        },
+        {
+          "kind": "menu",
+          "name": "save",
+          "label": "保存",
+          "line": 164
+        },
+        {
+          "kind": "menu",
+          "name": "save-as",
+          "label": "另存为副本…",
+          "line": 166
+        },
+        {
+          "kind": "menu",
+          "name": "find",
+          "label": "查找替换",
+          "line": 169
+        },
+        {
+          "kind": "menu",
+          "name": "layout",
+          "label": "布局与属性",
+          "line": 170
+        },
+        {
+          "kind": "menu",
+          "name": "mail-merge",
+          "label": "邮件合并 / 批量报告",
+          "line": 171
+        },
+        {
+          "kind": "menu",
+          "name": "image",
+          "label": "插入图片",
+          "line": 172
+        },
+        {
+          "kind": "menu",
+          "name": "header-footer",
+          "label": "页眉、页脚与页码",
+          "line": 173
+        },
+        {
+          "kind": "menu",
+          "name": "page-break",
+          "label": "插入分页符",
+          "line": 174
+        },
+        {
+          "kind": "menu",
+          "name": "print",
+          "label": "打印",
+          "line": 175
+        },
+        {
+          "kind": "menu",
+          "name": "export",
+          "label": "导出 PDF",
+          "line": 176
+        },
+        {
+          "kind": "menu",
+          "name": "toc",
+          "label": "插入目录",
+          "line": 177
+        },
+        {
+          "kind": "menu",
+          "name": "compat",
+          "label": "兼容性报告",
+          "line": 180
+        },
+        {
+          "kind": "ui-label",
+          "name": "Word 功能区",
+          "line": 186
+        },
+        {
+          "kind": "ui-label",
+          "name": "快捷保存",
+          "line": 199
+        },
+        {
+          "kind": "ui-label",
+          "name": "保存",
+          "line": 201
+        },
+        {
+          "kind": "ui-label",
+          "name": "保存选项",
+          "line": 206
+        },
+        {
+          "kind": "ui-label",
+          "name": "保存选项",
+          "line": 207
+        },
+        {
+          "kind": "ui-label",
+          "name": "撤销",
+          "line": 216
+        },
+        {
+          "kind": "ui-label",
+          "name": "重做",
+          "line": 219
+        },
+        {
+          "kind": "ui-label",
+          "name": "Word 功能选项卡",
+          "line": 222
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'ArrowRight'",
+          "line": 235
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'ArrowLeft'",
+          "line": 236
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Home'",
+          "line": 237
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'End'",
+          "line": 238
+        },
+        {
+          "kind": "ui-label",
+          "name": "更多操作",
+          "line": 253
+        },
+        {
+          "kind": "ui-label",
+          "name": "格式刷",
+          "line": 270
+        },
+        {
+          "kind": "ui-label",
+          "name": "格式刷：单击复制格式并套用一次，双击可连续套用，Esc 取消",
+          "line": 271
+        },
+        {
+          "kind": "ui-label",
+          "name": "格式刷",
+          "line": 272
+        },
+        {
+          "kind": "ui-label",
+          "name": "字体",
+          "line": 281
+        },
+        {
+          "kind": "ui-label",
+          "name": "字体",
+          "line": 283
+        },
+        {
+          "kind": "ui-label",
+          "name": "加粗",
+          "line": 292
+        },
+        {
+          "kind": "ui-label",
+          "name": "斜体",
+          "line": 295
+        },
+        {
+          "kind": "ui-label",
+          "name": "下划线",
+          "line": 298
+        },
+        {
+          "kind": "ui-label",
+          "name": "删除线",
+          "line": 300
+        },
+        {
+          "kind": "ui-label",
+          "name": "字体颜色",
+          "line": 301
+        },
+        {
+          "kind": "ui-label",
+          "name": "文本背景颜色（突出显示）",
+          "line": 303
+        },
+        {
+          "kind": "ui-label",
+          "name": "段落",
+          "line": 307
+        },
+        {
+          "kind": "ui-label",
+          "name": "项目符号",
+          "line": 309
+        },
+        {
+          "kind": "ui-label",
+          "name": "编号",
+          "line": 310
+        },
+        {
+          "kind": "ui-label",
+          "name": "减少缩进",
+          "line": 311
+        },
+        {
+          "kind": "ui-label",
+          "name": "增加缩进",
+          "line": 312
+        },
+        {
+          "kind": "menu",
+          "name": "indent-none",
+          "label": "无缩进",
+          "line": 315
+        },
+        {
+          "kind": "menu",
+          "name": "indent-2",
+          "label": "首行缩进 2 字符",
+          "line": 316
+        },
+        {
+          "kind": "menu",
+          "name": "indent-hanging-2",
+          "label": "悬挂缩进 2 字符",
+          "line": 318
+        },
+        {
+          "kind": "menu",
+          "name": "paragraph-more",
+          "label": "段落设置…",
+          "line": 321
+        },
+        {
+          "kind": "ui-label",
+          "name": "段落",
+          "line": 323
+        },
+        {
+          "kind": "ui-label",
+          "name": "显示编辑标记",
+          "line": 330
+        },
+        {
+          "kind": "ui-label",
+          "name": "左对齐",
+          "line": 335
+        },
+        {
+          "kind": "ui-label",
+          "name": "居中",
+          "line": 336
+        },
+        {
+          "kind": "ui-label",
+          "name": "右对齐",
+          "line": 337
+        },
+        {
+          "kind": "ui-label",
+          "name": "两端对齐",
+          "line": 338
+        },
+        {
+          "kind": "ui-label",
+          "name": "样式",
+          "line": 343
+        },
+        {
+          "kind": "ui-label",
+          "name": "查找",
+          "line": 345
+        },
+        {
+          "kind": "ui-label",
+          "name": "查找替换",
+          "line": 346
+        },
+        {
+          "kind": "ui-label",
+          "name": "表格与图片",
+          "line": 352
+        },
+        {
+          "kind": "ui-label",
+          "name": "插入图片",
+          "line": 358
+        },
+        {
+          "kind": "ui-label",
+          "name": "页面",
+          "line": 361
+        },
+        {
+          "kind": "ui-label",
+          "name": "插入分页符",
+          "line": 362
+        },
+        {
+          "kind": "ui-label",
+          "name": "页眉、页脚与页码",
+          "line": 363
+        },
+        {
+          "kind": "ui-label",
+          "name": "页面与段落",
+          "line": 368
+        },
+        {
+          "kind": "ui-label",
+          "name": "布局与属性",
+          "line": 370
+        },
+        {
+          "kind": "ui-label",
+          "name": "页眉、页脚与页码",
+          "line": 371
+        },
+        {
+          "kind": "ui-label",
+          "name": "段落设置",
+          "line": 374
+        },
+        {
+          "kind": "ui-label",
+          "name": "插入分页符",
+          "line": 375
+        },
+        {
+          "kind": "ui-label",
+          "name": "目录",
+          "line": 380
+        },
+        {
+          "kind": "ui-label",
+          "name": "插入目录",
+          "line": 381
+        },
+        {
+          "kind": "ui-label",
+          "name": "邮件合并",
+          "line": 385
+        },
+        {
+          "kind": "ui-label",
+          "name": "邮件合并",
+          "line": 386
+        },
+        {
+          "kind": "ui-label",
+          "name": "显示",
+          "line": 391
+        },
+        {
+          "kind": "ui-label",
+          "name": "标尺",
+          "line": 393
+        },
+        {
+          "kind": "ui-label",
+          "name": "显示编辑标记",
+          "line": 397
+        },
+        {
+          "kind": "ui-label",
+          "name": "输出与兼容",
+          "line": 400
+        },
+        {
+          "kind": "ui-label",
+          "name": "打印",
+          "line": 402
+        },
+        {
+          "kind": "ui-label",
+          "name": "导出 PDF",
+          "line": 403
+        },
+        {
+          "kind": "ui-label",
+          "name": "兼容性报告",
+          "line": 405
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-word/src/zoom-shortcuts.ts",
+      "sha256": "f45482612a78bb8999a0d6064547520162d1357a2f6d68c095874917fb3bf1e7",
+      "entries": [
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === '+' || event.key === '=' || event.code === 'NumpadAdd'",
+          "line": 23
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "!event.shiftKey && (event.key === '-' || event.code === 'NumpadSubtract')",
+          "line": 24
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "!event.shiftKey && event.key === '0'",
+          "line": 25
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-shell/src/AppShell.tsx",
+      "sha256": "952ab82069d82fcfa5e050c281a1925599d8ec94379271807a90d6dd91e0400c",
+      "entries": [
+        {
+          "kind": "keyboard-condition",
+          "name": "mod && event.key.toLowerCase() === 'k'",
+          "line": 188
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "mod && event.key.toLowerCase() === 's'",
+          "line": 193
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "mod && event.key.toLowerCase() === 'o'",
+          "line": 201
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "mod && event.key.toLowerCase() === 'n' && !event.shiftKey",
+          "line": 206
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "mod && event.key === ','",
+          "line": 211
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "mod && event.key.toLowerCase() === 'w'",
+          "line": 216
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "mod && event.key.toLowerCase() === 'p'",
+          "line": 221
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "mod && event.key.toLowerCase() === 'f'",
+          "line": 226
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'F5'",
+          "line": 231
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Escape'",
+          "line": 236
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "mod && !inEditable && /^[1-9]$/.test(event.key)",
+          "line": 250
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-shell/src/CommandPalette.tsx",
+      "sha256": "a4897f6f8853f3b507347ad84899a839bea84117aa22b80937f2c68846b08e84",
+      "entries": [
+        {
+          "kind": "menu",
+          "name": "open",
+          "label": "打开文件…",
+          "line": 101
+        },
+        {
+          "kind": "menu",
+          "name": "new-docx",
+          "label": "新建 Word 文档",
+          "line": 109
+        },
+        {
+          "kind": "menu",
+          "name": "new-xlsx",
+          "label": "新建 Excel 表格",
+          "line": 117
+        },
+        {
+          "kind": "menu",
+          "name": "home",
+          "label": "返回首页",
+          "line": 124
+        },
+        {
+          "kind": "menu",
+          "name": "save",
+          "label": "保存",
+          "line": 131
+        },
+        {
+          "kind": "menu",
+          "name": "save-as",
+          "label": "另存为副本",
+          "line": 141
+        },
+        {
+          "kind": "menu",
+          "name": "export-pdf",
+          "label": "导出 PDF",
+          "line": 151
+        },
+        {
+          "kind": "menu",
+          "name": "print",
+          "label": "打印",
+          "line": 160
+        },
+        {
+          "kind": "menu",
+          "name": "close-tab",
+          "label": "关闭当前标签",
+          "line": 170
+        },
+        {
+          "kind": "menu",
+          "name": "find",
+          "label": "查找与替换",
+          "line": 181
+        },
+        {
+          "kind": "menu",
+          "name": "word-styles",
+          "label": "样式库（预设样式与我的样式集）",
+          "line": 190
+        },
+        {
+          "kind": "menu",
+          "name": "present",
+          "label": "进入全屏演示",
+          "line": 200
+        },
+        {
+          "kind": "menu",
+          "name": "theme-light",
+          "label": "切换到浅色主题",
+          "line": 241
+        },
+        {
+          "kind": "menu",
+          "name": "theme-dark",
+          "label": "切换到深色主题",
+          "line": 248
+        },
+        {
+          "kind": "menu",
+          "name": "theme-system",
+          "label": "跟随系统主题",
+          "line": 255
+        },
+        {
+          "kind": "menu",
+          "name": "settings",
+          "label": "打开设置",
+          "line": 283
+        },
+        {
+          "kind": "menu",
+          "name": "plugins",
+          "label": "管理插件",
+          "line": 291
+        },
+        {
+          "kind": "menu",
+          "name": "default-app",
+          "label": "设为默认应用",
+          "line": 300
+        },
+        {
+          "kind": "menu",
+          "name": "compatibility",
+          "label": "查看兼容性报告",
+          "line": 308
+        },
+        {
+          "kind": "menu",
+          "name": "shortcuts",
+          "label": "键盘快捷键",
+          "line": 318
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Escape'",
+          "line": 386
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'ArrowDown'",
+          "line": 389
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'ArrowUp'",
+          "line": 392
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Enter'",
+          "line": 395
+        },
+        {
+          "kind": "ui-label",
+          "name": "关闭命令面板",
+          "line": 443
+        }
+      ]
+    },
+    {
+      "path": "packages/editor-shell/src/chrome.tsx",
+      "sha256": "ff1937071e569f02ede1d974355add96ee41d99661f1a4962c47eb41cea2c005",
+      "entries": [
+        {
+          "kind": "ui-label",
+          "name": "切换主题",
+          "line": 160
+        },
+        {
+          "kind": "ui-label",
+          "name": "护眼模式",
+          "line": 167
+        },
+        {
+          "kind": "menu",
+          "name": "accent-custom",
+          "label": "自定义主题色…",
+          "line": 192
+        },
+        {
+          "kind": "menu",
+          "name": "vibrancy",
+          "label": "毛玻璃效果",
+          "line": 202
+        },
+        {
+          "kind": "ui-label",
+          "name": "主题色",
+          "line": 213
+        },
+        {
+          "kind": "menu",
+          "name": "settings",
+          "label": "设置",
+          "line": 234
+        },
+        {
+          "kind": "menu",
+          "name": "default-app",
+          "label": "设为默认应用…",
+          "line": 242
+        },
+        {
+          "kind": "menu",
+          "name": "theme-system",
+          "label": "跟随系统主题",
+          "line": 248
+        },
+        {
+          "kind": "menu",
+          "name": "theme-light",
+          "label": "浅色主题",
+          "line": 255
+        },
+        {
+          "kind": "menu",
+          "name": "theme-dark",
+          "label": "深色主题",
+          "line": 262
+        },
+        {
+          "kind": "menu",
+          "name": "vibrancy",
+          "label": "毛玻璃效果",
+          "line": 271
+        },
+        {
+          "kind": "menu",
+          "name": "shortcuts",
+          "label": "键盘快捷键",
+          "line": 281
+        },
+        {
+          "kind": "menu",
+          "name": "about",
+          "label": "关于 Mini Office",
+          "line": 286
+        },
+        {
+          "kind": "ui-label",
+          "name": "最小化",
+          "line": 330
+        },
+        {
+          "kind": "ui-label",
+          "name": "关闭",
+          "line": 350
+        },
+        {
+          "kind": "ui-label",
+          "name": "首页",
+          "line": 410
+        },
+        {
+          "kind": "menu",
+          "name": "new-docx",
+          "label": "新建 Word 文档",
+          "line": 464
+        },
+        {
+          "kind": "menu",
+          "name": "new-xlsx",
+          "label": "新建 Excel 表格",
+          "line": 471
+        },
+        {
+          "kind": "menu",
+          "name": "open",
+          "label": "打开文件…",
+          "line": 478
+        },
+        {
+          "kind": "ui-label",
+          "name": "文档名称",
+          "line": 537
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Escape'",
+          "line": 544
+        },
+        {
+          "kind": "keyboard-condition",
+          "name": "event.key === 'Enter'",
+          "line": 545
+        },
+        {
+          "kind": "ui-label",
+          "name": "关闭标签",
+          "line": 557
+        },
+        {
+          "kind": "ui-label",
+          "name": "新建或打开",
+          "line": 576
+        },
+        {
+          "kind": "ui-label",
+          "name": "文档页数",
+          "line": 624
+        },
+        {
+          "kind": "ui-label",
+          "name": "适应宽度",
+          "line": 674
+        },
+        {
+          "kind": "ui-label",
+          "name": "缩小",
+          "line": 681
+        },
+        {
+          "kind": "ui-label",
+          "name": "缩放滑块",
+          "line": 685
+        },
+        {
+          "kind": "ui-label",
+          "name": "放大",
+          "line": 689
+        },
+        {
+          "kind": "ui-label",
+          "name": "缩放比例",
+          "line": 693
+        },
+        {
+          "kind": "ui-label",
+          "name": "关闭通知",
+          "line": 876
+        }
+      ]
+    }
+  ]
+}

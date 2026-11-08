@@ -1,0 +1,2927 @@
+{
+  "_comment": "功能：记录定制 Word 核心逐文件来源与集成修改；时间：2026-11-08；作者：lq。",
+  "schemaVersion": 1,
+  "upstreamCommit": "e1f50e90d246f3ecc6427d2a0af90f04f37810ec",
+  "extractedFiles": [
+    {
+      "upstreamPath": "apps/docs/src/renderer/styles.css",
+      "localPath": "packages/word-core/src/styles/document.css",
+      "upstreamSha256": "61feb03766feb2b3c537e1915086211a0cd11aec6fa97b265f7a71e8e70932be",
+      "localSha256": "917e40f0e29de6a2f1e1095cfad79239569205e09da58b57d1d47f46483b1d8e",
+      "modifications": [
+        "仅保留文档排版规则并加 .mo-word-core 范围；排除产品界面样式"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/ai/after-text.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/ai/after-text.ts",
+      "upstreamSha256": "c46615f9ac84ac61e7085887cae313ecb952594adcc91b3726c50db8fb42bf1a",
+      "localSha256": "82ccfcd384e6f753636a7dea93d826669b334dbf8a885a45f9a4f7e2e927f50a",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/ai/doc-utils.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/ai/doc-utils.ts",
+      "upstreamSha256": "d7aba78ea23c72f43b99c92c725dfa6310fe079a78d79def0d029f5129c28e54",
+      "localSha256": "2ef246ade3296e0866b21ae0af32723a87427d89f94ec85ef45222704e1bb5a0",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/ai/field-ops.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/ai/field-ops.ts",
+      "upstreamSha256": "bc27a4bca288c1eaf33aed401b9f281c5eaeb3280415986cbe62fd15d1c89956",
+      "localSha256": "3ac22f363f8a47530c0eb32a4fe700774e4bb8671cc284bb6f1fcc944bf9da84",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/ai/lengths.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/ai/lengths.ts",
+      "upstreamSha256": "a6ade242cc1eee3c5d8b655e0c9c476a6781d674a2777b11d855d389869d0288",
+      "localSha256": "96408fc4de8b2473f0d0a16595b9ca4e4600ea19b891cd2aa8cfdfae493a609c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/ai/ops.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/ai/ops.ts",
+      "upstreamSha256": "85c4e01f6800200fa53fec767a5fc4791dbc1d307f4202849eb44f2df3319840",
+      "localSha256": "f4e1d35552cf1c570ed1e63382fae243026721f4a96ca271f22efc538de68c26",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/ai/redact.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/ai/redact.ts",
+      "upstreamSha256": "6eafa8bda30516fe4090d535bcf7583d25cb1b50ac0d1db4baa9c0e11f9d1f71",
+      "localSha256": "de4c3e48a86a8db8d4b543b5b2cc10460ab004897792dcd2f179d564687b370d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/agent-core/redact-core → ../../../../../packages/agent-core/src/redact-core",
+        "导入 @genoffice/agent-core/redact-core → ../../../../../packages/agent-core/src/redact-core"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/ai/style-ops.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/ai/style-ops.ts",
+      "upstreamSha256": "373546e248a075774f01e9598f7b67ae905eb38d25dfffa96f4090b71b2d3fad",
+      "localSha256": "c030fc4c8e0f6ffec33b434b0dd484369234e8b723768e8d6253fd56d392cf58",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index",
+        "导入 ../../shared/ipc → ../../../../../packages/agent-core/src/types"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/ai/tab-stops.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/ai/tab-stops.ts",
+      "upstreamSha256": "6dab5385516df78ca4e368067e354f7f7e8046f2e7ebf57e15c25c55924f57ad",
+      "localSha256": "0c84de85e506d2687414b4c44a880b4f3d1ab44add7449531b93cefb668c779f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/ai/table-ops.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/ai/table-ops.ts",
+      "upstreamSha256": "24a57481ccc2a735b96dd2ed4cf9287d7f770ef1f2fbc121616488b354c6e24b",
+      "localSha256": "6c9aa4708eb006fe47f08554b28aab49e50f0c8b07b3c85bb0bd03c648084202",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/author-name.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/author-name.ts",
+      "upstreamSha256": "1cda3fc4e817ca72328ed8c57c8a55de09141b7386e46bdbb72cf047d59b0d6f",
+      "localSha256": "723e6ac298011957b243b3bb8a5e9dd39152eae1b90999c4b8a2c3b4097f2a2d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/autocorrect-pref.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/autocorrect-pref.ts",
+      "upstreamSha256": "4e1ec16d66a5daf714a063165e1a37d8b928d3bb727e52f68eeb989cf76404eb",
+      "localSha256": "e247ce23055d0cbd3e57f1a398430f53dc35922683b8016b6b95c29840ccad92",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/doc-state.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/doc-state.ts",
+      "upstreamSha256": "069c302d5533f452ea90c68f284d87839c409479cd69e14f0fa3fd420575a474",
+      "localSha256": "233cb8fd73c5c0de03016baabb8fcc65f0cf658e54d6e0473ca7298cec9fdef5",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/doc-style-css.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/doc-style-css.ts",
+      "upstreamSha256": "20a36a5dc189e817722ed3749352626fdeed61434f5547d7394ab01959b68fed",
+      "localSha256": "449cde492154fe01ad21ced60a02fef7883bbb7a8990e4d6ec1ec4d06934e99f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/file-actions.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/document-settings.ts",
+      "upstreamSha256": "48ba9a2ba556126176be5308f7b37dc41687552e5cb7ecc7620ea2c7c1babbea",
+      "localSha256": "f3daa269aba0b9dee97aa18376de6bf51dd26248cd55fe3ce95d06b9752949c8",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "从 file-actions.ts 提取 applyDocLayoutSettings 原函数体，显式列出依赖，不复制 UI 和 Electron I/O",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/dom-range.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/dom-range.ts",
+      "upstreamSha256": "c55b06c273c916acfca48e6a328d44a94d3359823a8194c77dcea9e02567e9ad",
+      "localSha256": "0a2c7ed0f4eb28a4790dc9e7c3e59cb27d2a0a68a877cef5510f04fa95bf74fc",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/active-editor.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/active-editor.ts",
+      "upstreamSha256": "edf5ddf9ed73a52639cbc02dbc1ae3647b668626c5ad6cbe73493900ab8c32e8",
+      "localSha256": "91b2e498b92dc034701246df9b2269983e8427b3fa5400c487fa46ed2765969c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/ai-queue-anchors.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/ai-queue-anchors.ts",
+      "upstreamSha256": "9db0cdbea65ae3b065c9274c76e532c1f8544b694176da637cb7a9538f36e074",
+      "localSha256": "671269da754612053973639a7bed3eb369cc82e4064e963590a90c83e9ddf818",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/anchor-geometry.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/anchor-geometry.ts",
+      "upstreamSha256": "2198bdc600cbd869cadd65f85c2e9c6cde4bce2555eb365912525d2abd4810fd",
+      "localSha256": "8f2b0f786a4e6d0df4540cc81e893eb942cba260ef42cc4d143520b1dcfc4e75",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/autocorrect.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/autocorrect.ts",
+      "upstreamSha256": "6bb7ed99023fc4e271e675f988d8e2f4b18606d34ce0abbea6128414761ddab4",
+      "localSha256": "0fa72d34f82e08703d9bc385d0a7d37dd9a3d3408a826b773c8654e1929338a2",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/balloon-markers.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/balloon-markers.ts",
+      "upstreamSha256": "9e999bd3d0bc229b81848424566be5b291de2f8bbf6be4c94a04490adae1c113",
+      "localSha256": "49f54536a9d736e4a4eefd8d911bd0583377bb71303877b43ef29bc7873b6918",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/border-metrics.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/border-metrics.ts",
+      "upstreamSha256": "c58ae944e56c0a66a6d09116e7acea6a252cd1ab0a0a15b459eaeb3fa8e80604",
+      "localSha256": "2f62772a9934e76a0aeb3c6c0357ec605a691977007731e484ed841f0e60a1d3",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/caret-marks.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/caret-marks.ts",
+      "upstreamSha256": "b0cca871ebfc1dd64f8776b2f12b76cc2b4754e9b80a9f1a17cdf52bbe03c0ae",
+      "localSha256": "d8550024b7a531f6211971f5e26639837a4074553c2449fa95bac3e685e65fc1",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/checkbox-toggle.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/checkbox-toggle.ts",
+      "upstreamSha256": "0af4abf6911ca6a7870852ddba9675966bb5017d8c6bb3e61920bf9039d566a4",
+      "localSha256": "7756b0bc0e148f91611eb64a4af10e2b2e66da149afc0d0ee8db030dd65c8540",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/cjk-punct-shrink.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/cjk-punct-shrink.ts",
+      "upstreamSha256": "d65e1c3af4cfd3a7508236dd763c9accef82d59ccd6ef26ab109fd09f4d34727",
+      "localSha256": "ce3bc57c58b0075685f0246c589b6ba6a1e086b8bdbec97cf178b252d1475bc0",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/column-layout-recovery.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/column-layout-recovery.ts",
+      "upstreamSha256": "2e8f12951b40105669d17588e7d27cd9c2cbc8b4f00fda14a18619cf505ca66f",
+      "localSha256": "2273993541bf81382495cbaa5ea030a8a38744af75086eebaeb3231474c170ec",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/column-layout.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/column-layout.ts",
+      "upstreamSha256": "3ee75e29043e9aac4899cea5bf554f92b3bb51f2fbadc374031ce1bd06f558ec",
+      "localSha256": "5da6e34d5d08c96d4a1e175fd891400e64386bcb63eda7bbd789ae515eb5551c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/comments.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/comments.ts",
+      "upstreamSha256": "9bd8ef6b1d065e7aceafc27c2b56a9a016adb4ccd09d42bfaad2296bbad89e40",
+      "localSha256": "19e32f13e731e3d5416f61d9462ac96b12c3c82058758ecdd9c895a16b9dc58a",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/convert.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/convert.ts",
+      "upstreamSha256": "3ed4700ab93544559c7a2e2e7668a4433949c86d35e2968898874d98faaa9d6c",
+      "localSha256": "3401c112fc6a654cd9465b9cbff7c22cae41b63eb384e18566a7e3f173f14beb",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/dark-page.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/dark-page.ts",
+      "upstreamSha256": "10a950d13b418e945643e1b724da2c403191eed1a541f30c52e1ba3a6cca638e",
+      "localSha256": "ffdc0e4f1990bc0c62b86f139f8cce18b8fcd01170bd268a4f6408c3da9d0a2f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/decoration-extensions.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/decoration-extensions.ts",
+      "upstreamSha256": "eac51689a8e2565cd7477d34a5622ec5926c3aa4aa9b88b8974e24d3dd7a27ce",
+      "localSha256": "f22cef31ce79e1b27c6687df7bda6200910c33b8e9f5da24ee21d8089115b201",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/direction.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/direction.ts",
+      "upstreamSha256": "c47eecf216bcbc066a397406a014f4cfe5eb021d3bdd77cba5ac9b3ca5bd4b45",
+      "localSha256": "b99726f66849cd6722f07af8c09136c61a2706f108d61b94d96e52f66eaa10d9",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/i18n → ../../../../../packages/i18n/src/index",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/effective-css.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/effective-css.ts",
+      "upstreamSha256": "d044d0a93486e0fc27276dcba14d9e69ecfdbd73c5cae831f9e32913959332b2",
+      "localSha256": "915b1d59f1eb1f7d7bd66e828efcc82c3e6f133206fe77548f2aa02654716cc2",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/equation.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/equation.ts",
+      "upstreamSha256": "ebac41fb10fcfec8027de159ff54627781acbc614a98f0b0ba794eb4a7128770",
+      "localSha256": "153584cc30185a057cf8eb0f11d48926b096d4392b00681efbd50db01986f7c5",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/extensions.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/extensions.ts",
+      "upstreamSha256": "07e1a9c96763c4e9bdcb47d1b1a06c2902e75fa3ffdcfb8d075adddcf7390667",
+      "localSha256": "8b4ccf7bcf62c7e5c8b3b4ec8f0b971c9916c18aef8cea581113942289bb612c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "剪贴板图片写入改用本项目注入端口；保留失败时不删除图片的原逻辑",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/field-codes.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/field-codes.ts",
+      "upstreamSha256": "3a95fe3347b1336bc57b6f61e4efd76e32972fd3b9b06023e678c6bfbf531452",
+      "localSha256": "9d0f9d45bc93d4d4848a4b6115fe743ae18dcc78fc40002b7c409daae2e6e96f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/find.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/find.ts",
+      "upstreamSha256": "bcdd0bebbcd11161c2d8e7192c3c8daf97bbf60362a671702593d9d061f867a0",
+      "localSha256": "e96d9c78a9ac1fb10886a28dc288b262df3f9bc1f8edf523816c9fde86de50a3",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/float-table-spacing.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/float-table-spacing.ts",
+      "upstreamSha256": "a71dd5f7d005cc0576842a006e07156d20eb9fab54d79af6008d6bb0c8c45a73",
+      "localSha256": "9488e812d1b7613f275cb631b2e5665bc424bda28321d09d7aca22cd29d04dcb",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/floating-z-order.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/floating-z-order.ts",
+      "upstreamSha256": "68eae45b08a8603dc1b8146f9fe2d3c8b5c487f05e21b9563683fe524c4b0cf8",
+      "localSha256": "ce6488bb80e722ddcd17477378cbbf4879c4a85744edfd089eab247475bb0b98",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/headings.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/headings.ts",
+      "upstreamSha256": "f31b27fb0be07ae4a7a271bf6550c1c37b4a004ac1373d65e52799c292e7cd7c",
+      "localSha256": "a516fc49367fce10c2fe8a2acc580a40c268df23e7a3c2110e47e2e211fd7c28",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/hf-dom.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/hf-dom.ts",
+      "upstreamSha256": "1518ce4e205b97dd929bf39b986d1c8793d6c33aaf98213caa2cb01088c06c0e",
+      "localSha256": "eb2a2af45b972da6461ce29dc466b1adb0c077cefc41e4820b9dbe4fc1e5a54b",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/hf-text.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/hf-text.ts",
+      "upstreamSha256": "6499f117a7b965d5250084f2110dfa040780f6447f4bc96fa4496d5d06afe906",
+      "localSha256": "e2c2f40b0a3622f982b3964802cd2f8c6dc25cbc0f874ad709de37853d7ffbf4",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/image-rotation.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/image-rotation.ts",
+      "upstreamSha256": "df58abda300fa965d50bbeffcc3a5e8dadbf1ecb68916af9475c0a96a9ac367f",
+      "localSha256": "816ac1e7cc10effe588bdecd64d6864971a0f73c275a14f8738bee13af626878",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/inactive-selection.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/inactive-selection.ts",
+      "upstreamSha256": "c08a00238a4f832bb265f7688ae206fcde09e0d89c33280bddde971af474557c",
+      "localSha256": "4e5114fb7e8ad1d499e33350d771d1fde529f148fea458084305d45bacf84a10",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/inline-rule.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/inline-rule.ts",
+      "upstreamSha256": "522b261dad114c168ae9a495748d18d25c7097f901eba733e2c720457f996be9",
+      "localSha256": "294ec2995cf5865482158241cfca3ccae94ded3e98b982ea1dcef64215cf43b8",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/justify-shrink.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/justify-shrink.ts",
+      "upstreamSha256": "b4c5072a1bbc937e55e8d1998f3ec64649a8185dfd52a31ae774ce2ca3ece107",
+      "localSha256": "8bafca1810e76d41a57962271f9c35eafd84420a9f0fd1e2600f1d51449304b6",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/layout-health.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/layout-health.ts",
+      "upstreamSha256": "71642ed3f0210c9a8d7be52a13401861a2d39d17f38c10d6e6287f4fe8365202",
+      "localSha256": "60fe3fe708a85e22d99c364962f515e69dd43156755b55bad721b1a0e41a5073",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/local-edit.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/local-edit.ts",
+      "upstreamSha256": "74e34151eb21132e65e1d9a4c2d51a5a21b228d05691ddba6bd26623d792a091",
+      "localSha256": "f7ad66cb21d7dd8e319e514b181b6642e48bc75e4a1e3f31d598811f85228cd5",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/marks.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/marks.ts",
+      "upstreamSha256": "55b9e51ef9374cefc3cb075a9ff4f7689d0c5c62694280b1ff1483b92f0eb743",
+      "localSha256": "c90cc502c733d977d4ab53817d92ba819fcb86147842164b90ccc069d937e57e",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/move-block.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/move-block.ts",
+      "upstreamSha256": "16e74ee21395d77c2aef5d5f983c3ab0836a03023eaff685e29a15395378d620",
+      "localSha256": "847cb063824d83a38244222e8f99b2120050d299aca117c10e590a55e348cc5c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/multi-select.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/multi-select.ts",
+      "upstreamSha256": "71a820c12c4cc3182e78ee3ea883b76e05bab952dd216da6b484655b57b2e0ea",
+      "localSha256": "5a0864ad079e6354a377826a5b7359310ba830f45052db6907f3c0a6b822b2a7",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/nav-outline.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/nav-outline.ts",
+      "upstreamSha256": "398c8f72f940a091be9c9d411b71943d82a2c04b7e199859ba2718d536295b01",
+      "localSha256": "8144513719978161434e3f1145c595e8717e2ad2cd947c232b50aa2126d60638",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/numbering.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/numbering.ts",
+      "upstreamSha256": "3373e3cf401ac922e8603b69b0bb9209069efe70e202365efc8fc65b496e41e6",
+      "localSha256": "15fc3a2b648839af4687ea29e04d3f3e636f1c4bc7f85ea7ac01c021274f05ee",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/obstacle-plan.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/obstacle-plan.ts",
+      "upstreamSha256": "bfc0252433da0eb308c887e2abeeba65315bb59165f537e8cfdc3c64f0aba5f2",
+      "localSha256": "f7461cb0aa32a9ac722bbe20603d577740d9b8ad10c5dbcb9f79578e83f59c10",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/outline-view.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/outline-view.ts",
+      "upstreamSha256": "32358ed566079fb3c7ef43547048c00c3258244aabccaf43eb738e083610eaf2",
+      "localSha256": "801f4e550b808edca4f02d27e56d3604774d3bfa331ce052fecfb60b6334d19a",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/page-break.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/page-break.ts",
+      "upstreamSha256": "e9510efbea2683047c5d9e6c4f8403b34d69543d549911c433f9ab2d13a6ad25",
+      "localSha256": "840676baac094d149cb3e9f2333ec0818ab1d19fd70f298c159965d71d3479f7",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/page-gap-nav.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/page-gap-nav.ts",
+      "upstreamSha256": "4130f6335f027c9e616bee79e7af1ce38a6a1ffbc09c76cad79bf79bb3382263",
+      "localSha256": "17ce7d563048bdc0b958d4614f8bd01796e3892c3bc03f1d62ded96e487fbbf3",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/pagination-gaps.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/pagination-gaps.ts",
+      "upstreamSha256": "538ee23cf6fc68f0670d69ff42e717a54ae74bd3a3e01b7a723fd290caff0ee1",
+      "localSha256": "6fb4f2a28713560ae21d21077d6150a6c8caf0f7d7febec1ab8c63a7f6addc10",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/para-border-css.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/para-border-css.ts",
+      "upstreamSha256": "42f4d4e25646374df1ee5e1ee28635f431878be72a32b5b77cbd252a7c8d2e3c",
+      "localSha256": "18938109ca1c6ad6c51044dfeb2c06ad2763f57c3a08d05363f95de7295e3ad8",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/para-border-merge.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/para-border-merge.ts",
+      "upstreamSha256": "1b886af40a2f9dc08d39545ccdd535572fe656ebd506a2e6dd02851ead0e638a",
+      "localSha256": "d54837f7ff94169a91abb34ce0759c0adcfdb1ca2baea1bc5c57b85081cfe07d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/para-flags.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/para-flags.ts",
+      "upstreamSha256": "e27199be8e37a52745ae7777e979a9252866f3dd1aa8233c3643f72411c65370",
+      "localSha256": "a8129a9820c1e984be361e3f7f78d6f1d91954ffbf03f9350e21b5a35853be00",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/para-frame.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/para-frame.ts",
+      "upstreamSha256": "ebb02be9f692be8b87544cd8c7ad5b0e0a10444a6a8312edbba6a7aa5994d6af",
+      "localSha256": "c06212f5c2683ee256875c0e59e3e89184f6bbef92bb5a3dfb493b5b5b615127",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/para-layout-spec.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/para-layout-spec.ts",
+      "upstreamSha256": "1e1b3e82abba1c90658802e0e5e7ee279ec4a9a30d035696607c4ace149579b8",
+      "localSha256": "ff56231bb88020dbaca0c1ed0ee4e9331498ae02c5bc261e772903ded9b2a4ef",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/paste-options.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/paste-options.ts",
+      "upstreamSha256": "2c98fc354df548c45d0d1141975080881c2a521c11df6d805ecf781d81b00111",
+      "localSha256": "42f36292936ec44f5a1f89d0780083cae7263cd84e4da8998e3de1d63279db93",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/paste-text.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/paste-text.ts",
+      "upstreamSha256": "47583c151d83621769bb8011b9a72a1d2e74a929c3216a113503484295c8c63b",
+      "localSha256": "1fe6a100b2ede036ee32ef719dc886c9e26a88e46251eecc0b21e141b62b34ce",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/paste-web-html.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/paste-web-html.ts",
+      "upstreamSha256": "ae670b1d033d2a0c2e9b4c1ca35e4357aa1776dcefb383605e350cf7c24c0246",
+      "localSha256": "08624c6446a33bfe78586caa3d999d46291267106858b4d8e484b061cce82877",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/persistable-image.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/persistable-image.ts",
+      "upstreamSha256": "1c0d520c7f2828baabbae5455916f543ad039b91f6cad1a5f7c8587ba39fa101",
+      "localSha256": "fe65f1c98bc24a41efd40cbdf52887ee3aaf9eda47e6d24fe04c503b651e3c20",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/prop-change-restore.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/prop-change-restore.ts",
+      "upstreamSha256": "5b6b2ae6c07b432a56c526a8251c661875a499fb2023d2a250c7eada69228f6a",
+      "localSha256": "84455370c773bcc6cbec8ea28d74b67745d9b3e098451ebf382088dcba384c00",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/prosemirror-perf.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/prosemirror-perf.ts",
+      "upstreamSha256": "9924e00be7a2f332d2b4e26092be4d0f699942afeb9311dd13870033bd28f3a4",
+      "localSha256": "0a669317672b86d760e89aeec6d37b3e0443d292aaab73a8f278d3f1435e6de2",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/protected-render.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/protected-render.ts",
+      "upstreamSha256": "8676e649aaf488e935906c85e1afe7fcfbdb5a54f3d5133aa30e885a963e3f3d",
+      "localSha256": "4aa7c6782a7d8aac8d1f701287d1b03452c758d0a129e22f022d90830be48789",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/ui → ../../../../../packages/ui/src/word-core-shared",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/redaction.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/redaction.ts",
+      "upstreamSha256": "5e769c9887c1dd770d4c1fc735ac6006bf9b1565a1353f9f4f1b1d77bdfb21ff",
+      "localSha256": "54da4c9eae938fb0f659beb849a53b0c31dbca2be5eb0b281202ac708cc0d128",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/revision-view.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/revision-view.ts",
+      "upstreamSha256": "fe2e39982a14ff52a5d4e3ab075b9f601716b25cc2621b801013d5bfb8d82820",
+      "localSha256": "79357ef86b793cd4774dcf8da884e65986e5fa4e679f1eff94d08b3a7f68d72e",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/revisions.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/revisions.ts",
+      "upstreamSha256": "bb6f0416117080aa5bde8b0fa0710764d38186f0c104f8e15d6e7cce7ce5ee52",
+      "localSha256": "46fa18f27d8ffc143e18936ec00dd7693579728d5a08c9ed3d66655f037e3d9f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/run-border.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/run-border.ts",
+      "upstreamSha256": "7d41850b16b70640e2c3e1e32d61da32ea64165d751c62b7b4212692ac37ca8b",
+      "localSha256": "f93c385ca8541d78cd2708f3da2bb918c155fbc21c7b00302d00a470fc3dfa69",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/script-fonts.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/script-fonts.ts",
+      "upstreamSha256": "3392d541d5c57a11aca2dcab5e7820085444b74ee7f526ec7e7b9a65c0fa6bcb",
+      "localSha256": "4665d31c04e42a8b91c02db71639729dc79efbdff059b85f447ee3807a1241d5",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/settled-measure.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/settled-measure.ts",
+      "upstreamSha256": "00fa720afeee860baea8137e1528f6318005697497309b26412e5484abab6fe1",
+      "localSha256": "abdb3e899dfd2ae13032b6dbaee9edd40addedc481962fad8a0c72d17426f8f5",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/shading-ink.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/shading-ink.ts",
+      "upstreamSha256": "fa1e500103b8777e4cc892930538c70673b95005f6cf274b09e70382ad2097a9",
+      "localSha256": "88e62719159e37ef0bc4c8a6b07aebc34d2a9a27ff21269458cbc9fdd9eb5d05",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/shape-svg.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/shape-svg.ts",
+      "upstreamSha256": "b3f9a21b39799c67169ab395e973fa86431bf257fd9d9e8b7ca73907877bd8f4",
+      "localSha256": "5ccbe7aa8306d511df39601e7cb2d6e24ff0b7e8f625047035f4888e87368f5c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/story-revisions.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/story-revisions.ts",
+      "upstreamSha256": "213884f4b55681e3256b544d31c19effba6d32a497adeecdcc2b1f72e7eddec2",
+      "localSha256": "9317da4b59cbe9af9221614fe26ed9cd862175fa0b24da4b9e7e6da0cf303f07",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/streaming-tail-guard.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/streaming-tail-guard.ts",
+      "upstreamSha256": "dd89d7c96828391fa9b2df9f5f787ce4e1b5646be202885ef0954f971e6a9814",
+      "localSha256": "90925cd0313a4b459bd3b384540b9ce38832b9955c26c503161a83ec113d6245",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/table-column-drag.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/table-column-drag.ts",
+      "upstreamSha256": "3305fd0580b115b027c7b8363b4ed5c47710358ada965d3bc51a6e1e4d5a05ce",
+      "localSha256": "b7e87ff943e72230891ad59a9e25b8937ffa262c893980b7187d00a9f520be6f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/table-geometry.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/table-geometry.ts",
+      "upstreamSha256": "68e43e439daf98942672c010ced431633bbbecb8e03d014f516144a0ae2205a3",
+      "localSha256": "81d43b27bb2c779c716a475f8093bce06dd6ba83e339e2e1917857fc93bff841",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/table-handle.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/table-handle.ts",
+      "upstreamSha256": "df389bb4a7753aa04eba0c53b0339b59c9160a83decbc055a388f95ac9ff998e",
+      "localSha256": "4cfff0e6c489dabe961d943fb822e984226e2874f66473b636b7fe8e135916df",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/table-row-drag.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/table-row-drag.ts",
+      "upstreamSha256": "33a73f807b7534f6ceb2e313b36b60879cbb0eb1c306fc0b5e17c428a82d692b",
+      "localSha256": "01eac3f2c5f0c1e96bee22591285f667b1510b6ada9a6cd0b00ff3eeb8519534",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/table-sizing.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/table-sizing.ts",
+      "upstreamSha256": "1fa1efaa9277264ba62a52733c68d2cbf5895da349a67367e0710391ee8f68e4",
+      "localSha256": "e77e49a0bb2aa79c6e76ccca116bb04e6b1e2771bdfa4facab94f3bc37d527c9",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/text-color.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/text-color.ts",
+      "upstreamSha256": "f95020aec7da04d898b781e1d486453e560749e655be7a0e5cbedcdf6320da13",
+      "localSha256": "8a8839c20feb5fe7e10b94c8a7734147be263460141a5af9e5b8e5948c96bff9",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/text-effects.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/text-effects.ts",
+      "upstreamSha256": "6cd4884d7894bd59f444baf9b46f427dd9a0ba22f9e512201e0097a7ae5b93f1",
+      "localSha256": "70156498eb8b7d2d98e9f5e5dc9a352d1e2973cd5de443fd96a02b4274c0fb50",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/text-outline.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/text-outline.ts",
+      "upstreamSha256": "df96cbb61c140345c69737fd0437e6364311d710280a397d4eba9398ec165796",
+      "localSha256": "2b7f3628934791cf81d9992101eccc3dbf7fe3046822954e829e1de6eb33477a",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/top-level-pos.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/top-level-pos.ts",
+      "upstreamSha256": "f9de90d0e9a20da435ec95978d234c500af03389aac429987f608d787ff01b1a",
+      "localSha256": "8044019bf377ceae7d6756c3f8fabefa4bd5716ffd6afb74bda5584273990226",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/touched-blocks.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/touched-blocks.ts",
+      "upstreamSha256": "4c58c8064d47c903a007f870e4a85aa81eea50431dd1f99bb871db00bba9992f",
+      "localSha256": "dc243a64786adfe9d2c99da01525cd544900d4da7128e624ba01a9a70ac66468",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/trailing-table-exit.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/trailing-table-exit.ts",
+      "upstreamSha256": "86b7f2642b79233342a2820a7dbf95e76b804e69c5f89425592a79e0302eb01f",
+      "localSha256": "fcfb7796bbfd16b33e589d535fd94386952479cdbed5305c5a9c8a6fdb78b774",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/word-range.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/word-range.ts",
+      "upstreamSha256": "779468a197ee62027e17fd30e11dd798c71ae67f4067404eac63e4f6b76d7f34",
+      "localSha256": "e8099bd43da54a5096b1f854d6b36882cb98dd4618a5690ea99581e0b950cc82",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/wrap-group.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/wrap-group.ts",
+      "upstreamSha256": "8cda505b397287a3ff9931d8083ddec5bf583c48a957c057758733545f5b4b8b",
+      "localSha256": "5c1b396a66cfe21b432d6fc1627e5ee875ee9103e41f84de32d7deffe49d6c8c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/wrap-obstacles.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/wrap-obstacles.ts",
+      "upstreamSha256": "d6cb86de0f819bf3091750ca64e2c62ef3eb6fc4ece758908668a9c3c57dced6",
+      "localSha256": "7aa0be5952db0db8c43aae406360d558b6ecbf778bfaf44164d597dc24318ff8",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/embedded-fonts.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/embedded-fonts.ts",
+      "upstreamSha256": "c8b6c25b8e39957a3697fedd52c9666cd6c85faa84efb0ae4a71d2d42179e32e",
+      "localSha256": "6f06a40540d442cfec544296ced7cedeff3d6f563a9b1b2497caee5b2238b710",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/font-check.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/font-check.ts",
+      "upstreamSha256": "1b68832365cd3a516457ae70c189374bf13988dd42877f8582a7b6db40a9a745",
+      "localSha256": "82698347009fe5ac779a13280fa15eaaf195dd6ab57497ec5f1e8a8d985deb3b",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/font-list.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/font-list.ts",
+      "upstreamSha256": "fbf587949b074f719e12c8faf1a70fc4593afe7fdaa24522b1c8b159e68db6a1",
+      "localSha256": "cd73a9016215af5bdd4aea8ede40a24967986438845197fd0b79dab87b894a7b",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/i18n → ../../../../packages/i18n/src/index",
+        "导入 @genoffice/ui → ../../../../packages/ui/src/word-core-shared"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/font-name-patterns.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/font-name-patterns.ts",
+      "upstreamSha256": "f406bafc20d74109034ac39d228544fe6cdbb55d91ee3e786eea683b5a2290bb",
+      "localSha256": "6b57e4ac43c36b61bffc981e67edf64cbb5631c1a425c2ebbea4f194e3b0f5c2",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/font-resolve.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/font-resolve.ts",
+      "upstreamSha256": "0d43a9237e220b4c122d4bd5526725668403352d3272f035af86a3af0dd9d9e2",
+      "localSha256": "f2a83a11bc7d1886eadb776b11b310060cf56544ce731930327f8bf550ec40c0",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "移除 Electron 全局后门，使用现有 setFontMetricsProvider 注入真实字体能力",
+        "导入 @genoffice/font-metrics → ../../../../packages/font-metrics/src/metrics",
+        "导入 @genoffice/font-metrics/resolve → ../../../../packages/font-metrics/src/resolve",
+        "导入 @genoffice/font-metrics/word-faces.json → ../../../../packages/font-metrics/word-faces.json"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/AptosGO-Bold.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/AptosGO-Bold.ttf",
+      "upstreamSha256": "5b4a666c9df686840ced68062df3c8cf8b8e490a778732e89b4dc9e3fbcbea9d",
+      "localSha256": "5b4a666c9df686840ced68062df3c8cf8b8e490a778732e89b4dc9e3fbcbea9d",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/AptosGO-BoldItalic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/AptosGO-BoldItalic.ttf",
+      "upstreamSha256": "bff8e28e70713f1bd1559c9f3b4951c84523ba6c7ccbf9fb2fabccb76ad8056b",
+      "localSha256": "bff8e28e70713f1bd1559c9f3b4951c84523ba6c7ccbf9fb2fabccb76ad8056b",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/AptosGO-Italic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/AptosGO-Italic.ttf",
+      "upstreamSha256": "c6ae569c47cf9c7da760097c0791d8d2d6904dfa6cb36d492a0071d6a2284ea3",
+      "localSha256": "c6ae569c47cf9c7da760097c0791d8d2d6904dfa6cb36d492a0071d6a2284ea3",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/AptosGO-Regular.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/AptosGO-Regular.ttf",
+      "upstreamSha256": "01bd71b913a07ce4ab94745a56c6498eedd579e88eb747af654c624c7f3248a4",
+      "localSha256": "01bd71b913a07ce4ab94745a56c6498eedd579e88eb747af654c624c7f3248a4",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/AptosNarrowGO-Bold.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/AptosNarrowGO-Bold.ttf",
+      "upstreamSha256": "a2f8584adb15fb1c8422ba91b08c2404d9703defb0e2245ee5af8d3c9330a02a",
+      "localSha256": "a2f8584adb15fb1c8422ba91b08c2404d9703defb0e2245ee5af8d3c9330a02a",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/AptosNarrowGO-BoldItalic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/AptosNarrowGO-BoldItalic.ttf",
+      "upstreamSha256": "6265d496b5c65589f12df01494b1e104b35c02c5ce1c7db7a66ff85f6f072f08",
+      "localSha256": "6265d496b5c65589f12df01494b1e104b35c02c5ce1c7db7a66ff85f6f072f08",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/AptosNarrowGO-Italic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/AptosNarrowGO-Italic.ttf",
+      "upstreamSha256": "b724b77f72709f43b1fd62d7c01f3dd094fdc3c983f4deb1e24e10db90f5e26d",
+      "localSha256": "b724b77f72709f43b1fd62d7c01f3dd094fdc3c983f4deb1e24e10db90f5e26d",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/AptosNarrowGO-Regular.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/AptosNarrowGO-Regular.ttf",
+      "upstreamSha256": "5c41ab90a7777910b9b79f45a8215eeeb193d9dbddd73db17b56ddff32707629",
+      "localSha256": "5c41ab90a7777910b9b79f45a8215eeeb193d9dbddd73db17b56ddff32707629",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/BookmanOldStyleGO-Bold.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/BookmanOldStyleGO-Bold.ttf",
+      "upstreamSha256": "630237df475d8f88ded563e90dad4024b9a3af4514a0422f47b68a1c63243208",
+      "localSha256": "630237df475d8f88ded563e90dad4024b9a3af4514a0422f47b68a1c63243208",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/BookmanOldStyleGO-BoldItalic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/BookmanOldStyleGO-BoldItalic.ttf",
+      "upstreamSha256": "e59e9e958710314d54c8530180c7d589afb2edd8420417dc01295dc0bfa83146",
+      "localSha256": "e59e9e958710314d54c8530180c7d589afb2edd8420417dc01295dc0bfa83146",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/BookmanOldStyleGO-Italic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/BookmanOldStyleGO-Italic.ttf",
+      "upstreamSha256": "1483b5a0fa2d6d3b4fc778670156d5826d3dbdc0a073c24d1b5cf4b4cdf3555e",
+      "localSha256": "1483b5a0fa2d6d3b4fc778670156d5826d3dbdc0a073c24d1b5cf4b4cdf3555e",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/BookmanOldStyleGO-Regular.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/BookmanOldStyleGO-Regular.ttf",
+      "upstreamSha256": "bc8d1f42d7bb29e7c7c37eff6f4c18f2fd65999d7466ad455b948e66da5939ab",
+      "localSha256": "bc8d1f42d7bb29e7c7c37eff6f4c18f2fd65999d7466ad455b948e66da5939ab",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/Caladea-Bold.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/Caladea-Bold.ttf",
+      "upstreamSha256": "74eda4fc5ffba0d8dc4aa76d41499f5ab76168d9ed6141c6417064c6244db9b6",
+      "localSha256": "74eda4fc5ffba0d8dc4aa76d41499f5ab76168d9ed6141c6417064c6244db9b6",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/Caladea-BoldItalic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/Caladea-BoldItalic.ttf",
+      "upstreamSha256": "f47a35ad6cd0efa9914d93f9d03c93e30c55da43674bccfabac73b3c0d522c01",
+      "localSha256": "f47a35ad6cd0efa9914d93f9d03c93e30c55da43674bccfabac73b3c0d522c01",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/Caladea-Italic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/Caladea-Italic.ttf",
+      "upstreamSha256": "9c968bf60ba1e851cdfea77c71e3540c57792f77482dd241acc29d1425569c4e",
+      "localSha256": "9c968bf60ba1e851cdfea77c71e3540c57792f77482dd241acc29d1425569c4e",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/Caladea-Regular.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/Caladea-Regular.ttf",
+      "upstreamSha256": "d2f6cad33f191e65b68bd74e6d4f7708080a41b32db635866109df3090265d91",
+      "localSha256": "d2f6cad33f191e65b68bd74e6d4f7708080a41b32db635866109df3090265d91",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/fonts.css",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/fonts.css",
+      "upstreamSha256": "5fce6156030cda4bab0976546189e5823c89a613de18cc2a572f5cd99cf836c1",
+      "localSha256": "b4e027b35f3d947375c11357edc3bbc91b8470b148c994d3b9682b0e3e9a7a10",
+      "modifications": [
+        "字体 CSS 路径改为包内资源"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/fonts.generated.css",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/fonts.generated.css",
+      "upstreamSha256": "01da68a5e436b8f3dcaa38087d60b80bcef2e92e33a9d8f6faed02c86bc29225",
+      "localSha256": "20d94bb8e984dbe402321526282d00379ca6add8ea15516d7d10941a2a8fd77a",
+      "modifications": [
+        "字体 CSS 路径改为包内资源"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficeBengali-Bold.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficeBengali-Bold.woff2",
+      "upstreamSha256": "ace0aa228915eca922faec43312a9ee0a4c3424efb1135f1a5b69830eaceaa83",
+      "localSha256": "ace0aa228915eca922faec43312a9ee0a4c3424efb1135f1a5b69830eaceaa83",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficeBengali-Regular.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficeBengali-Regular.woff2",
+      "upstreamSha256": "75edd63c608052e1583900537053a839c685e8fa8e0bbb0ac0ed9582c3c0e75e",
+      "localSha256": "75edd63c608052e1583900537053a839c685e8fa8e0bbb0ac0ed9582c3c0e75e",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficeCheLatinKR.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficeCheLatinKR.woff2",
+      "upstreamSha256": "b7513082199d4adf3d690349dfcb0809f7c24322b478a2e8b6944c96b4b0bdd6",
+      "localSha256": "b7513082199d4adf3d690349dfcb0809f7c24322b478a2e8b6944c96b4b0bdd6",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficeDMSans-Bold-subset.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficeDMSans-Bold-subset.woff2",
+      "upstreamSha256": "2a6f9734e8159cbdccc6b5f6e231df46951dca421f952ca8df092094ff5fbd2b",
+      "localSha256": "2a6f9734e8159cbdccc6b5f6e231df46951dca421f952ca8df092094ff5fbd2b",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficeDMSans-Regular-subset.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficeDMSans-Regular-subset.woff2",
+      "upstreamSha256": "f1bcc5ed226ad133fb270f11d78ea5b838570e910f3db3f1a00c1bc2fe9547fa",
+      "localSha256": "f1bcc5ed226ad133fb270f11d78ea5b838570e910f3db3f1a00c1bc2fe9547fa",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficeGothicKR-Regular-subset.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficeGothicKR-Regular-subset.woff2",
+      "upstreamSha256": "c72779cf46f16c8d45e8db2b1377f4e627d43264e906107666f2c2621e9423b6",
+      "localSha256": "c72779cf46f16c8d45e8db2b1377f4e627d43264e906107666f2c2621e9423b6",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficePoppins-Bold-subset.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficePoppins-Bold-subset.woff2",
+      "upstreamSha256": "ec6c07101aa4d62b559847a93e3e9358554bd253e153f7fdfbf74d866b59a024",
+      "localSha256": "ec6c07101aa4d62b559847a93e3e9358554bd253e153f7fdfbf74d866b59a024",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficePoppins-Regular-subset.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficePoppins-Regular-subset.woff2",
+      "upstreamSha256": "a43b5060988c6400673f99ce795ea6814ecc86dcb9adb33a5b78f9308708344b",
+      "localSha256": "a43b5060988c6400673f99ce795ea6814ecc86dcb9adb33a5b78f9308708344b",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficePUABlank.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficePUABlank.woff2",
+      "upstreamSha256": "0e8cc57987463a4aee44634acffe77482e1f4451d96b66ae4f83f7cc8ef3dfba",
+      "localSha256": "0e8cc57987463a4aee44634acffe77482e1f4451d96b66ae4f83f7cc8ef3dfba",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficeSansKR-Regular-subset.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficeSansKR-Regular-subset.woff2",
+      "upstreamSha256": "c87a603e5a7149c7b510df6c1cb50482db23aed13ddc172e5eb8e5f7992891ce",
+      "localSha256": "c87a603e5a7149c7b510df6c1cb50482db23aed13ddc172e5eb8e5f7992891ce",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficeSerifKR-Regular-subset.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficeSerifKR-Regular-subset.woff2",
+      "upstreamSha256": "c32385f2503d99e33433e3c8557079efc6f05561c3f7dc23faa27b850168ef38",
+      "localSha256": "c32385f2503d99e33433e3c8557079efc6f05561c3f7dc23faa27b850168ef38",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficeTamil-Regular.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficeTamil-Regular.woff2",
+      "upstreamSha256": "b1571cf888c26f1c7822d169bfa201f3e4cf58f03d5eb76885f10c3cc2b5c1ef",
+      "localSha256": "b1571cf888c26f1c7822d169bfa201f3e4cf58f03d5eb76885f10c3cc2b5c1ef",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficeUIKanaJP-Bold.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficeUIKanaJP-Bold.woff2",
+      "upstreamSha256": "68e149ce17eeb14bbdfaf7775e157439f34baab027d29d72e7e4de549cc7a78c",
+      "localSha256": "68e149ce17eeb14bbdfaf7775e157439f34baab027d29d72e7e4de549cc7a78c",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/GenOfficeUIKanaJP-Regular.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/GenOfficeUIKanaJP-Regular.woff2",
+      "upstreamSha256": "3910237ea1074a33fb3b16a18f9df166573895e3a3f9914e837ab9215226ee05",
+      "localSha256": "3910237ea1074a33fb3b16a18f9df166573895e3a3f9914e837ab9215226ee05",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LiberationMono-Bold.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LiberationMono-Bold.ttf",
+      "upstreamSha256": "bd62a0672d0b9b6710b01df434c80ad54fa5f0835207eb7b17b7a761463067bb",
+      "localSha256": "bd62a0672d0b9b6710b01df434c80ad54fa5f0835207eb7b17b7a761463067bb",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LiberationMono-BoldItalic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LiberationMono-BoldItalic.ttf",
+      "upstreamSha256": "79451f3c09fe25116098853b7a2ca6e2436220ccc11af022979adbcf195be130",
+      "localSha256": "79451f3c09fe25116098853b7a2ca6e2436220ccc11af022979adbcf195be130",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LiberationMono-Italic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LiberationMono-Italic.ttf",
+      "upstreamSha256": "605c01c711b44480a7508d349dfbf3264e81fa43d69e61cfa7d10b86e764c4d1",
+      "localSha256": "605c01c711b44480a7508d349dfbf3264e81fa43d69e61cfa7d10b86e764c4d1",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LiberationMono-Regular.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LiberationMono-Regular.ttf",
+      "upstreamSha256": "f2b83c763e8afd21709333370bed4774337fae82267937e2b5aea7e2fbd922c1",
+      "localSha256": "f2b83c763e8afd21709333370bed4774337fae82267937e2b5aea7e2fbd922c1",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LiberationSans-Bold.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LiberationSans-Bold.ttf",
+      "upstreamSha256": "788abee4c806d660e8aee46689dd8540cd4bb98da03dcc9d171ce3efd99a9173",
+      "localSha256": "788abee4c806d660e8aee46689dd8540cd4bb98da03dcc9d171ce3efd99a9173",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LiberationSans-BoldItalic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LiberationSans-BoldItalic.ttf",
+      "upstreamSha256": "698da70fc191cc5f33ad4d6d3fe830fe4624b898ea2e3169955928b7c491f1ee",
+      "localSha256": "698da70fc191cc5f33ad4d6d3fe830fe4624b898ea2e3169955928b7c491f1ee",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LiberationSans-Italic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LiberationSans-Italic.ttf",
+      "upstreamSha256": "e5bae5c4cde31f22142753855f4f8fb86da6ff39955ed3c0a11248b0d16948b0",
+      "localSha256": "e5bae5c4cde31f22142753855f4f8fb86da6ff39955ed3c0a11248b0d16948b0",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LiberationSans-Regular.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LiberationSans-Regular.ttf",
+      "upstreamSha256": "76d04c18ea243f426b7de1f3ad208e927008f961dc5945e5aad352d0dfde8ee8",
+      "localSha256": "76d04c18ea243f426b7de1f3ad208e927008f961dc5945e5aad352d0dfde8ee8",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LiberationSerif-Bold.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LiberationSerif-Bold.ttf",
+      "upstreamSha256": "d754ba427cfe0bca54ae052384baa8f842da5bd6550ad4da024ac441e7a7d5ce",
+      "localSha256": "d754ba427cfe0bca54ae052384baa8f842da5bd6550ad4da024ac441e7a7d5ce",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LiberationSerif-BoldItalic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LiberationSerif-BoldItalic.ttf",
+      "upstreamSha256": "f17db8af71e24d2066b587546021d4f0b296be389512b658dec3c09affeb11a7",
+      "localSha256": "f17db8af71e24d2066b587546021d4f0b296be389512b658dec3c09affeb11a7",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LiberationSerif-Italic.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LiberationSerif-Italic.ttf",
+      "upstreamSha256": "0e3dea9f8d613e006ccfa62201f33e265d19167bd0907725c3e145368b04fc2e",
+      "localSha256": "0e3dea9f8d613e006ccfa62201f33e265d19167bd0907725c3e145368b04fc2e",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LiberationSerif-Regular.ttf",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LiberationSerif-Regular.ttf",
+      "upstreamSha256": "058ea80864aef09a23f45cbec2bb5400bc3dfbdea01c3f10538a21fcb497fb74",
+      "localSha256": "058ea80864aef09a23f45cbec2bb5400bc3dfbdea01c3f10538a21fcb497fb74",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/LICENSE-OFL.txt",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/LICENSE-OFL.txt",
+      "upstreamSha256": "992656df2b40e317ea54b4d3b7ca47a48eec11c2eaaf46bd74effd600714841a",
+      "localSha256": "992656df2b40e317ea54b4d3b7ca47a48eec11c2eaaf46bd74effd600714841a",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/NotoNaskhArabic-Regular-subset.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/NotoNaskhArabic-Regular-subset.woff2",
+      "upstreamSha256": "9c90d66fa736481513d86f17927ca22f5054bcd4c702d3cc7c8a611ca9a091ec",
+      "localSha256": "9c90d66fa736481513d86f17927ca22f5054bcd4c702d3cc7c8a611ca9a091ec",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/NotoSansArabic-Regular-subset.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/NotoSansArabic-Regular-subset.woff2",
+      "upstreamSha256": "3ae72fd620251f4c1da3f295ea49a4d949eadc08c16fc83b36d0959f09c72ed3",
+      "localSha256": "3ae72fd620251f4c1da3f295ea49a4d949eadc08c16fc83b36d0959f09c72ed3",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/NotoSansCJKsc-Regular-subset.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/NotoSansCJKsc-Regular-subset.woff2",
+      "upstreamSha256": "c3ed44a467b3a42ad06bd1d95147f169753b6675d244a63c1f1101899de48c42",
+      "localSha256": "c3ed44a467b3a42ad06bd1d95147f169753b6675d244a63c1f1101899de48c42",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/NotoSerifCJKsc-Regular-subset.woff2",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/NotoSerifCJKsc-Regular-subset.woff2",
+      "upstreamSha256": "8805e730c330fd4940eefa8618b57abc196a0bd1dfe393b7492b88aad0130f37",
+      "localSha256": "8805e730c330fd4940eefa8618b57abc196a0bd1dfe393b7492b88aad0130f37",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/README.md",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/README.md",
+      "upstreamSha256": "bf409f7004356f65f94948f325d682a5df3fcd563c12982f4246a715fd263431",
+      "localSha256": "bf409f7004356f65f94948f325d682a5df3fcd563c12982f4246a715fd263431",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/stand-in-boxes.json",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/stand-in-boxes.json",
+      "upstreamSha256": "ac236e66e030d486b7ea883cd10ebf8c7095b42d30d82ebf7d48f4af302189ae",
+      "localSha256": "ac236e66e030d486b7ea883cd10ebf8c7095b42d30d82ebf7d48f4af302189ae",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/fonts/stand-in-boxes.json",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/fonts/stand-in-boxes.json",
+      "upstreamSha256": "ac236e66e030d486b7ea883cd10ebf8c7095b42d30d82ebf7d48f4af302189ae",
+      "localSha256": "ac236e66e030d486b7ea883cd10ebf8c7095b42d30d82ebf7d48f4af302189ae",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/hf-sections.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/hf-sections.ts",
+      "upstreamSha256": "a14e21efa8de9ed928e973b3d237552688a8ffbe7f607de7a1acb8dffb61be6f",
+      "localSha256": "fb7ffd17b37d50e5d542598d27d9cc704134906ebf4bb8d2c76f28090f3acc97",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/ar.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/ar.ts",
+      "upstreamSha256": "1493363391432722aab6136b86b5b1c19482d354b1ee2a52c600f2809f14af8b",
+      "localSha256": "a461abab1068abd25352a78541107dcf14fb8a2ccdb2e80ad69596a4bc49d5c8",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/cs.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/cs.ts",
+      "upstreamSha256": "7c6feed6b61ca2bea601f2fd1128600acaa7caaad9bbf97e46f451c69c9b0fa9",
+      "localSha256": "5fb38a734e7e4bf624e32cf7724d26ea0a0d201e6dbf983aa41b23508ae5277e",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/de.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/de.ts",
+      "upstreamSha256": "e47b53fa6188f6765287eb7563c6d90214c7055903687cacda1a6e8b03e0b2a5",
+      "localSha256": "0e710834ffc47d0186007114a7a98ecc9a62864e80c36ecc6d7c07bff26eae2d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/en.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/en.ts",
+      "upstreamSha256": "58f540b1475e0abd615163139179335a41e5b4e4567746d101c3649b9ebcdf0d",
+      "localSha256": "721224c868fd6ae1e70372246b41fb873ef111d6e18df93e286f7b366ca14174",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/es.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/es.ts",
+      "upstreamSha256": "57c7c9960166d0d6724d89586c5c32a79e062aa6fcebab834d640f9d7e6b3caa",
+      "localSha256": "f876d3a69080efb5f8815d0c085eeafe57ac0c9af8f7e1ead00755744b754838",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/fr.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/fr.ts",
+      "upstreamSha256": "f9ff7e9954862afd2fdd818486b73f938604f513898636eb14d4029cb28847b9",
+      "localSha256": "58ef8bf62f1fa4b97957cff0343f1a1f969700ee69d49b070df795248a354c8e",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/he.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/he.ts",
+      "upstreamSha256": "4af6a214aa0a4307c8967a9d2715812c532813b8255a1644b3eeac6569423c2c",
+      "localSha256": "db8f009546d2ec30171aa662f027815e7a360c356f03c5f099c70d213927f712",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/hi.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/hi.ts",
+      "upstreamSha256": "e14037272a42301177dd728a2d7f02bcae2061d35dfb4e80bba5178402b63a14",
+      "localSha256": "9deb9bf63c248fe855314bc3768110cf4d888c0685a9c724bc77549e431a3e32",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/id.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/id.ts",
+      "upstreamSha256": "0f21920af26a3abb4706d784178dacad1b1da03187a78b2b74ca90f84f0e4999",
+      "localSha256": "974a6b2b3cda56e5b6e6f98539b2686aa90856fa13689c3487409e39c96bee5d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/it.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/it.ts",
+      "upstreamSha256": "1451cd039222eaeeaf7a45941cc2e12a20c075292f41dbc044d334a207fc6ce0",
+      "localSha256": "f7d42eeb2e15d909ae7cac18b80d256c548f3c8f691827b95a17b5fd9248244c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/ja.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/ja.ts",
+      "upstreamSha256": "5630c9eb45b444cf6665859d2c67c40a64d36270b83093f18a1b77ff4673b56d",
+      "localSha256": "7c353d32c8dd68010b2f7a873248f99586a9a1eb414cd701cac5e368a96ea34c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/ko.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/ko.ts",
+      "upstreamSha256": "bf944ed29da3344ecd97a0fd207cd9019f7b062f7d5331b94bb6a1d7f9e49987",
+      "localSha256": "b6ec82c7c12a47fe971fbfee78de32012ad9a878b8e1ccbe80d79d693901bc24",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/ms.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/ms.ts",
+      "upstreamSha256": "d6af425aaca0be160a1d66abe840a7f1362307d7e2abc70b9cf74e44e65a5d02",
+      "localSha256": "91cecfb246de330d69b58ac2824388f2307b8c988e5b059b920431cafa3f5669",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/nl.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/nl.ts",
+      "upstreamSha256": "78b016b0fff5b3cb50d99723acad080d1a4494194341c74a4e499b7767d2daab",
+      "localSha256": "d30be743c0e6fc3a5eb9b3b66fd31d129b594efa7f0ddd53f77481b08a867a2c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/pl.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/pl.ts",
+      "upstreamSha256": "e64c74cce21b5b88d4316393b02c7cabae9b5c60f254ffee289c4177e1be11fb",
+      "localSha256": "43c61ef2e42e70c6912e0c32c2eb2da89cb78c72de6296433f61767384956cd0",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/pt.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/pt.ts",
+      "upstreamSha256": "1c338a7c7b5effa8b7a0e0747ac0e8737cf94b6e9639f3f5ffacc35be2ec2399",
+      "localSha256": "0ae8e568189cf399730ebd05eb49bbccf13132ae6fbfcaec5f40a19a7af84975",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/ru.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/ru.ts",
+      "upstreamSha256": "69ff6e09b4b25e151912284c564a92e27e2e388c9408c25c88b111a224f02b11",
+      "localSha256": "6621e7acf7d1f4c074b9ce31e114d7b27d73ffddc19032059b1f6a381975e1fa",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/th.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/th.ts",
+      "upstreamSha256": "7bea4564146b32a9adb56ef77d05e78c38dc80b8b35646ef8815ea1081807470",
+      "localSha256": "bbb2ec3e117f058245832354a90a5fcf740276b51c130653ba57259ddfb8fbd4",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/tr.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/tr.ts",
+      "upstreamSha256": "892345d44cc2772e4e63dd3f4de8062ea490d9ad532bce3d27b31c2266a5cd67",
+      "localSha256": "6bfe5bfb32696c882a7738c42fd8e16a990fab03d438b99bea41893d76a63e1e",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/vi.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/vi.ts",
+      "upstreamSha256": "459abecec0556c8ddca9d5981a66fcec2c9f27c770e6f646d18cc1982dc6bdd9",
+      "localSha256": "7311017d453ce9ad6d5c55111e0078a9a8580993c1ca642e185c823b581be595",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/zh-TW.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/zh-TW.ts",
+      "upstreamSha256": "e43f1805c1ead20184a4b46f86b5336b39c4a44d7dc78353eb151ff93cece2ea",
+      "localSha256": "02366b6d3cfdc5262325bec79ef3898b04af099c858f607714e74e58d6b53bde",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ai/zh.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ai/zh.ts",
+      "upstreamSha256": "51473000a2e487ffdbb393e0adc3bc5d10b589c8f974cac7ae0f25f89b6ea7c2",
+      "localSha256": "c6b91fa03bd497db63db55918dd73bd502bd5e3385eaa039c2b817792cdb9e9f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/ar.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/ar.ts",
+      "upstreamSha256": "e189b4ea2d97187449e278fd16db2c85d076cd5a9e567373010af759183fcee9",
+      "localSha256": "16c345cd1a5a44a1cd704c81956e53865356d4c7140c4ac6b8c821143861a1dc",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/cs.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/cs.ts",
+      "upstreamSha256": "ecde8ba5dae1071e8e249554b65add415f65bb12363f5e1abce2006ad8666302",
+      "localSha256": "806d6193df96f4a7641cd655679f6c57935716b4181883b234418280c4164ee7",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/de.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/de.ts",
+      "upstreamSha256": "2f6b80f3326b9f8d319d5dfae8a717d6a2893d8b932b46e3a8083f053ed59b03",
+      "localSha256": "967655687be0cf56443ec1c27a3c3eb324351ea69a39d37b45bdf6a5d5b2e505",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/en.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/en.ts",
+      "upstreamSha256": "9a725d3a4d0d557d7a78f334270214d936d216125c2c13254ecd3d1fd16c23d1",
+      "localSha256": "e2f71ca6c12ae383433064299fe7efd57a73ac4cb006b6713fee0414d36ecf53",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/es.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/es.ts",
+      "upstreamSha256": "a308bf04ee433e4702318d230bc5d0791f72fd21be410608779af875895a394b",
+      "localSha256": "c7725fff5bb7124994264efdbdd6639abef8977fabe9205f168923b83f25a8ec",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/fr.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/fr.ts",
+      "upstreamSha256": "4bb0cfc07948f75f6168ca6400c4bcaadf3b1c1a8b1050ac3eb744cd67f902bb",
+      "localSha256": "5092eed87eba150e535b63493e0c69e106c0c3417db4556b87970935ecba2b11",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/he.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/he.ts",
+      "upstreamSha256": "4255a3e1da16cb0780b751255b81713989e4a5c186631d5030573515f2e0ebad",
+      "localSha256": "cb3492a762b3eaffebbc594ee01511b96904d5e08f080b6c025fa2429ac28390",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/hi.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/hi.ts",
+      "upstreamSha256": "a1ebe7ce22b993da1b26752f5befcf748fa9a011b0e58a772eb73f8529de4e2d",
+      "localSha256": "2feff5282fa4447eeec0cec937310ac584d65d9123c22e46b40fa9c90959f17d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/id.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/id.ts",
+      "upstreamSha256": "83134f855eea262a3e92856dd740077bd1a92ca4948c9c216956336f561c0d07",
+      "localSha256": "4c2a7bd8e763dfffeb1fbed762e04528fffc339d35aa129cfedd17cf9e06b297",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/it.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/it.ts",
+      "upstreamSha256": "9027590f196a17768df2364c64d4c9a14a5328fb84f68d9d6d15df5dd489b86f",
+      "localSha256": "7b387ade64bd69651334e42b0937aa06894689219d2c85879d85c01e32cb2ac5",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/ja.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/ja.ts",
+      "upstreamSha256": "efc13cf6ff563f1eb47e604ff97d37a7f59ed3fc3b433a32775dfb67b5f0b44d",
+      "localSha256": "c63effa170a0f7f85a260d78ad8dccf2770fd901a86f380dbab0773b8dc5d806",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/ko.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/ko.ts",
+      "upstreamSha256": "38ac711173b7c612a29aa6f12e0a3efdd7a885878e684ebed4b55315d894d694",
+      "localSha256": "1cfe4d91d45539503b05eaab1474dfc8a1e73f62240aa35672c95f7b27162e64",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/ms.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/ms.ts",
+      "upstreamSha256": "b2f1026594e847642a2a050ae846e6d791c7afc52ac616c8fefc386469238f79",
+      "localSha256": "a26ebef787af06c0be5565d6bf8da0fd8597a713537fb8f117e829a8eb531144",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/nl.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/nl.ts",
+      "upstreamSha256": "6b5a2de8ad01c17675e0b245d7fd154ea7b7860c9b482f7d5f99498f4f40f0a4",
+      "localSha256": "ec4043327da83356a9fbfcc5f5cfcde7e52f61d9f0260c4aaf0718de5e9c49e9",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/pl.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/pl.ts",
+      "upstreamSha256": "6b19fa3c526d281d45a5530452e0f4e1edf6d6f29d6061c87a3821cc60e65d43",
+      "localSha256": "2590ea78ace10db8207df3facff37d5ab0e4b1069adeeb9a39cd879621beceb2",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/pt.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/pt.ts",
+      "upstreamSha256": "d670349557e11ab6414b40c162799703377c4ec0d37c1d37fd9cd80051c6cd18",
+      "localSha256": "666c67396bdd827defe07b9cd49e71698340bf168d8962d196113af9f6b8bd90",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/ru.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/ru.ts",
+      "upstreamSha256": "177405b85474d19a24fc5dfcf8c85a8bdc3b6103af854dbd9bf874dd9ef28b55",
+      "localSha256": "5807fde1fe82fbb9de9dbd9f5f8eeacfbae17a3a0f5ea9ba518b2c0ec2d58c5a",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/th.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/th.ts",
+      "upstreamSha256": "1bb1011e99c0c70678959217fcd18a46d9aa392fba7b64892975be68360b7485",
+      "localSha256": "bc9ab26dedc2f51fe7ed74bf3d57fea9493969f7ce8217bc6f64a47f0120a651",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/tr.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/tr.ts",
+      "upstreamSha256": "2a6561eb7e4397f854a05d4357556ec6f9ea447bbd102cf99e2695cc36c28115",
+      "localSha256": "8eabafbd16683a0ae03fe8a1f1a5d7f9d1ab5232486642f3e732934d6cdb41a1",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/vi.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/vi.ts",
+      "upstreamSha256": "29fa2c0a47bbd73d464f2a6244fc7956ceeabcdd185fd6545d634cf3ef71de27",
+      "localSha256": "9902d5e38e495a045ba894cc2dda849b591f6205ca6ddae43aacf5c455d43789",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/zh-TW.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/zh-TW.ts",
+      "upstreamSha256": "e8df0f610cd9247810fb5af5fccb4e023a3590c7c5ec21840834c663b0b6bb32",
+      "localSha256": "6edafd9a8f48ef3d157c57a73305a2ce4dce88ca1929951155ebd5d2d10b6e94",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/app/zh.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/app/zh.ts",
+      "upstreamSha256": "7220fea283a33f8e31901ad95f8527b43d6eaa34fdaa27fe05073723e1da02e2",
+      "localSha256": "9637dc87752f9de7c0fbb7831308067d0882155e13a0be0cea3ce300acd50829",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/locale.tsx",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/locale.tsx",
+      "upstreamSha256": "63f9e6a58e4c149ae61ab39190f5a9968d8af79f68a9918c0786b432b68c225a",
+      "localSha256": "e49ff30e79a13321683c897db789fc7fc09a7bff7e8b36bc945c45400299ea27",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "只保留模块级 t/getLang/setModuleLang 和原词典，移除 React Provider 与 AI 指令",
+        "导入 @genoffice/i18n → ../../../../../packages/i18n/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/ar.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/ar.ts",
+      "upstreamSha256": "c3140e14a7a1b0e47d973077e55f6cad3ef816d9d1019dd3d264ff546ac02c25",
+      "localSha256": "5381f2d853666171a0c2d104f5b57bf75f9cbddc2922abbb735726ef2032313d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/cs.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/cs.ts",
+      "upstreamSha256": "8e85d2c1cf5cf548c092ca23a0e24ce053a3a4ec3ea32f241281c521f8dfe3d6",
+      "localSha256": "64a5f28ff209bff19581e16f18ccec2fcd700a347f12d5604228034f8be4b12d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/de.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/de.ts",
+      "upstreamSha256": "b64dc7213745c67d667c32bc10452114e2e1166f59f01d80f81fae2f3bb6c44a",
+      "localSha256": "588ca368854bcc4d3e975040cf1aca7d47f77f17e0fe5c3e51d53bc229e1f4eb",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/en.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/en.ts",
+      "upstreamSha256": "bb1dab146c9ac8b1443af98ec36feeb4f6a29cdb971b74a0b197055b68e623df",
+      "localSha256": "10f8919225b7aa5b2ef6b26295544f6a4e1fa2716a8fd213f367e9400636e2f5",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/es.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/es.ts",
+      "upstreamSha256": "3d4221e8c15de7916ab6e68af710b242b948826678ba85ac8e47566fbd50561a",
+      "localSha256": "f5ec59bf844606402c63ca5b12c730ff6088ff15c0ca40828a30fe8f40c79320",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/fr.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/fr.ts",
+      "upstreamSha256": "d59731de43cfa6f2c6ee162624cd038e5efe75af20aaeae623bc3ab1cc2e5b07",
+      "localSha256": "db8ab0133f7acb450e228445294ed724f976fea7fc8538dc555df2c82549ddb3",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/he.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/he.ts",
+      "upstreamSha256": "dfc97c31ce2a9f90ef3faf01721afd1e0bb92fed2cf0307e97132a80b124ac06",
+      "localSha256": "9a44328285f13d9ececd58aee4c8475f2b751f76d3f9ca05e1a9abc961e4c202",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/hi.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/hi.ts",
+      "upstreamSha256": "a3e2099275f4e2f355cdc33c351527208e620050b6fc3d22088ed1d1650a4d0e",
+      "localSha256": "10aef6d462af4f53aa44ad8501a5ddde5f6de7383942280e0819438d9be63396",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/id.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/id.ts",
+      "upstreamSha256": "8a69e50a9f67daccb692dfcd5905e16b8bb128ab8f548c2132e42c0e69dd5e5f",
+      "localSha256": "babb34a48e7fd74fd1c023f9188318a26ed239954a9d274eaf61af427f4a8543",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/it.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/it.ts",
+      "upstreamSha256": "ce3295e67af17bccdc0291bbcd3957503d690c29c4507fbbaa9170564473a709",
+      "localSha256": "368a63c5c3c53c88a44bb826df3689939bda26ba9e09124797bdbcee1b04a96e",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/ja.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/ja.ts",
+      "upstreamSha256": "3b16a185d7174757f51347dde29d52b058f2903eb2f2dcb8eb8839814c043354",
+      "localSha256": "2fce440f6807abe07e16daf981d7ea1cc9c0ec248ad24353db2ffe922bcbf4b4",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/ko.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/ko.ts",
+      "upstreamSha256": "9854ac632fde1b9df1bf181a9c9fb8e3769d97b190353ef4ecccb8b1973840e9",
+      "localSha256": "3f0c598eee580a18154c5a8cd5a661aa0d39e89c4be83dd903ca110fbb30b92f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/ms.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/ms.ts",
+      "upstreamSha256": "62381b561cd67846d4b91002cd6e38d022ec22870824131f2ec77ea5d742385e",
+      "localSha256": "4b01ec373ed4c7ec7f0b60f14efd64179a1e6d45173e8425e3bc552d90593310",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/nl.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/nl.ts",
+      "upstreamSha256": "8c416ebfa7dc81d377d48cb358c3b2f7ba8fb26a22c75f2ec2665227d8e2f925",
+      "localSha256": "284f8503b02162a96311ba6ae7474d4ce3d200332594e98c5fe58e69bdac424e",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/pl.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/pl.ts",
+      "upstreamSha256": "1b2dc92427ae16a8dbe56580d23b4a2bfc6576171b955da3b201f4ac640a03ac",
+      "localSha256": "895a3410c2fa61cf16a52724d90ca8b5ac6a20b134f497e41017c56e9c6fe70b",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/pt.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/pt.ts",
+      "upstreamSha256": "3f5da18c255e3d9942043979bc32df987bc7c985c04f83960ca2597bbee68b4c",
+      "localSha256": "16e37cd611b4d9a60e8658508b420c2952f71e591d121c00f6e3d9a4fc33d9f8",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/ru.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/ru.ts",
+      "upstreamSha256": "4d3c6cc9691809bc0b961b39748ef52d97fdeb5f845a0d1e20e70cb0596dab12",
+      "localSha256": "dd94b2a10c64a1c549c315346c01493c4dcd1c27102d41dbde9f95f86f72091b",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/th.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/th.ts",
+      "upstreamSha256": "2ad9195f8ffa812aa4aabdfa5f295cffd6b59723c01833765aae7b9d01850dae",
+      "localSha256": "68bc1d11494e7c9cfb6970987eae17b6b1891bdb8e4871b3792d93ea1753581f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/tr.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/tr.ts",
+      "upstreamSha256": "032f94e2c312299ea89906f10de9985d59c070fd4235039d4479bad56ee5880e",
+      "localSha256": "403e35b0a35e8fc98dcfd7dec49015d283cef48774f0264de72069883d0c01a2",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/vi.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/vi.ts",
+      "upstreamSha256": "f940e5f22e25b1ce4ab34ba668d9dbb8c722aea24d29b9c4f61739e2a0dcc382",
+      "localSha256": "27bc1900bb9bac6762c69ba31d308046b4dd7d2305ec344880082118413d469c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/zh-TW.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/zh-TW.ts",
+      "upstreamSha256": "663d4df37a0dddfccbd44e6bb95efbb197ebf3f179db3854883f9c1387d1329d",
+      "localSha256": "edcec06a0713a4f06cfcc29afdefdea0c67ea150067d8029fe4026acdccdc8ba",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/ribbon/zh.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/ribbon/zh.ts",
+      "upstreamSha256": "106c36b42f2154c34e95c54e44d6c4f9dbb12546ee889f72482ad8e4b05dc224",
+      "localSha256": "c2d29c72f76309f1a2ff64aa6f1ba853d78e6e9bc0b21d4d0766795b7afcce01",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/strings-ai.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/strings-ai.ts",
+      "upstreamSha256": "10cc06f1737012588ccb84d128e62198812287853d1149648bb13f38264b65e3",
+      "localSha256": "93e61bdcf0f62c27294759c6147d187e3e0294d8c3464c6cb6521c6d11f092ed",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/i18n → ../../../../../packages/i18n/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/strings-app.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/strings-app.ts",
+      "upstreamSha256": "e485d7bfad669b5b024d4ef780365ddb39be09724a7700bc7de1f200c42f3a72",
+      "localSha256": "dbc1c8692af1eed5736053053a5cfcd01e07943b039c74b4abe0e7a6b98baa84",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/i18n → ../../../../../packages/i18n/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/strings-editor.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/strings-editor.ts",
+      "upstreamSha256": "c8a86e3b2d19eacbf5790188266b9a06d1fe49b3d572b58aa03ac2aa1480eff7",
+      "localSha256": "a92a1d105e9945e7bc0d68147dbbca01336fb22a13a034ce749e4d7ffe7ca8c1",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/i18n → ../../../../../packages/i18n/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/strings-ribbon.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/strings-ribbon.ts",
+      "upstreamSha256": "6b15ad2255cd5ce7f7a35e2ab68c1ecc9d842ed30ef7d93a0fdd40cb202127f1",
+      "localSha256": "a06953fae29c30b9f877736f41df5ebf5a552ab38622c2d7f0d7d163c632449d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/i18n → ../../../../../packages/i18n/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/strings-table.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/strings-table.ts",
+      "upstreamSha256": "44be7e460e4d03ae85b20173ef37127921766b207f798a28a1ae0a10521bc777",
+      "localSha256": "30c30b28891fd117807fbd2b03cde92d130e2c1084aa65ed08ab28d56e7c505d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/i18n → ../../../../../packages/i18n/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/strings-zotero.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/strings-zotero.ts",
+      "upstreamSha256": "abcf88589e849e20e00baa9f5dbf5e1139fdc6a1c7e26445a4096a9cae8094ce",
+      "localSha256": "12bf1b6656d10a21941555b113ecf5c5b37bac6b81abe0123553675246a79467",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/i18n → ../../../../../packages/i18n/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/i18n/strings.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/i18n/strings.ts",
+      "upstreamSha256": "e00097a5831c242212e62afa49a837beb0c4dac9bf09ca3368ddde05d8fb3226",
+      "localSha256": "1570e93571de5797ce571946d3369dce34fa4476845cc1912f7e7da66888d122",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/line-factors.generated.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/line-factors.generated.ts",
+      "upstreamSha256": "e7ae1f730b253edaa863cc03f1af00747c6ce3f93af994f6e96d32657a804f9d",
+      "localSha256": "cf91e8dee6cae29d2b6d331e1b9c8622948fcb51bf6d40eee9642137616db16d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/line-metrics.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/line-metrics.ts",
+      "upstreamSha256": "47750e0b5c023e5fcd449dde3af57dfb37ab20cf2bad782f06f1754e81c16681",
+      "localSha256": "fe5db8b836d84bdf0dc85f9bd272d71baccfe52925be8dca63e8d3d1e1c714e6",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index",
+        "导入 @genoffice/font-metrics/resolve → ../../../../packages/font-metrics/src/resolve"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/note-format.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/note-format.ts",
+      "upstreamSha256": "60cc7cf24ab5cd71f88530e83507fffed5c70d2f2bb294bf5b849c14974fd4f3",
+      "localSha256": "d3a1a0bd7fba451a451ab2040522ea99221f5cc7191739aade8629fcfe6e2da9",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/page-margins.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/page-margins.ts",
+      "upstreamSha256": "1d82949e77666ab9168cd8311c45977e4f9124db425df97cf0e42335bb19d1ef",
+      "localSha256": "fec82dcdbee5cf94adb01c16fd7de5515d5f105fe0330d1e3c1c658b6a329976",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/pagination-cuts.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/pagination-cuts.ts",
+      "upstreamSha256": "21b4b1e5a119c7f4fd9cf838267808055eb6b154070def644f5651824fa42a88",
+      "localSha256": "eacf703f3596d9d07815738c8ffbf3c60f42e0c04e0e59d71d43658a103b15b7",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/pagination-hf.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/pagination-hf.ts",
+      "upstreamSha256": "50f308cc7e9ff5423eae644d0f1c705f822ed441092734956c35f118b8c068fb",
+      "localSha256": "0babbd14d1605abb373d462dd85ffba67ff410ef5f1f703653200527e4e2ab97",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/pagination-index.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/pagination-index.ts",
+      "upstreamSha256": "bcbc6ca465774659ca1f23ccb7f0de5cbd093d08bdee279007e7ab7a44517075",
+      "localSha256": "3a01e3db2a3762ccc9fe423feba2cd67c0d944a45db4d6d7c096aba52e14a040",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/pagination-lines.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/pagination-lines.ts",
+      "upstreamSha256": "afdf923bd7b3049536776e84a32b1ffe210bdbe20ffa11e7dffa994d3fbd9d0e",
+      "localSha256": "ef0ba2afc5fb6fae8ef16423798a41918d25adeb09ffabe9626a7ecee3e99b3c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/pagination-loop.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/pagination-loop.ts",
+      "upstreamSha256": "309e3d717e085f3f1ed9d8b5a227ff0e172640a315524073255690fdbd435b0b",
+      "localSha256": "dc1edb9a2541c49fb2f27e5d86588287da7eb3fee64e38e934cd4a3c59e10f4b",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/pagination-measure.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/pagination-measure.ts",
+      "upstreamSha256": "8b0b6ac434bc742e22e9a4b2a1646a9bdb8eb770531c39115de4ab431632012e",
+      "localSha256": "08e61c70594f80d88eb2808cbf0fb92f7d92b5db6945a9e95bd14b294d64383f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/pagination-plan.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/pagination-plan.ts",
+      "upstreamSha256": "b06c7acc7c11e042cf1c34ac808a37a6c207413aee4616b87ebf789f5552e032",
+      "localSha256": "fd7ba7bcc83e799295d62ef9eac2d0de12e886f1a91f9ad4ba43cd24a2b85aa9",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/pagination-sections.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/pagination-sections.ts",
+      "upstreamSha256": "e11e6fb44f9d83b7a54f12af3ede1a444115b634e7d755e77ef9365d013a5971",
+      "localSha256": "b225ef8b61998a35771e2bdf3d508206ca1562b8ddad3838bed26070ad5604c8",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/pagination-slices.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/pagination-slices.ts",
+      "upstreamSha256": "70379f71b5665919977227f00258fcad2ccdce35d0c71ead4f79a6ab17d622e2",
+      "localSha256": "0dbd37a8545ad76c10bc7d3cd5917612f70aab8086e255775317428b5834a681",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/pagination-types.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/pagination-types.ts",
+      "upstreamSha256": "a2fe07118221310562a927ae2fb0cd61802dfc063bae35a4deafbcb760c987f4",
+      "localSha256": "6d351521dab19b62551b50f3f9142edb0beec3eaaba5f4617b28601fcb86ad15",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/pagination.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/pagination.ts",
+      "upstreamSha256": "84300190bb50197fe176734ad56f1c5d6b83facbed0ffbcaa884c5003d13c3be",
+      "localSha256": "c96f0259b98644e4863871181afe5c8dc427323cef320cc4b8b46352b95cc260",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/parse-off-thread.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/parse-off-thread.ts",
+      "upstreamSha256": "466231e988f935f832043191782775432a83889b8b7d8055b18306f7e1fb241e",
+      "localSha256": "0ede353321d28487762f36d56d112972084629687b68fe2491235d84e682517e",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "解析 Worker 创建改为显式平台端口，保留 transferable、失败处理和实际运行计数；增加释放函数",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/parse-worker.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/parse-worker.ts",
+      "upstreamSha256": "a3365bfff82143efd22c1250d49976aaef6c1fab0a08b336e94bf2a731468701",
+      "localSha256": "3104afeff6de995ff25a3c6515376281761f646dbce6429a7eb17dbd390a3334",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/phased-content.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/phased-content.ts",
+      "upstreamSha256": "df3f8a8659498b4a7a2d2cd01e53ce8d83871ebc43091745cc2945932cc32dbd",
+      "localSha256": "4083c726049c83065cd6f7919190e9041d8c8c570c38bdfa16a0776d8aa41566",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/agent-core/src/redact-core.ts",
+      "localPath": "packages/word-core/src/upstream/packages/agent-core/src/redact-core.ts",
+      "upstreamSha256": "5e8d8c4cda6137ff6dfe8c0c5c67b28b4929559973cca0077094d2d81a941a3a",
+      "localSha256": "80aeebcb5ddfddb173a3b4b02687b27ef7136bf38c4827093f9102594143acaa",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/agent-core/src/redact-range.ts",
+      "localPath": "packages/word-core/src/upstream/packages/agent-core/src/redact-range.ts",
+      "upstreamSha256": "f7d0fbb396f61c1456f4e7164febbff9b7bf7377e6d94de2154cf51085a51177",
+      "localSha256": "6d3510a5fc41262cf358b2a7504875a8c9dd16a1e9727078c118eb4c887a404b",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/agent-core/src/types.ts",
+      "localPath": "packages/word-core/src/upstream/packages/agent-core/src/types.ts",
+      "upstreamSha256": "0f9ac1bcd83526ff367da810f51868c9e8dbcd578c61237603b476c6b3d1696e",
+      "localSha256": "a735460e313a8656f5f18c7e620c9a5f726a939ab68c6666d934db519a12619b",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/alt-chunk.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/alt-chunk.ts",
+      "upstreamSha256": "79584a93901a5b18671082210933eaa1fc4b1fc5e28b2fe6ed023ae648d6ad13",
+      "localSha256": "ec60ed0ff82278aaafb18d47791ed51fd3bec08b55e1d07f8bc33bd58f775dbb",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/blank.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/blank.ts",
+      "upstreamSha256": "7fcba027d050f4e60eb33ac375234a85c7bd454eb8f3a75ec519239eaa1e4d53",
+      "localSha256": "b0cdd46dc486c14f7125e2cd863e2e8f9cbac2b64a92ff429de3f79dd19f200b",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/chart.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/chart.ts",
+      "upstreamSha256": "839678127565bb41549bac748b3a369c03ea3062a42e2d59e4053ff07bb0e6d0",
+      "localSha256": "52414ccb31d5f0958170ff7fbaa6eb62ba38de196cfefe635b599ed5de7169bf",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/pptx-engine/chart-workbook → ../../pptx-engine/src/chart-workbook",
+        "导入 @genoffice/pptx-engine/chart-workbook → ../../pptx-engine/src/chart-workbook"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/checkbox-control.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/checkbox-control.ts",
+      "upstreamSha256": "b85f06cb856396f9a99566bde52f424c010d380f45bf54a28b4a27a93b94deb5",
+      "localSha256": "7b46d148db325c0c4913600fc3348c1e7d9092a7ad32799d24aab0ba2d7eca4f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/compare.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/compare.ts",
+      "upstreamSha256": "adaa80cda850d47ed6840117d64458a1ca9722e88b7001be973c7a1e35eaa9b9",
+      "localSha256": "e0f84c04c498dea9e9ffee232d8050b76123f07ffd5537bf9a6e83b22bf1198c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/content-control.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/content-control.ts",
+      "upstreamSha256": "61448cfb8c29d00a94e123f4277ae4b5c9a69407d85b48f114068113a8c236c2",
+      "localSha256": "ec842688aaea6d24e1ceae8f04cc7fb8cc8f2789cbbe54c2533e5dbac81e1c77",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/doc-properties.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/doc-properties.ts",
+      "upstreamSha256": "74b69f7d20f711b1774c6188e3f2cd03cff62e53ecfd3b983c56cc06e08f53b5",
+      "localSha256": "1c25546310eec35482e7f426af213bfbb078aa0f1e80818f2d1022eb1e7c7b34",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/eq-field.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/eq-field.ts",
+      "upstreamSha256": "4d40a3283385b6b44a5fe16293878cc89379e3d4ab79fbc507522b7288740d9e",
+      "localSha256": "d8141385edf1c366ae7ad5ffab3035a27c5ed68bd8d162ff1cecfd0b299b8914",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/field-balance.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/field-balance.ts",
+      "upstreamSha256": "46e53410ff29d0e3bfcfcdb433119a46ade697d0464a2e429a85c0a652a4c05b",
+      "localSha256": "f959ff26ce2e83f01f06cd2912495b64c1f680713d13c51fbce653404d3189d4",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/font-settings.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/font-settings.ts",
+      "upstreamSha256": "5e4d20e8425aa1ffb5b4632735f089686abb08e6ea67b8399967e4853a6b454a",
+      "localSha256": "3173317fff6ddbde31a430b3fb0fbd52b4f284f35c975bc500ab1ecb8aa939c7",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/font-table.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/font-table.ts",
+      "upstreamSha256": "e6402f4ebffd13ec02be91afb0711ede00b316f56039aa7c51c11e34efe0d167",
+      "localSha256": "33306e37acfb11a9f950a349ace68f3c5c69c36cb06fa48475882eb02ce9da26",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/generate.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/generate.ts",
+      "upstreamSha256": "a7a4fe91c8358b64d01437dad7e8ce2599513381fc7e5c0a1b46798b38e0286f",
+      "localSha256": "eb818f88b922adad86c3aec15689b7627dd9a805cb91a67d3077d6603c25b8ac",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "增加同格式纯文字的原段落 XML 补丁，保留书签和未知段落属性；复杂结构仍走原有生成逻辑"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/index.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/index.ts",
+      "upstreamSha256": "69017445eaa5501426de42dd830fb13abb52bc89cda83564f8e518ba2054e789",
+      "localSha256": "13de466a401969e21ab327ec355159c2acbbe24673a774ba05d3e8102edc973e",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/agent-core/redact-range → ../../agent-core/src/redact-range"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/ink.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/ink.ts",
+      "upstreamSha256": "32ba744fc40d45567fe372f5bd0eb4a858bfafc269738588391a69eaa1be4a17",
+      "localSha256": "a9d9369651c52f7c0ec65521bc346de95cdee7b4f9a78a57f47ac9d8f7f321f0",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/lazy-media.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/lazy-media.ts",
+      "upstreamSha256": "1960a444e7a3cc1e9d860a9bf21e6a088b3e38cd9080617a3202a131208c4c15",
+      "localSha256": "20018e27359a09447e2a1a6ae2216c2a818c0e668a71aa338e4d1811249d00cb",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/list-markers.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/list-markers.ts",
+      "upstreamSha256": "8d524e9e63cb95529a403ea913578506d6f7af8b36a177af454c7c23c81b73a7",
+      "localSha256": "1e9fcbe594b845c066aa4a05d17e2e217c78e87add0fa3838aa2afce8acc7d66",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/mail-merge.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/mail-merge.ts",
+      "upstreamSha256": "f1f76bd676b3018c739712260d8952b7e550cf5b0d6cb22776d9d84ba9a0e386",
+      "localSha256": "4769c95264e41fc80311311099a80363a167074e79e69401826499afcacba7af",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/math.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/math.ts",
+      "upstreamSha256": "419a7e05f08c30adc4375e2284dda3cbe9d8dd02c58fc009cba8d0a4b6584684",
+      "localSha256": "462c23bf7d03bc93fd31881b911d553e49c49b1669aaa151f24e281b2d06bb30",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/metafile.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/metafile.ts",
+      "upstreamSha256": "33c8a24830f9fd4bbcde80bc57a496d775f77f23cba4606256822f1d3c39ceec",
+      "localSha256": "ad2891b88c3938ecba549dc86a41aa61c75a2b97dc90dfccb2d571305da4db29",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/zip-gate → ../../zip-gate/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/notes.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/notes.ts",
+      "upstreamSha256": "404b38ce3759775c6c74789cd2921996c1dddae791c253b2bad9cf14fae04333",
+      "localSha256": "baa2673b5570a921f439101bbe1c31b8f947bbf28417a7ca777d5e6cc40e8df1",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/ooxml-normalize.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/ooxml-normalize.ts",
+      "upstreamSha256": "870694f768bb319e7b447cecdf4b175ff94bc0d7e46fbd592e7cb4a2e7764858",
+      "localSha256": "63395b63ed3314dbbcb0e4f199ba39e9b1b55256c1df26b178ab278b58400ef9",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/parse-block-passes.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/parse-block-passes.ts",
+      "upstreamSha256": "5d9c4ae15a488eed0fa8b4081e164884893e1355dfb390e5954263b750dc34e7",
+      "localSha256": "18c7ae3f7304cec8dad2000662ffe99f0900f2fb7f8399aecc3e4e2b7bb29196",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/parse-drawing-geometry.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/parse-drawing-geometry.ts",
+      "upstreamSha256": "95c04b899f9ded90900b107483ca287d10adcabd3ec42c551530a49f9a0e03d1",
+      "localSha256": "83e1d36e26429abc7359ed16d2ae089d8b399f662c701faa0255c095dbb34fb7",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/parse-fields.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/parse-fields.ts",
+      "upstreamSha256": "5b7725beec5cb0707d6d9dfc423d885a226995ac476cdbb31dfeed12e23386cf",
+      "localSha256": "2f5322e9fecae8caaf73af31b08702e8520e29b1346c134e474a3865842b31ae",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/parse-package.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/parse-package.ts",
+      "upstreamSha256": "4fc4c90c043602cbd8fdda623d896d2a232c8d74f0d46f0c04ead1e0e82b6147",
+      "localSha256": "e81ee3893a7df3306c52b490bab2f867e2a4c370f44d9beb98a1e25c695a2420",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/parse-props.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/parse-props.ts",
+      "upstreamSha256": "e5d903a6180e9e5e0856c439e27d1d67543afdfa4b66b0e5ad6510f591b3bc6a",
+      "localSha256": "f04866d9e87f957375dffabaa6d41a9a089f394242fa2da3ac2d1cbdc2e94a49",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/parse-sdt.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/parse-sdt.ts",
+      "upstreamSha256": "39ed7e172c27add6f432e5257f64e5c0ab174f8f92258f6bd734cc012cda2688",
+      "localSha256": "09c1612629710b2d8db0e8c494de48367abf315b12f904c660dc1792bb79ebc9",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/parse-styles.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/parse-styles.ts",
+      "upstreamSha256": "fb50cde414eaf8828d12a6c180769705a31340c709e79c7eb8857f0f5b75d7ed",
+      "localSha256": "fd8189030e1f1a06da1a9790fb30adff5fccfe3991dc042a7d87a6986985cfd9",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/parse-vml.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/parse-vml.ts",
+      "upstreamSha256": "46de8522dc7c71b26d98154e901b18cf8eb5037d57d9f10870b669eecce0f229",
+      "localSha256": "c8b3f8afc9057683fa604f8e472cdbab659019868f5e6c42c8d23380310fc60a",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/parse-xml-text.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/parse-xml-text.ts",
+      "upstreamSha256": "10c722417d7b5e64e01a1f6f0bfa603e1eb77898a10cc86cabfcff32d8e59f9a",
+      "localSha256": "f3d01245959ebc3f0374e9292f3b71896018488494786d0792b4a414085a3a2f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/parse.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/parse.ts",
+      "upstreamSha256": "e5f853e845fadc7b488ff6033fb07fa284e4503a73f2b16e408ca515eaab0f21",
+      "localSha256": "d0aa039c8ddef6401c41f68537b07742135743e90f6f9bfbae169c9a59738eb9",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/pptx-engine/custgeom → ../../pptx-engine/src/custgeom"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/patch.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/patch.ts",
+      "upstreamSha256": "f3c79e3b8bbd4a48c670debae3e1506af2e921f2afbffc5942a3f6dc89d727ba",
+      "localSha256": "740c1cb29949223f620a951a69c0bf145617c7deee8dec1c611b765f09d661d1",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/agent-core/redact-range → ../../agent-core/src/redact-range"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/protection.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/protection.ts",
+      "upstreamSha256": "c71feb3647c7e41f3cbf3217d123a650fdd4986631bb52357a7d9d4580f16fee",
+      "localSha256": "bc28176d00e114b24ff1a4ce2ff7f12448b976e5630a999003e75cac814e10f4",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/remove-parts.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/remove-parts.ts",
+      "upstreamSha256": "b7dd17d23acd5e84470e48cc8053214bf909bf7535308cf868405ae3c1bff71b",
+      "localSha256": "e3268e96e67f980dc8f64eda39df46674252ba2c361dc4471350265cf0e9d83f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/resolve-props.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/resolve-props.ts",
+      "upstreamSha256": "43775eaee3ff9d4bfc6061d23525389c03839c37d58f36456891c8f9d3e7d892",
+      "localSha256": "786dbe086e57c376bc5d56ba5b7b4d15aea4a3a8e7c3b7c83d92f4cc613b6a2d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/resource-cleanup.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/resource-cleanup.ts",
+      "upstreamSha256": "13e16430bfb7ab09125c53a6b1a73bcec34ff5748d4301cad957914d8f817c33",
+      "localSha256": "3260409930ecf5b9ac59e4b39863685826be52f56a9b94e41e740fce9edf77ba",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/revision-xml.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/revision-xml.ts",
+      "upstreamSha256": "c992c97b1395c55ba4990bfeb218c16aceaac75e8ebd7304e789024d2e8be6db",
+      "localSha256": "ce7be84ee23e2d65a66a0ccf41673140771ce9995ec14e638a7e9c80cf41e6e5",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/run-picture.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/run-picture.ts",
+      "upstreamSha256": "c67e21f7bb1ec9b20dd1e92b5f1de53f6d08952558c2c590d4e541618d7f4d95",
+      "localSha256": "711ed21a10261b16f3669836ad469875b35223e26749920355bd9a062bf10acb",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/scan.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/scan.ts",
+      "upstreamSha256": "87e942b401a738ddf56d346a956b431639cc4a362ffb9619c85d0ef33b706643",
+      "localSha256": "b925231b74d426916aee8e5eee9d2a05084ec6b3f0d36c01f209b5f7961dfc16",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/section.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/section.ts",
+      "upstreamSha256": "a9d39d1bb59b1609da93958d909d733e06ec6ac6ed49d21a84b0a2afc2d3a7c3",
+      "localSha256": "cab985edba92cd27eb40899de53bda48253404cfd15e553530b54f8b6eaa446a",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/sources.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/sources.ts",
+      "upstreamSha256": "839d62b2e2b2bf53b1ab264cd91f136c64632d52be7393861959f7496c77b0f6",
+      "localSha256": "5ebf895c613456705e6fcc6f530961dff4ad82ad0342234e4b3764007b3d4deb",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/style-upsert.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/style-upsert.ts",
+      "upstreamSha256": "b9562389e7ec5608e95fb4c0178dafa52d25e47200ec9ab8cbc03eeb4641266d",
+      "localSha256": "e04b08cde6abfa9e2c233748af3c9713f6707454682fd53ada0c635a5421f47f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/symbol-fonts.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/symbol-fonts.ts",
+      "upstreamSha256": "33b9d82f8306085e22239aa954de91a3869a8d42bfaf04eb7d9611f2c9f49c23",
+      "localSha256": "605ff04c23be6d3ea8b9c6d4f1f962c1524ccba28744e7948d116bc250c1110d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/text-patch.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/text-patch.ts",
+      "upstreamSha256": "76dd463040080c6fead49d3cfaea66ead177b7b5a9179da62668297e82ee8a56",
+      "localSha256": "48ff47e398ab6cb803139f5779516e0723fef9e41dd1c910a2b9e8c0d5d926a9",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/theme.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/theme.ts",
+      "upstreamSha256": "06f66c6afc090cb492b989293834be516608605964f800cb75236ea71a60802a",
+      "localSha256": "6b25b53c3e829aef72e7ed614fe04e5256be4f0b2e0e5aba38b32cda6fb3f748",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/tiff.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/tiff.ts",
+      "upstreamSha256": "b1ad467493e56337948abc6109dc68c591bb0d12f5cad5a15e650e71ff366f21",
+      "localSha256": "61e15e4b747c48bc272e23c6a61471bb36b13c4efc23cf7f2d386c8b317dc132",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/types.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/types.ts",
+      "upstreamSha256": "62c69b473be0c83c71b9ba7bd3ea3c77f206bb32afa12ee5a3bb3173b738138f",
+      "localSha256": "f758d2e76d02707423e159333feb35ea8ef91f0afa6db90ae481676021465b0a",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/vendor/emf-converter/index.d.mts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/vendor/emf-converter/index.d.mts",
+      "upstreamSha256": "efd275a358536126169900442fcec9557a9b8a0c4ce6bd6e428723289625f0e0",
+      "localSha256": "7a94f9157a1dc54a3e5536b7571d0e5de9292cb14c07c1d4c2fa961249ac4d3c",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/vendor/emf-converter/index.mjs",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/vendor/emf-converter/index.mjs",
+      "upstreamSha256": "703a069336154636ba0ae22449f3d58330c2b4efc02332c8ea3de7c069bb5aed",
+      "localSha256": "2e4eb5d8828c25fb409bd3f251c65efd6c79cd8e519544e1034eab3f68eb3230",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/vendor/emf-converter/LICENSE",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/vendor/emf-converter/LICENSE",
+      "upstreamSha256": "2c27550900d2cabf83527a04600ba8042e3ba89e70ec077ff220afa48c8230a7",
+      "localSha256": "2c27550900d2cabf83527a04600ba8042e3ba89e70ec077ff220afa48c8230a7",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/vendor/emf-converter/README.md",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/vendor/emf-converter/README.md",
+      "upstreamSha256": "f14c223e45a59441ac4fbbb0def3fd1b3a384c58c6a086f735bbb5593947bb9f",
+      "localSha256": "f14c223e45a59441ac4fbbb0def3fd1b3a384c58c6a086f735bbb5593947bb9f",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/watermark.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/watermark.ts",
+      "upstreamSha256": "97fb46338faddf503d419d5fe376b679720a258a1913790a313d44b68bc53841",
+      "localSha256": "a4abb2acbda123f38f9fd7ab901b5d702a3b12de0c95dd5e7da66cb930ad7ba5",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/xml-utils.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/xml-utils.ts",
+      "upstreamSha256": "838c23df106ac27b998349335fe3fc0e7baae849b326dc28c080ff05afb72bbe",
+      "localSha256": "15203b45f2e5275e964a7c511263bcbf51f79cda533f9e806865b886a455deb5",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/zip-load.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/zip-load.ts",
+      "upstreamSha256": "9d51d3898ac6b0e11f85a6b4bc0f5056a996cb13c5bf52c62ca5200cec7891bf",
+      "localSha256": "92b6cc17f03a0ab11b380b4008f669e3bb5e852e7013fe08f46eec739d75b7c3",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/zip-gate → ../../zip-gate/src/index",
+        "导入 @genoffice/zip-gate → ../../zip-gate/src/index",
+        "导入 @genoffice/zip-gate → ../../zip-gate/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "packages/docx-engine/src/zotero-doc-props.ts",
+      "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/zotero-doc-props.ts",
+      "upstreamSha256": "fb2769b4f3692546ddf82a800ba8bf2e36097a86643de6a38167ecf530e9a66e",
+      "localSha256": "24538f4498686c4a6ebfa8794c1be8c83f44a3ac4cd082345825984255658877",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/font-metrics/src/metrics.ts",
+      "localPath": "packages/word-core/src/upstream/packages/font-metrics/src/metrics.ts",
+      "upstreamSha256": "ac92791391bba12791a573b05e381f3eb97f00db72bdf89bd8f9506b45697981",
+      "localSha256": "b84a237dbfdbc059d3e79f20be03ee8d495c505ba8a8daf0ee8c7faac205ad11",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "仅提取 FaceVerticalMetrics；不把 Node 文件系统读取带入浏览器"
+      ]
+    },
+    {
+      "upstreamPath": "packages/font-metrics/src/resolve.ts",
+      "localPath": "packages/word-core/src/upstream/packages/font-metrics/src/resolve.ts",
+      "upstreamSha256": "a154b72c219d2f1e3c10351638797dd81881f93342a525beb4f6444068763e7a",
+      "localSha256": "b69813eb40822163a4e8b7e2a5d646f5dd1dbf4544745c29c3ace4e3d94092cb",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/font-metrics/word-faces.json",
+      "localPath": "packages/word-core/src/upstream/packages/font-metrics/word-faces.json",
+      "upstreamSha256": "4a884d2d5fbba96b422a2d066fdf2f1ca629729c61577cbac623b983541d0cad",
+      "localSha256": "4a884d2d5fbba96b422a2d066fdf2f1ca629729c61577cbac623b983541d0cad",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "packages/i18n/src/font-names.ts",
+      "localPath": "packages/word-core/src/upstream/packages/i18n/src/font-names.ts",
+      "upstreamSha256": "fc4c54ddac45dbd22b8dd11afbdba8b5b6c1fdc848016ee78bdbc8a30ea199b3",
+      "localSha256": "785425abb35252767fae3f004819f3632e39532e83277e6e55cfe846481fe5c8",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/i18n/src/index.ts",
+      "localPath": "packages/word-core/src/upstream/packages/i18n/src/index.ts",
+      "upstreamSha256": "1a0102a125dcfbae73b36b2bcd2ee5e64fdaff8b310dc5cf375698a0bcdc84a1",
+      "localSha256": "4132a51349851b4c12e5ad75bc4f2c85c63cc1d0fd99acaeed271d47727110fa",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/pptx-engine/src/chart-workbook.ts",
+      "localPath": "packages/word-core/src/upstream/packages/pptx-engine/src/chart-workbook.ts",
+      "upstreamSha256": "ce3477037744440b4287bfa96d73f2bc58c8c3ffebcf760028b7191fe3adac1c",
+      "localSha256": "28592b5818d776b1b17caa535d80cea0ca1f584ad27a37a14cd37567b6f90f52",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/pptx-engine/src/chart.ts",
+      "localPath": "packages/word-core/src/upstream/packages/pptx-engine/src/chart.ts",
+      "upstreamSha256": "10be3decde7f3e4894ade1ae941b920f34e7d01d09b1128f531ed981deb3dd18",
+      "localSha256": "637e53a998806ab414ba7e86c16470bc0a192e6ae4a0c9455440d178e5cab724",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/pptx-engine/src/color.ts",
+      "localPath": "packages/word-core/src/upstream/packages/pptx-engine/src/color.ts",
+      "upstreamSha256": "927b5090b6392b887d3bd386f3b04d87f67da0e0e07175a4e86365e32f363556",
+      "localSha256": "2af446599df248f2ccd6c58eded1977c461b4913ad33c8f0895fbb6d858210a6",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/pptx-engine/src/crc32.ts",
+      "localPath": "packages/word-core/src/upstream/packages/pptx-engine/src/crc32.ts",
+      "upstreamSha256": "6917dfb4193a803f84ecc3a3fe8cbd32ce4684300d10cc483f137c49105d76b5",
+      "localSha256": "55a24f52cccad1d666c8ea53bb8b545776a8f79b46e024a93f5d904fd213ef8d",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/pptx-engine/src/custgeom.ts",
+      "localPath": "packages/word-core/src/upstream/packages/pptx-engine/src/custgeom.ts",
+      "upstreamSha256": "cc535d90fa7ac3b959d54261b88511d961841793fa7b85770c55455ad0485b6f",
+      "localSha256": "2a663deb65eaed1db091fd8f22f9c0bc49002ab2e4f1a28ce2494213b182e644",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/pptx-engine/src/theme.ts",
+      "localPath": "packages/word-core/src/upstream/packages/pptx-engine/src/theme.ts",
+      "upstreamSha256": "b5334d65ff8f03e5dcb62832843f6cf200cb633707d95a971b9b04b4ff970b4a",
+      "localSha256": "b45771240605cd5b8c56356b370aed894c53f763e020c8e8f2ce8682882826e2",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/pptx-engine/src/types.ts",
+      "localPath": "packages/word-core/src/upstream/packages/pptx-engine/src/types.ts",
+      "upstreamSha256": "507893b8644a15d97c00402412553600f22853e5182895304583542fcda5399d",
+      "localSha256": "bbee5237fe519c5f6355aa3419b350c9737f5bc36f3002d789fe9c049b530495",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/pptx-engine/src/xml-utils.ts",
+      "localPath": "packages/word-core/src/upstream/packages/pptx-engine/src/xml-utils.ts",
+      "upstreamSha256": "00eac92f9b0bfa5ff4439329e585046596493d90c8811d74035173850557b78f",
+      "localSha256": "e11c4d1178b5026b7b8bcd6104a07e0854942226fa8e7ca550ee8eec9104b7c9",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/pptx-render/src/preset-geometry.ts",
+      "localPath": "packages/word-core/src/upstream/packages/pptx-render/src/preset-geometry.ts",
+      "upstreamSha256": "86ac4834984aadbb9dc445702c4fe56a8e9ffe123e1e22067d405a134e69d5f4",
+      "localSha256": "0cdb66ee283f503f4c56fbb74fbbb85749029e78c247ed7c54f8d5715434bdcd",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/ui/src/font-list.ts",
+      "localPath": "packages/word-core/src/upstream/packages/ui/src/font-list.ts",
+      "upstreamSha256": "a3e94dcb9f89a635bc6cbc5a773d2af610b6a1c922d568d644e8561f7b6de49c",
+      "localSha256": "20d3f16ab8d9f3bd49f95f1edd75817a45bfdf9b65ac4a2e84a2b0526d9a9a4f",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/i18n → ../../i18n/src/index",
+        "导入 @genoffice/i18n → ../../i18n/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "packages/ui/src/fonts/Carlito-Bold.ttf",
+      "localPath": "packages/word-core/src/upstream/packages/ui/src/fonts/Carlito-Bold.ttf",
+      "upstreamSha256": "ed778b78ce652f5b17647344fb9a4c4dcb2e6f8bafe75a0366300da7f8c199ac",
+      "localSha256": "ed778b78ce652f5b17647344fb9a4c4dcb2e6f8bafe75a0366300da7f8c199ac",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "packages/ui/src/fonts/Carlito-BoldItalic.ttf",
+      "localPath": "packages/word-core/src/upstream/packages/ui/src/fonts/Carlito-BoldItalic.ttf",
+      "upstreamSha256": "0468067dde1d54111862f20f3fc4a5e8dcbc0ad4549e318c601b8ff7bdec935d",
+      "localSha256": "0468067dde1d54111862f20f3fc4a5e8dcbc0ad4549e318c601b8ff7bdec935d",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "packages/ui/src/fonts/Carlito-Italic.ttf",
+      "localPath": "packages/word-core/src/upstream/packages/ui/src/fonts/Carlito-Italic.ttf",
+      "upstreamSha256": "de59348ac812a347537b90a3d70796cfd5369048ecf9c78f5bca79ab55dd28a7",
+      "localSha256": "de59348ac812a347537b90a3d70796cfd5369048ecf9c78f5bca79ab55dd28a7",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "packages/ui/src/fonts/Carlito-Regular.ttf",
+      "localPath": "packages/word-core/src/upstream/packages/ui/src/fonts/Carlito-Regular.ttf",
+      "upstreamSha256": "cca497a63f1cf8111d2189424ec38b95002e43799efe4f1486ec7f8063bb93c1",
+      "localSha256": "cca497a63f1cf8111d2189424ec38b95002e43799efe4f1486ec7f8063bb93c1",
+      "modifications": []
+    },
+    {
+      "upstreamPath": "packages/ui/src/fonts/README.md",
+      "localPath": "packages/word-core/src/upstream/packages/ui/src/fonts/README.md",
+      "upstreamSha256": "2f76e35dda619cf07fb298ad3b1fa717666cc952f427515876cf934eb6a7a0dd",
+      "localSha256": "2f76e35dda619cf07fb298ad3b1fa717666cc952f427515876cf934eb6a7a0dd",
+      "modifications": []
+    },
+    {
+      "upstreamPath": null,
+      "localPath": "packages/word-core/src/upstream/packages/ui/src/word-core-shared.ts",
+      "upstreamSha256": null,
+      "localSha256": "2a7f838d105d77c34764fdf7c2d83a88a4632b629c112e9d7ecf7014272e5df7",
+      "modifications": [
+        "新增 Word 使用的纯数据子入口，未引入 GenOffice UI 组件"
+      ]
+    },
+    {
+      "upstreamPath": "packages/ui/src/wordart-presets.ts",
+      "localPath": "packages/word-core/src/upstream/packages/ui/src/wordart-presets.ts",
+      "upstreamSha256": "5ff2e934a4a3893963f8464ccb869d3e762f324e854ed7d5762c986e079f94eb",
+      "localSha256": "8fbe2b6cde4a4111aa621a0cc8bf81a4ddbef6f8dc57c8c0baaf762c0c30cdc3",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/zip-gate/src/byte-stream.ts",
+      "localPath": "packages/word-core/src/upstream/packages/zip-gate/src/byte-stream.ts",
+      "upstreamSha256": "6904c15a55a602308168d084f1ebb6f3aa0d924286ddb366c3fd0a637eec16f8",
+      "localSha256": "54af230b54648d9ae6cc7380be8d944f9dff576babc8c357ec7ef789b206c6b1",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "packages/zip-gate/src/index.ts",
+      "localPath": "packages/word-core/src/upstream/packages/zip-gate/src/index.ts",
+      "upstreamSha256": "2ea37fc1a9c556499317fa5fa401ca09fd874ee4c3e2fed12018a1c0a279c048",
+      "localSha256": "4feed19617d96a6f5eee6508829d7842132693a82a4238fb82f36557980f95fd",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    }
+  ],
+  "externalModules": [
+    "@tiptap/core",
+    "@tiptap/extensions",
+    "@tiptap/pm/gapcursor",
+    "@tiptap/pm/history",
+    "@tiptap/pm/keymap",
+    "@tiptap/pm/model",
+    "@tiptap/pm/state",
+    "@tiptap/pm/tables",
+    "@tiptap/pm/transform",
+    "@tiptap/pm/view",
+    "fast-xml-parser",
+    "jszip",
+    "utif2"
+  ]
+}

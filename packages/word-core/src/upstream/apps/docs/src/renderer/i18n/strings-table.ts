@@ -1,0 +1,84 @@
+/** 功能：融合 GenOffice Word 内核；时间：2026-11-08；集成作者：lq；上游作者、固定版本及本地修改见 packages/word-core/UPSTREAM.md 和 SOURCE-MANIFEST.json。 */
+import { defineStrings } from '../../../../../packages/i18n/src/index'
+
+const en = {
+  ribbonTableStyleOptions: 'Table Style Options',
+  ribbonTableFirstRow: 'Header Row',
+  ribbonTableLastRow: 'Total Row',
+  ribbonTableBandedRows: 'Banded Rows',
+  ribbonTableFirstColumn: 'First Column',
+  ribbonTableLastColumn: 'Last Column',
+  ribbonTableBandedColumns: 'Banded Columns',
+  ribbonTablePresetGrid: 'Plain Grid',
+  ribbonTablePresetBlueHeader: 'Blue Header',
+  ribbonTablePresetBlueBanded: 'Blue Banded',
+  ribbonTablePresetGrayBanded: 'Gray Banded',
+  ribbonTablePresetGreenHeader: 'Green Header',
+  ribbonAutoFit: 'AutoFit',
+  ribbonAutoFitContents: 'AutoFit Contents',
+  ribbonAutoFitWindow: 'AutoFit Window',
+  ribbonFixedColumnWidth: 'Fixed Column Width',
+  ribbonRepeatHeaderRows: 'Repeat Header Rows',
+  ribbonTableProperties: 'Table Properties',
+  ribbonTableData: 'Table',
+  ribbonHorizontalPosition: 'Horizontal position',
+  ribbonVerticalPosition: 'Vertical position',
+  ribbonDistanceFromText: 'Distance from text',
+  ribbonCellMargins: 'Default cell margins',
+}
+
+const ru: Record<keyof typeof en, string> = {
+  ribbonTableStyleOptions: 'Параметры стилей таблиц',
+  ribbonTableFirstRow: 'Строка заголовка',
+  ribbonTableLastRow: 'Строка итогов',
+  ribbonTableBandedRows: 'Чередующиеся строки',
+  ribbonTableFirstColumn: 'Первый столбец',
+  ribbonTableLastColumn: 'Последний столбец',
+  ribbonTableBandedColumns: 'Чередующиеся столбцы',
+  ribbonTablePresetGrid: 'Простая сетка',
+  ribbonTablePresetBlueHeader: 'Синий заголовок',
+  ribbonTablePresetBlueBanded: 'Синие полосы',
+  ribbonTablePresetGrayBanded: 'Серые полосы',
+  ribbonTablePresetGreenHeader: 'Зелёный заголовок',
+  ribbonAutoFit: 'Автоподбор',
+  ribbonAutoFitContents: 'Автоподбор по содержимому',
+  ribbonAutoFitWindow: 'Автоподбор по ширине окна',
+  ribbonFixedColumnWidth: 'Фиксированная ширина столбца',
+  ribbonRepeatHeaderRows: 'Повторять строки заголовков',
+  ribbonTableProperties: 'Свойства таблицы',
+  ribbonTableData: 'Таблица',
+  ribbonHorizontalPosition: 'Положение по горизонтали',
+  ribbonVerticalPosition: 'Положение по вертикали',
+  ribbonDistanceFromText: 'Расстояние от текста',
+  ribbonCellMargins: 'Поля ячеек по умолчанию',
+}
+
+/**
+ * New table controls deliberately fall back to English until each locale has
+ * reviewed terminology. Keeping one complete key set prevents partially
+ * translated dialogs and lets language packs override the shard incrementally.
+ */
+export const tableStrings = defineStrings({
+  zh: en,
+  en,
+  ja: en,
+  ko: en,
+  fr: en,
+  de: en,
+  es: en,
+  th: en,
+  id: en,
+  ru,
+  ar: en,
+  pt: en,
+  it: en,
+  pl: en,
+  cs: en,
+  nl: en,
+  ms: en,
+  he: en,
+  hi: en,
+  'zh-TW': en,
+  vi: en,
+  tr: en,
+})

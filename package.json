@@ -16,7 +16,8 @@
     "tauri:build": "pnpm --filter @mini-office/desktop tauri build",
     "cargo:test": "cargo test --workspace --exclude mini-office-desktop",
     "cargo:check": "cargo check --workspace",
-    "verify": "pnpm typecheck && pnpm test && pnpm build",
+    "word-core:build": "pnpm --filter @mini-office/word-core build",
+    "verify": "pnpm typecheck && pnpm test && pnpm build && pnpm word-core:build",
     "cargo:verify": "cargo test --workspace",
     "tauri:check": "pnpm --filter @mini-office/desktop exec tauri build --debug --no-bundle"
   },

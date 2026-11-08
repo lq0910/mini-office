@@ -1,0 +1,1416 @@
+{
+  "_comment": "功能：记录公共夹具下的 Word UI 迁移基线；时间：2026-11-08；作者：lq。",
+  "schemaVersion": 1,
+  "workspaceCommit": "d965e7bb8decc3050da33056fb007ead81477090",
+  "browser": "147.0.7727.15",
+  "environment": "Chromium 浏览器，非 Tauri WebView 验收",
+  "capturedAt": "2026-11-08T00:02:55.215Z",
+  "sample": {
+    "path": "tests/fixtures/docx/contract.docx",
+    "sha256": "0ff68a63882d01c96adc82feec4baca4540c2f5ecfe142b616d781f17b1cd240"
+  },
+  "sourceUnchanged": true,
+  "errors": [],
+  "screenshots": [
+    {
+      "name": "ribbon-1",
+      "description": "浅色主题 Word 功能区：开始",
+      "path": "output/playwright/word-core-m0/ribbon-1.png",
+      "sha256": "72ffd0a7ab5090eb27fd8ad97340e79f546c4feab8179d629eb5d0abc80bb5ff",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "role": "button",
+          "name": "保存",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "保存选项",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "撤销",
+          "disabled": true
+        },
+        {
+          "role": "button",
+          "name": "重做",
+          "disabled": true
+        },
+        {
+          "role": "tab",
+          "name": "开始",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "插入",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "布局",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "引用",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "邮件",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "视图",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "更多操作",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "折叠功能区",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "格式刷",
+          "disabled": false
+        },
+        {
+          "role": "select",
+          "name": "字体",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "加粗",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "斜体",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "下划线",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "删除线",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字体颜色",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字体颜色调色板",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "文本背景颜色（突出显示）",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "文本背景颜色（突出显示）调色板",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "项目符号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "编号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "减少缩进",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "增加缩进",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "段落",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "显示编辑标记",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "左对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "居中",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "右对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "两端对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "行距",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "样式库",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "查找替换",
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "name": "ribbon-2",
+      "description": "浅色主题 Word 功能区：插入",
+      "path": "output/playwright/word-core-m0/ribbon-2.png",
+      "sha256": "217454c146ec1b304a768b8ea3c46b3002e75a4c02407b5fbe28fcfbf1c0dc52",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "role": "button",
+          "name": "保存",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "保存选项",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "撤销",
+          "disabled": true
+        },
+        {
+          "role": "button",
+          "name": "重做",
+          "disabled": true
+        },
+        {
+          "role": "tab",
+          "name": "开始",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "插入",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "布局",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "引用",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "邮件",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "视图",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "更多操作",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "折叠功能区",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "插入表格",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "插入图片",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "插入分页符",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "页眉、页脚与页码",
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "name": "ribbon-3",
+      "description": "浅色主题 Word 功能区：布局",
+      "path": "output/playwright/word-core-m0/ribbon-3.png",
+      "sha256": "ec67b74b27ba6ee93755bd4ef2366e71e0993464ab2c36c915d7b018ef47e917",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "role": "button",
+          "name": "保存",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "保存选项",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "撤销",
+          "disabled": true
+        },
+        {
+          "role": "button",
+          "name": "重做",
+          "disabled": true
+        },
+        {
+          "role": "tab",
+          "name": "开始",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "插入",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "布局",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "引用",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "邮件",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "视图",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "更多操作",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "折叠功能区",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "布局与属性",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "页眉、页脚与页码",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "段落设置",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "插入分页符",
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "name": "ribbon-4",
+      "description": "浅色主题 Word 功能区：引用",
+      "path": "output/playwright/word-core-m0/ribbon-4.png",
+      "sha256": "af05256abea9b934656355c97a567a2d25f90be3b2fee10e49eae05a824ce4be",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "role": "button",
+          "name": "保存",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "保存选项",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "撤销",
+          "disabled": true
+        },
+        {
+          "role": "button",
+          "name": "重做",
+          "disabled": true
+        },
+        {
+          "role": "tab",
+          "name": "开始",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "插入",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "布局",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "引用",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "邮件",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "视图",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "更多操作",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "折叠功能区",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "插入目录",
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "name": "ribbon-5",
+      "description": "浅色主题 Word 功能区：邮件",
+      "path": "output/playwright/word-core-m0/ribbon-5.png",
+      "sha256": "e19be3ff5710a0befee843f363bf42e48f9b1caa769ee93507da5641b3f181a4",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "role": "button",
+          "name": "保存",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "保存选项",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "撤销",
+          "disabled": true
+        },
+        {
+          "role": "button",
+          "name": "重做",
+          "disabled": true
+        },
+        {
+          "role": "tab",
+          "name": "开始",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "插入",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "布局",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "引用",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "邮件",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "视图",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "更多操作",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "折叠功能区",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "邮件合并",
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "name": "ribbon-6",
+      "description": "浅色主题 Word 功能区：视图",
+      "path": "output/playwright/word-core-m0/ribbon-6.png",
+      "sha256": "3559e8627dacf4ed784d0eeb14b3159ec30d5f8057233a7e4827b403eff66f89",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "role": "button",
+          "name": "保存",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "保存选项",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "撤销",
+          "disabled": true
+        },
+        {
+          "role": "button",
+          "name": "重做",
+          "disabled": true
+        },
+        {
+          "role": "tab",
+          "name": "开始",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "插入",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "布局",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "引用",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "邮件",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "视图",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "更多操作",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "折叠功能区",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "标尺",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "显示属性面板",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "显示编辑标记",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "打印",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "导出 PDF",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "兼容性报告",
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "name": "properties",
+      "description": "现有布局与属性面板",
+      "path": "output/playwright/word-core-m0/properties.png",
+      "sha256": "321e38d0520e5fd7b56547b6b82e441a943e9e6e4140948c6a225a31dce66dc8",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "role": "button",
+          "name": "保存",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "保存选项",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "撤销",
+          "disabled": true
+        },
+        {
+          "role": "button",
+          "name": "重做",
+          "disabled": true
+        },
+        {
+          "role": "tab",
+          "name": "开始",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "插入",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "布局",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "引用",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "邮件",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "视图",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "更多操作",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "折叠功能区",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "格式刷",
+          "disabled": false
+        },
+        {
+          "role": "select",
+          "name": "字体",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "加粗",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "斜体",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "下划线",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "删除线",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字体颜色",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字体颜色调色板",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "文本背景颜色（突出显示）",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "文本背景颜色（突出显示）调色板",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "项目符号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "编号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "减少缩进",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "增加缩进",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "段落",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "显示编辑标记",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "左对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "居中",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "右对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "两端对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "行距",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "样式库",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "查找替换",
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "name": "table-context",
+      "description": "现有表格右键菜单",
+      "path": "output/playwright/word-core-m0/table-context.png",
+      "sha256": "796d1f60991fac25406e21378cf94d30cb070f60378fe4953bf1c73f7e6906ba",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "role": "button",
+          "name": "保存",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "保存选项",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "撤销",
+          "disabled": true
+        },
+        {
+          "role": "button",
+          "name": "重做",
+          "disabled": true
+        },
+        {
+          "role": "tab",
+          "name": "开始",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "插入",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "布局",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "引用",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "邮件",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "视图",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "更多操作",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "折叠功能区",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "格式刷",
+          "disabled": false
+        },
+        {
+          "role": "select",
+          "name": "字体",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "加粗",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "斜体",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "下划线",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "删除线",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字体颜色",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字体颜色调色板",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "文本背景颜色（突出显示）",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "文本背景颜色（突出显示）调色板",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "项目符号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "编号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "减少缩进",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "增加缩进",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "段落",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "显示编辑标记",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "左对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "居中",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "右对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "两端对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "行距",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "样式库",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "查找替换",
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "name": "dark",
+      "description": "深色主题 Word 界面",
+      "path": "output/playwright/word-core-m0/dark.png",
+      "sha256": "b5ee0e46d0ea3e391b225ba8f512a5a0d160a58a597d9c218555958fdb9124ce",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "role": "button",
+          "name": "保存",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "保存选项",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "撤销",
+          "disabled": true
+        },
+        {
+          "role": "button",
+          "name": "重做",
+          "disabled": true
+        },
+        {
+          "role": "tab",
+          "name": "开始",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "插入",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "布局",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "引用",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "邮件",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "视图",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "更多操作",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "折叠功能区",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "格式刷",
+          "disabled": false
+        },
+        {
+          "role": "select",
+          "name": "字体",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "加粗",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "斜体",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "下划线",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "删除线",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字体颜色",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字体颜色调色板",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "文本背景颜色（突出显示）",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "文本背景颜色（突出显示）调色板",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "项目符号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "编号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "减少缩进",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "增加缩进",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "段落",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "显示编辑标记",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "左对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "居中",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "右对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "两端对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "行距",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "样式库",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "查找替换",
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "name": "narrow",
+      "description": "窄窗口功能区布局",
+      "path": "output/playwright/word-core-m0/narrow.png",
+      "sha256": "dcb204e4d3f991093e331882b31f04fa0021f1c59867652c1c1c4e297ceed682",
+      "viewport": {
+        "width": 900,
+        "height": 700
+      },
+      "controls": [
+        {
+          "role": "button",
+          "name": "保存",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "保存选项",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "撤销",
+          "disabled": true
+        },
+        {
+          "role": "button",
+          "name": "重做",
+          "disabled": true
+        },
+        {
+          "role": "tab",
+          "name": "开始",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "插入",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "布局",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "引用",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "邮件",
+          "disabled": false
+        },
+        {
+          "role": "tab",
+          "name": "视图",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "更多操作",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "折叠功能区",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "格式刷",
+          "disabled": false
+        },
+        {
+          "role": "select",
+          "name": "字体",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "加粗",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "斜体",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "下划线",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "删除线",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字体颜色",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "字体颜色调色板",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "文本背景颜色（突出显示）",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "文本背景颜色（突出显示）调色板",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "项目符号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "编号",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "减少缩进",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "增加缩进",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "段落",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "显示编辑标记",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "左对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "居中",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "右对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "两端对齐",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "行距",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "样式库",
+          "disabled": false
+        },
+        {
+          "role": "button",
+          "name": "查找替换",
+          "disabled": false
+        }
+      ]
+    }
+  ]
+}

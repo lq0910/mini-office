@@ -1,0 +1,26 @@
+/** 功能：融合 GenOffice Word 内核；时间：2026-11-08；集成作者：lq；上游作者、固定版本及本地修改见 packages/word-core/UPSTREAM.md 和 SOURCE-MANIFEST.json。 */
+import { loadDocxZip } from './zip-load'
+import { parseStyles } from './parse-styles'
+import {
+  mergeDefaultFontsXml,
+  upsertStyleXml,
+  type DefaultFonts,
+  type StyleUpsert,
+} from './style-upsert'
+import type { ParsedDoc } from './types'
+
+/** Resolve live style inheritance without reparsing the document body or its media. */
+export async function previewFontSettings(
+  parsed: ParsedDoc,
+  upserts: StyleUpsert[],
+  defaults?: DefaultFonts,
+) {
+  const zip = await loadDocxZip(parsed.internal.originalBytes)
+  let xml =
+    (await zip.file('word/styles.xml')?.async('string')) ??
+    '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"></w:styles>'
+  for (const up of upserts) xml = upsertStyleXml(xml, up)
+  if (defaults) xml = mergeDefaultFontsXml(xml, defaults)
+  zip.file('word/styles.xml', xml)
+  return parseStyles(zip, parsed.themeColors, parsed.themeFonts)
+}

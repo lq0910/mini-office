@@ -1,0 +1,277 @@
+/** 功能：融合 GenOffice Word 内核；时间：2026-11-08；集成作者：lq；上游作者、固定版本及本地修改见 packages/word-core/UPSTREAM.md 和 SOURCE-MANIFEST.json。 */
+/**
+ * Preset shape geometry for docs: gallery previews and textbox shape
+ * backgrounds share the geometry the saved OOXML prstGeom describes.
+ * The shape visual is a data-URI SVG background so the box DOM stays a plain
+ * div (textbox sub-editors replaceChildren() the box on mount).
+ */
+import {
+  isPillPreset,
+  presetPath,
+  presetPolygon,
+} from '../../../../../packages/pptx-render/src/preset-geometry'
+
+const R = (v: number) => Math.round(v * 100) / 100
+
+function polygonPathD(pts: number[]): string {
+  const parts: string[] = []
+  for (let i = 0; i < pts.length; i += 2) {
+    parts.push(`${i === 0 ? 'M' : 'L'} ${R(pts[i]!)} ${R(pts[i + 1]!)}`)
+  }
+  return parts.join(' ') + ' Z'
+}
+
+function roundRectPathD(w: number, h: number, r: number): string {
+  return (
+    `M ${R(r)} 0 L ${R(w - r)} 0 A ${R(r)} ${R(r)} 0 0 1 ${R(w)} ${R(r)} L ${R(w)} ${R(h - r)} ` +
+    `A ${R(r)} ${R(r)} 0 0 1 ${R(w - r)} ${R(h)} L ${R(r)} ${R(h)} A ${R(r)} ${R(r)} 0 0 1 0 ${R(h - r)} ` +
+    `L 0 ${R(r)} A ${R(r)} ${R(r)} 0 0 1 ${R(r)} 0 Z`
+  )
+}
+
+interface ShapePaths {
+  /** fill + stroke */
+  main?: string
+  /** fill only */
+  fillOnly?: string
+  /** stroke only (braces, arcs) */
+  strokeOnly?: string
+}
+
+/** Open V arrowhead at (x2,y2), pointing away from (x1,y1). */
+function arrowHeadD(x1: number, y1: number, x2: number, y2: number, len: number): string {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const l = Math.hypot(dx, dy) || 1
+  const ux = dx / l
+  const uy = dy / l
+  const bx = x2 - ux * len
+  const by = y2 - uy * len
+  const wl = len * 0.6
+  return `M ${R(bx - uy * wl)} ${R(by + ux * wl)} L ${R(x2)} ${R(y2)} L ${R(bx + uy * wl)} ${R(by - ux * wl)}`
+}
+
+/** Straight line kinds: saved with cy=0 (Word's horizontal line), drawn level. */
+export function isStraightLineKind(prst: string | undefined): boolean {
+  return prst === 'line' || prst === 'lineArrow' || prst === 'lineArrowDouble'
+}
+
+/** Diagonal / flip state of a straight connector with a real vertical extent. */
+export interface LineRenderOpts {
+  diag?: boolean
+  flipH?: boolean
+  flipV?: boolean
+}
+
+/**
+ * Straight connector inside its box: level at the vertical center by default;
+ * corner-to-corner when the shape has a real vertical extent (flips pick the
+ * diagonal — flipV runs bottom-left → top-right). flipH also reverses level
+ * lines so a head-only arrow (drawn at the path end) points the right way.
+ */
+function straightLinePaths(prst: string, w: number, h: number, line?: LineRenderOpts): ShapePaths {
+  const x1 = line?.flipH ? w : 0
+  const x2 = w - x1
+  let y1 = h / 2
+  let y2 = y1
+  if (line?.diag) {
+    y1 = line.flipV ? h : 0
+    y2 = h - y1
+  }
+  const parts = [`M ${R(x1)} ${R(y1)} L ${R(x2)} ${R(y2)}`]
+  const len = Math.min(16, Math.max(7, Math.hypot(x2 - x1, y2 - y1) * 0.09))
+  if (prst !== 'line') parts.push(arrowHeadD(x1, y1, x2, y2, len))
+  if (prst === 'lineArrowDouble') parts.push(arrowHeadD(x2, y2, x1, y1, len))
+  return { strokeOnly: parts.join(' ') }
+}
+
+/** Stroke-only line/connector kinds (gallery preview traces the diagonal). */
+function linePaths(prst: string, w: number, h: number): ShapePaths | null {
+  if (isStraightLineKind(prst)) {
+    const parts = [`M 0 0 L ${R(w)} ${R(h)}`]
+    const len = Math.min(16, Math.max(7, Math.hypot(w, h) * 0.09))
+    if (prst !== 'line') parts.push(arrowHeadD(0, 0, w, h, len))
+    if (prst === 'lineArrowDouble') parts.push(arrowHeadD(w, h, 0, 0, len))
+    return { strokeOnly: parts.join(' ') }
+  }
+  if (prst === 'lineBent')
+    return { strokeOnly: `M 0 0 L ${R(w / 2)} 0 L ${R(w / 2)} ${R(h)} L ${R(w)} ${R(h)}` }
+  if (prst === 'lineCurved')
+    return { strokeOnly: `M 0 0 C ${R(w * 0.6)} 0 ${R(w * 0.4)} ${R(h)} ${R(w)} ${R(h)}` }
+  return null
+}
+
+/** Preset → path channels in a w×h box; null when the geometry is unknown. */
+export function shapePaths(prst: string, w: number, h: number): ShapePaths | null {
+  const line = linePaths(prst, w, h)
+  if (line) return line
+  const poly = presetPolygon(prst, w, h)
+  if (poly) return { main: polygonPathD(poly) }
+  const path = presetPath(prst, w, h)
+  if (path) return { main: path.path, fillOnly: path.fillPath, strokeOnly: path.strokePath }
+  // Alternate Process is a rounded rectangle, not a pill like Terminator
+  if (prst === 'roundRect' || prst === 'flowChartAlternateProcess')
+    return { main: roundRectPathD(w, h, Math.min(w, h) * 0.16667) }
+  if (isPillPreset(prst)) return { main: roundRectPathD(w, h, Math.min(w, h) / 2) }
+  if (prst === 'ellipse') {
+    const rx = w / 2
+    const ry = h / 2
+    return {
+      main: `M 0 ${R(ry)} A ${R(rx)} ${R(ry)} 0 1 1 ${R(w)} ${R(ry)} A ${R(rx)} ${R(ry)} 0 1 1 0 ${R(ry)} Z`,
+    }
+  }
+  if (prst === 'rect' || prst === 'flowChartProcess')
+    return { main: `M 0 0 L ${R(w)} 0 L ${R(w)} ${R(h)} L 0 ${R(h)} Z` }
+  return null
+}
+
+/** Stroke-only outline for gallery preview cells. */
+export function shapePreviewPathD(prst: string, w: number, h: number): string | null {
+  const paths = shapePaths(prst, w, h)
+  if (!paths) return null
+  return [paths.main, paths.fillOnly, paths.strokeOnly].filter(Boolean).join(' ')
+}
+
+/**
+ * Shape visual as a CSS background-image url() (data-URI SVG at the box's
+ * pixel size, insets included so the stroke isn't clipped at the edges).
+ */
+export function shapeBackgroundImage(
+  prst: string,
+  w: number,
+  h: number,
+  fillHex?: string,
+  borderHex?: string,
+  line?: LineRenderOpts,
+  strokeWidthPx?: number,
+): string | null {
+  const paths = isStraightLineKind(prst)
+    ? straightLinePaths(prst, Math.max(8, w - 2), Math.max(8, h - 2), line)
+    : shapePaths(prst, Math.max(8, w - 2), Math.max(8, h - 2))
+  if (!paths) return null
+  return pathsBackgroundImage(paths, w, h, fillHex, borderHex, strokeWidthPx)
+}
+
+function pathsBackgroundImage(
+  paths: ShapePaths,
+  w: number,
+  h: number,
+  fillHex?: string,
+  borderHex?: string,
+  strokeWidthPx?: number,
+): string {
+  const fill = fillHex ? `#${fillHex}` : 'none'
+  const stroke = borderHex ? `#${borderHex}` : 'none'
+  // authored outline width (a:ln w in px); absent keeps the historical 2 / 2.5
+  const strokeWidth = strokeWidthPx === undefined ? undefined : R(Math.max(0.5, strokeWidthPx))
+  const parts: string[] = []
+  if (paths.main)
+    parts.push(
+      `<path d="${paths.main}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth ?? 2}"/>`,
+    )
+  if (paths.fillOnly) parts.push(`<path d="${paths.fillOnly}" fill="${fill}" stroke="none"/>`)
+  if (paths.strokeOnly)
+    parts.push(
+      `<path d="${paths.strokeOnly}" fill="none" ` +
+        `stroke="${stroke === 'none' ? fill : stroke}" stroke-width="${strokeWidth ?? 2.5}"/>`,
+    )
+  // a wide stroke needs more than the historical 1px inset, or the SVG viewport
+  // clips it at the edges of the box: grow the viewBox symmetrically around it
+  const inset = strokeWidth === undefined ? 1 : Math.max(1, R(strokeWidth / 2 + 0.5))
+  const viewW = strokeWidth === undefined ? w : R(w + 2 * (inset - 1))
+  const viewH = strokeWidth === undefined ? h : R(h + 2 * (inset - 1))
+  // printToPDF honors the intrinsic ratio over background-size 100% 100%: a
+  // box whose live height differs from the measured one shrank uniformly
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${-inset} ${-inset} ${viewW} ${viewH}" preserveAspectRatio="none">` +
+    parts.join('') +
+    '</svg>'
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+}
+
+/** Normalized a:custGeom path channels (TextboxDisplay.pathData, coords 0..1). */
+export interface CustGeomPathData {
+  path?: string
+  fillPath?: string
+  strokePath?: string
+}
+
+/** Scale a normalized path string ("M x y L x y … Z") into a w×h pixel box. */
+function scaleNormPathD(d: string, w: number, h: number): string {
+  let axis = 0
+  return d
+    .split(' ')
+    .map((tok) => {
+      const n = Number(tok)
+      if (!Number.isFinite(n)) {
+        axis = 0
+        return tok
+      }
+      return String(R(n * (axis++ % 2 === 0 ? w : h)))
+    })
+    .join(' ')
+}
+
+/** custGeom visual as full CSS background properties (same pipeline as presets). */
+export function custGeomBackgroundCss(
+  geom: CustGeomPathData,
+  w: number,
+  h: number,
+  fillHex?: string,
+  borderHex?: string,
+  strokeWidthPx?: number,
+): string {
+  const sw = Math.max(8, w - 2)
+  const sh = Math.max(8, h - 2)
+  const paths: ShapePaths = {
+    main: geom.path ? scaleNormPathD(geom.path, sw, sh) : undefined,
+    fillOnly: geom.fillPath ? scaleNormPathD(geom.fillPath, sw, sh) : undefined,
+    strokeOnly: geom.strokePath ? scaleNormPathD(geom.strokePath, sw, sh) : undefined,
+  }
+  const image = pathsBackgroundImage(paths, w, h, fillHex, borderHex, strokeWidthPx)
+  return `background-image:${image};background-size:100% 100%;background-repeat:no-repeat`
+}
+
+/** Same visual as full CSS background properties (for style strings). */
+export function shapeBackgroundCss(
+  prst: string,
+  w: number,
+  h: number,
+  fillHex?: string,
+  borderHex?: string,
+  line?: LineRenderOpts,
+  strokeWidthPx?: number,
+): string | null {
+  const image = shapeBackgroundImage(prst, w, h, fillHex, borderHex, line, strokeWidthPx)
+  if (!image) return null
+  return `background-image:${image};background-size:100% 100%;background-repeat:no-repeat`
+}
+
+/** Geometry text-rect insets (px) inside a w×h preset shape; Word keeps the
+ *  text inside this rect, bodyPr insets apply within it. Approximates the
+ *  OOXML presetShapeDefinitions text rectangles; extend per preset as needed.
+ *  Document geometry, not chrome — never themed. */
+export function shapeTextInsetsPx(
+  prst: string,
+  w: number,
+  h: number,
+): { l: number; t: number; r: number; b: number } | null {
+  // inscribed rect of the ellipse: (1 - 1/√2) / 2 per side
+  const k = (1 - Math.SQRT1_2) / 2
+  switch (prst) {
+    case 'ellipse':
+      return { l: w * k, t: h * k, r: w * k, b: h * k }
+    case 'triangle':
+      return { l: w / 4, t: h / 2, r: w / 4, b: 0 }
+    case 'diamond':
+      return { l: w / 4, t: h / 4, r: w / 4, b: h / 4 }
+    case 'rightArrow':
+      return { l: 0, t: h / 4, r: Math.min(w, h) / 2, b: h / 4 }
+    case 'leftArrow':
+      return { l: Math.min(w, h) / 2, t: h / 4, r: 0, b: h / 4 }
+    case 'star5':
+      return { l: w * 0.19, t: h * 0.31, r: w * 0.19, b: h * 0.29 }
+    default:
+      return null
+  }
+}

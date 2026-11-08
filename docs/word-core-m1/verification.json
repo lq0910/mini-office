@@ -1,0 +1,61 @@
+{
+  "_comment": "功能：记录 M1 实际交付检查，不代表产品已切换或桌面验收完成；时间：2026-11-08；作者：lq。",
+  "checkedAt": "2026-11-08T00:49:41.523Z",
+  "status": "passed",
+  "source": {
+    "status": "passed",
+    "upstreamCommit": "e1f50e90d246f3ecc6427d2a0af90f04f37810ec",
+    "sourceFiles": 326,
+    "modules": 394,
+    "dependencyVersions": {
+      "@tiptap/core": "3.31.0",
+      "@tiptap/extensions": "3.31.0",
+      "@tiptap/pm": "3.31.0",
+      "fast-xml-parser": "5.10.1",
+      "jszip": "3.10.1",
+      "utif2": "4.1.0"
+    },
+    "productEditorSwitched": false,
+    "reactUpgradeRequired": false,
+    "errors": []
+  },
+  "workspaceVerify": {
+    "command": "pnpm verify",
+    "exitCode": 0,
+    "testsPassed": 643,
+    "testsSkipped": 3
+  },
+  "browser": {
+    "checks": [
+      "built-module-without-react-electron-or-desktop-global",
+      "real-parse-worker-and-transferable-source",
+      "exact-noop-roundtrip",
+      "native-composition-save-guard",
+      "committed-chinese-save",
+      "continuation-and-bookmark-preservation",
+      "explicit-save-ack"
+    ],
+    "status": "passed",
+    "browser": "147.0.7727.15",
+    "errors": []
+  },
+  "build": {
+    "modules": 394,
+    "outputs": 61,
+    "totalUncompressedBytes": 19859514,
+    "reactIncluded": false,
+    "electronIncluded": false,
+    "nodeBuiltinsIncluded": false,
+    "dependenciesWithLicenses": 41
+  },
+  "oldProtectedFilesChanged": [
+    "package.json",
+    "pnpm-lock.yaml"
+  ],
+  "sourceManifestSha256": "507cd158105dc4749f0d8f00a86ea03494a2bdc8a18d6cbbc778065017c33249",
+  "pnpmLockSha256": "43f94de2c120fb7a993ba5a2669bcfd7cf4fc4a97f23732bc8e6b24837ff6ff0",
+  "productionEditorSwitched": false,
+  "tauriWebViewValidated": false,
+  "desktopPackageBuilt": false,
+  "committedOrPushed": false
+}

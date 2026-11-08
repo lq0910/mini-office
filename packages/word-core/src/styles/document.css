@@ -1,0 +1,3248 @@
+/** 功能：融合 GenOffice Word 内核；时间：2026-11-08；集成作者：lq；上游作者、固定版本及本地修改见 packages/word-core/UPSTREAM.md 和 SOURCE-MANIFEST.json。 */
+.mo-word-core {
+  --word-blue: #185abd;
+  --word-blue-dark: #124a9e;
+  --word-heading: #2f5496;
+  --accent: var(--word-blue);
+  --accent-dark: var(--word-blue-dark);
+  --accent-soft: #e8f1fb;
+
+  --docs-heading-3: #1f3864;
+  --docs-accent-ghost: rgb(24 90 189 / 10%);
+  --docs-copilot-bg-a: #f5f0ff;
+  --docs-copilot-bg-b: #eef6ff;
+  --docs-swatch-outline: rgb(0 0 0 / 15%);
+  --docs-swatch-outline-strong: rgb(0 0 0 / 25%);
+  --docs-swatch-border: #a6a6a6;
+  --docs-ins-ink: #166534;
+  --docs-ins-bg: rgb(22 101 52 / 6%);
+  --docs-del-ink: #b91c1c;
+  --docs-del-bg: rgb(185 28 28 / 6%);
+  --docs-ai-error: #c62828;
+  --docs-ai-error-border: rgb(198 40 40 / 45%);
+  --docs-ai-error-bg: rgb(198 40 40 / 8%);
+  --docs-ok-ink: #2e7d32;
+  --docs-ok-bg: #e6f2e6;
+  --docs-ok-border: #a5d6a7;
+  --docs-ok-dot: #2e9e44;
+  --docs-chip-bg: #f6f8fc;
+  --docs-brand-ghost: rgb(15 127 255 / 8%);
+  --docs-brand-ghost-weak: rgb(15 127 255 / 6%);
+  --docs-brand-ring: rgb(15 127 255 / 40%);
+  --docs-focus-ring: rgb(35 36 37 / 20%);
+  --docs-focus-ring-blue: rgb(74 141 246 / 30%);
+  --docs-input-focus: #0f7fff;
+  --docs-input-ring: rgb(15 127 255 / 10%);
+  --docs-error-ring: rgb(239 68 68 / 10%);
+  --docs-scroll-thumb: rgb(0 0 0 / 25%);
+  --docs-tooltip-bg: #232425;
+  --docs-tooltip-ink: #ffffff;
+  --docs-shimmer-base: #666666;
+  --docs-shimmer-hi: #d9d9d9;
+  --docs-statusbar-bg: #f3f4f6;
+  --docs-statusbar-border: #e1e4e8;
+  --docs-statusbar-hover: rgb(0 0 0 / 8%);
+  --docs-zoom-slider: #8a8886;
+  --docs-ruler-bg: #f3f2f1;
+  --docs-ruler-tick: #b9b9b9;
+  --docs-ruler-border: #d6d6d6;
+  --docs-ruler-ink: #666;
+  --docs-ruler-btn-bg: #e0e0e0;
+  --docs-ruler-btn-hover: #d0d0d0;
+  --docs-ruler-btn-border: #ccc;
+  --docs-ruler-btn-ink: #333;
+  --docs-ruler-tab-guide: #aaa;
+  --docs-ruler-zone: rgb(0 0 0 / 8%);
+  --docs-tstyle-border: #b8bcc4;
+  --docs-tstyle-header: #7f8b9d;
+  --docs-tstyle-row: #eef1f5;
+  --docs-gap-cut: #b6c2d2;
+  --docs-pv-canvas: #525659;
+  --docs-overlay: rgb(0 0 0 / 50%);
+  --docs-page-shadow: 0 1px 3px rgb(0 0 0 / 28%), 0 4px 16px rgb(0 0 0 / 10%);
+  --docs-gap-inset: inset 0 8px 8px -8px rgb(0 0 0 / 35%), inset 0 -3px 3px -3px rgb(0 0 0 / 18%);
+  --docs-shadow-menu: 0 8px 24px rgb(0 0 0 / 18%);
+  --docs-shadow-ctx: 0 8px 28px rgb(0 0 0 / 22%);
+  --docs-shadow-modal: 0 3px 30px rgb(0 0 0 / 8%);
+  --docs-shadow-modal-gs: 0 12px 40px rgb(0 0 0 / 16%);
+  --docs-shadow-chip: 0 2px 8px rgb(0 0 0 / 12%);
+  --docs-shadow-tooltip: 0 4px 6px rgb(0 0 0 / 10%);
+  --docs-shadow-composer: 0 6px 30px rgb(0 0 0 / 8%);
+  --docs-shadow-toast: 0 4px 16px rgb(0 0 0 / 18%);
+
+  /* brand-fixed chrome: identical in both themes */
+  --docs-on-accent: #fff;
+  --docs-on-accent-dim: rgb(255 255 255 / 75%);
+  --docs-comment-accent: #e8a33d;
+  --docs-badge-gradient: linear-gradient(135deg, #6a5cff 0%, #2b88f8 55%, #29c3a6 120%);
+  --docs-shadow-badge: 0 2px 6px rgb(74 92 255 / 25%);
+  --docs-shadow-badge-strong: 0 2px 6px rgb(74 92 255 / 35%);
+  --docs-chip-remove-bg: #000;
+  --docs-chip-remove-hover: #4b4e51;
+  --docs-chip-remove-ink: #fff;
+  /* table move handle floats over the always-white page: fixed colors */
+  --docs-table-handle-bg: #ffffff;
+  --docs-table-handle-hover: #f0f0f0;
+  --docs-table-handle-border: #b8bcc4;
+  --docs-table-handle-ink: #444444;
+  --docs-knob-dot: #fff;
+  --docs-toast-bg: rgb(35 35 37 / 92%);
+  --docs-toast-error-bg: rgb(196 49 75 / 95%);
+  --docs-toast-ink: #fff;
+  --docs-toast-ok: #34c759;
+}
+.mo-word-core, .mo-word-core .page-dark .doc-textbox-filled {
+  --ai-highlight: #fff3c4;
+  --ai-highlight-border: #f2b900;
+  --docs-paper: #ffffff;
+  --docs-paper-ink: #000;
+  --docs-paper-ink-dim: #333;
+  --docs-paper-ink-mid: #555;
+  --docs-paper-ink-soft: #777;
+  --docs-paper-ink-faint: #888;
+  --docs-paper-heading: #2f5496;
+  --docs-paper-h3: #1f3864;
+  --docs-paper-link: #0563c1;
+  --docs-paper-accent: #185abd;
+  --docs-paper-mark: #2b7cd3;
+  --docs-paper-grid: rgb(43 124 211 / 13%);
+  --docs-paper-hf-line: #d0d0d0;
+  --docs-paper-crop-mark: #b4b4b4;
+  --docs-paper-chip-bg: #fafafa;
+  --docs-paper-select-bg: #e8f1fb;
+  --docs-paper-stripe: #f0f0f0;
+  --docs-paper-chart-grid: #e0e0e0;
+  --docs-paper-chart-border: #d9d9d9;
+  --docs-paper-field-bg: rgb(0 0 0 / 7%);
+  --docs-paper-watermark: rgb(128 128 128 / 18%);
+  --docs-paper-rev-ink: #b91c1c;
+  --docs-paper-rev-ink-1: #1d4ed8;
+  --docs-paper-rev-ink-2: #15803d;
+  --docs-paper-rev-ink-3: #7e22ce;
+  --docs-paper-rev-ink-4: #0e7490;
+  --docs-paper-rev-ink-5: #c2410c;
+  --docs-paper-rev-ink-6: #be185d;
+  --docs-paper-rev-ink-7: #4d7c0f;
+  --docs-paper-rev-move: #15803d;
+  --docs-paper-rev-color-black: #000000;
+  --docs-paper-rev-color-blue: #0000ff;
+  --docs-paper-rev-color-turquoise: #00ffff;
+  --docs-paper-rev-color-brightGreen: #00ff00;
+  --docs-paper-rev-color-pink: #ff00ff;
+  --docs-paper-rev-color-red: #ff0000;
+  --docs-paper-rev-color-yellow: #ffff00;
+  --docs-paper-rev-color-white: #ffffff;
+  --docs-paper-rev-color-darkBlue: #000080;
+  --docs-paper-rev-color-teal: #008080;
+  --docs-paper-rev-color-green: #008000;
+  --docs-paper-rev-color-violet: #800080;
+  --docs-paper-rev-color-darkRed: #800000;
+  --docs-paper-rev-color-darkYellow: #808000;
+  --docs-paper-rev-color-gray50: #808080;
+  --docs-paper-rev-color-gray25: #c0c0c0;
+  --docs-paper-rev-color-classicRed: #c00000;
+  --docs-paper-rev-color-classicBlue: #0070c0;
+  --docs-paper-rev-color-lightBlue: #bdd6ee;
+  --docs-paper-rev-color-palePink: #f7c8d8;
+  --docs-paper-rev-color-lightYellow: #ffffcc;
+  --docs-paper-rev-color-lightOrange: #fbd5b5;
+  --docs-paper-cell-ins-bg: var(--docs-paper-rev-color-lightBlue);
+  --docs-paper-cell-del-bg: var(--docs-paper-rev-color-palePink);
+  --docs-paper-cell-merge-bg: var(--docs-paper-rev-color-lightYellow);
+  --docs-paper-ins-bg: rgb(22 163 74 / 8%);
+  --docs-paper-del-bg: rgb(220 38 38 / 8%);
+  --docs-paper-del-line: #dc2626;
+  --docs-paper-ppr: #f59e0b;
+  --docs-paper-ppr-ink: #b45309;
+  --docs-paper-ppr-bg: #fef3c7;
+  --docs-paper-ppr-border: #fcd34d;
+  --docs-paper-rpr: #c98a00;
+  --docs-paper-sdt-border: #a0c0e8;
+  --docs-paper-sdt-ink: #5080b0;
+  --docs-paper-sdt-bg: #eef4fb;
+  /* Word-style comment anchor tint (Word paints #ECFDD7 over white paper) */
+  --docs-paper-comment-bg: rgb(179 247 95 / 25%);
+  --docs-paper-comment-flash: rgb(130 171 81 / 45%);
+  --docs-paper-comment-line: #82ab51;
+  /* printed markup is document output, not chrome: fixed values, identical in both themes;
+     the balloon fill is the anchor tint composited over white (balloons sit on the gray strip) */
+  --docs-print-markup-band: #f2f2f2;
+  --docs-print-comment-fill: #ecfdd7;
+  --docs-print-comment-ink: #262626;
+  --docs-print-rev-line: #b91c1c;
+  --docs-print-rev-fill: #ffffff;
+  --docs-paper-ai-anchor-bg: rgb(80 128 220 / 14%);
+  --docs-paper-ai-anchor-line: #5080dc;
+  --docs-paper-xe-ink: #8a6d3b;
+  --docs-paper-xe-bg: #fdf6e3;
+  --docs-paper-xe-border: #d5c48a;
+  --docs-paper-hit-bg: #ffe28a;
+  --docs-paper-hit-active-bg: #ff9632;
+  --docs-paper-hit-active-ink: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mo-word-core:not([data-theme='light']):not([data-theme='dark']) {
+    --word-blue: #4a9eff;
+    --word-blue-dark: #3a8eef;
+    --word-heading: #6cabf0;
+    --accent-soft: #1e3a5f;
+
+    --docs-heading-3: #7fa8e0;
+    --docs-accent-ghost: rgb(74 158 255 / 18%);
+    --docs-copilot-bg-a: #322c46;
+    --docs-copilot-bg-b: #253546;
+    --docs-swatch-outline: rgb(255 255 255 / 25%);
+    --docs-swatch-outline-strong: rgb(255 255 255 / 30%);
+    --docs-swatch-border: #666;
+    --docs-ins-ink: #6fcf8f;
+    --docs-ins-bg: rgb(111 207 143 / 10%);
+    --docs-del-ink: #f28b82;
+    --docs-del-bg: rgb(242 139 130 / 10%);
+    --docs-ai-error: #f28b82;
+    --docs-ai-error-border: rgb(242 139 130 / 45%);
+    --docs-ai-error-bg: rgb(242 139 130 / 12%);
+    --docs-ok-ink: #7bd88a;
+    --docs-ok-bg: #16351c;
+    --docs-ok-border: #2e5c36;
+    --docs-ok-dot: #34c759;
+    --docs-chip-bg: #2a2f36;
+    --docs-brand-ghost: rgb(74 158 255 / 14%);
+    --docs-brand-ghost-weak: rgb(74 158 255 / 10%);
+    --docs-brand-ring: rgb(74 158 255 / 45%);
+    --docs-focus-ring: rgb(228 228 228 / 25%);
+    --docs-focus-ring-blue: rgb(74 158 255 / 40%);
+    --docs-input-focus: #4a9eff;
+    --docs-input-ring: rgb(74 158 255 / 20%);
+    --docs-error-ring: rgb(242 139 130 / 20%);
+    --docs-scroll-thumb: rgb(255 255 255 / 28%);
+    --docs-tooltip-bg: #e4e4e4;
+    --docs-tooltip-ink: #1e1e1e;
+    --docs-shimmer-base: #8a8a8a;
+    --docs-shimmer-hi: #d0d0d0;
+    --docs-statusbar-bg: #252525;
+    --docs-statusbar-border: #3a3a3a;
+    --docs-statusbar-hover: rgb(255 255 255 / 10%);
+    --docs-zoom-slider: #8a8a8a;
+    --docs-ruler-bg: #2d2d2d;
+    --docs-ruler-tick: #6a6a6a;
+    --docs-ruler-border: #444;
+    --docs-ruler-ink: #a0a0a0;
+    --docs-ruler-btn-bg: #3a3a3a;
+    --docs-ruler-btn-hover: #4a4a4a;
+    --docs-ruler-btn-border: #555;
+    --docs-ruler-btn-ink: #d0d0d0;
+    --docs-ruler-tab-guide: #777;
+    --docs-ruler-zone: rgb(255 255 255 / 10%);
+    --docs-tstyle-border: #5a5f66;
+    --docs-tstyle-header: #8a93a3;
+    --docs-tstyle-row: #333;
+    --docs-gap-cut: #56606c;
+    --docs-pv-canvas: #1f1f1f;
+    --docs-overlay: rgb(0 0 0 / 55%);
+    --docs-page-shadow: 0 1px 3px rgb(0 0 0 / 60%), 0 4px 16px rgb(0 0 0 / 40%);
+    --docs-gap-inset: inset 0 8px 8px -8px rgb(0 0 0 / 65%), inset 0 -3px 3px -3px rgb(0 0 0 / 40%);
+    --docs-shadow-menu: 0 8px 24px rgb(0 0 0 / 55%);
+    --docs-shadow-ctx: 0 8px 28px rgb(0 0 0 / 60%);
+    --docs-shadow-modal: 0 20px 50px rgb(0 0 0 / 65%);
+    --docs-shadow-modal-gs: 0 20px 50px rgb(0 0 0 / 65%);
+    --docs-shadow-chip: 0 2px 8px rgb(0 0 0 / 40%);
+    --docs-shadow-tooltip: 0 4px 6px rgb(0 0 0 / 30%);
+    --docs-shadow-composer: 0 6px 30px rgb(0 0 0 / 30%);
+    --docs-shadow-toast: 0 4px 16px rgb(0 0 0 / 45%);
+  }
+}
+.mo-word-core {
+  --ui-cjk: 'PingFang SC', 'Microsoft YaHei';
+}
+
+.mo-word-core:lang(ja) {
+  --ui-cjk: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Yu Gothic', 'Meiryo';
+}
+
+.mo-word-core:lang(ko) {
+  --ui-cjk: 'Apple SD Gothic Neo', 'Malgun Gothic';
+}
+
+.mo-word-core:lang(zh-TW) {
+  --ui-cjk: 'PingFang TC', 'Microsoft JhengHei';
+}
+.mo-word-core .doc-table-handle {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--docs-table-handle-border);
+  border-radius: 3px;
+  background: var(--docs-table-handle-bg);
+  color: var(--docs-table-handle-ink);
+  cursor: move;
+  box-shadow: var(--docs-shadow-chip);
+}
+
+.mo-word-core .doc-table-handle:hover {
+  background: var(--docs-table-handle-hover);
+}
+
+.mo-word-core .doc-table-resize {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 1px solid var(--docs-table-handle-border);
+  border-radius: 3px;
+  background: var(--docs-table-handle-bg);
+  color: var(--docs-table-handle-ink);
+  cursor: nwse-resize;
+  box-shadow: var(--docs-shadow-chip);
+}
+
+.mo-word-core .doc-table-resize:hover {
+  background: var(--docs-table-handle-hover);
+}
+.mo-word-core table.doc-table[data-rev-fmt], .mo-word-core tr[data-rev-fmt] > td:first-child, .mo-word-core tr[data-rev-fmt] > th:first-child, .mo-word-core td[data-rev-fmt], .mo-word-core th[data-rev-fmt] {
+  box-shadow: inset 3px 0 0 var(--docs-paper-ppr);
+}
+
+.mo-word-core .rev-display-none table.doc-table[data-rev-fmt], .mo-word-core .rev-display-none tr[data-rev-fmt] > td:first-child, .mo-word-core .rev-display-none tr[data-rev-fmt] > th:first-child, .mo-word-core .rev-display-none td[data-rev-fmt], .mo-word-core .rev-display-none th[data-rev-fmt], .mo-word-core .rev-display-simple table.doc-table[data-rev-fmt], .mo-word-core .rev-display-simple tr[data-rev-fmt] > td:first-child, .mo-word-core .rev-display-simple tr[data-rev-fmt] > th:first-child, .mo-word-core .rev-display-simple td[data-rev-fmt], .mo-word-core .rev-display-simple th[data-rev-fmt], .mo-word-core .rev-display-original table.doc-table[data-rev-fmt], .mo-word-core .rev-display-original tr[data-rev-fmt] > td:first-child, .mo-word-core .rev-display-original tr[data-rev-fmt] > th:first-child, .mo-word-core .rev-display-original td[data-rev-fmt], .mo-word-core .rev-display-original th[data-rev-fmt] {
+  box-shadow: none;
+}
+
+.mo-word-core .editor-scroll {
+  direction: ltr;
+  flex: 1;
+  overflow-y: auto;
+  /* classic (non-overlay) scrollbars change clientWidth as they come and go,
+     which would make the zoom auto-refit oscillate — reserve the gutter */
+  scrollbar-gutter: stable;
+  padding: 26px 24px 140px;
+}
+
+.mo-word-core .editor-scroll.image-drop-target .doc-page {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+.mo-word-core .doc-zoom {
+  width: fit-content;
+  margin: 0 auto;
+}
+.mo-word-core .doc-zoom.multipage {
+  position: relative;
+}
+
+.mo-word-core .doc-zoom.multipage .doc-live {
+  position: absolute;
+  overflow: clip;
+  background: var(--page-bg, var(--docs-paper));
+  box-shadow: var(--docs-page-shadow);
+}
+
+.mo-word-core .doc-zoom.multipage .doc-live .doc-page {
+  box-shadow: none;
+}
+.mo-word-core .ProseMirror.doc-painter-cursor > * {
+  cursor:
+    url('data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2728%27%20height=%2728%27%20viewBox=%270%200%2028%2028%27%3E%3Cg%20stroke=%27white%27%20stroke-width=%273.4%27%20paint-order=%27stroke%27%20stroke-linecap=%27round%27%20fill=%27none%27%3E%3Cpath%20d=%27M2%205h5M2%2023h5M4.5%205v18%27/%3E%3C/g%3E%3Cg%20stroke=%27black%27%20stroke-width=%271.5%27%20fill=%27none%27%20stroke-linecap=%27round%27%3E%3Cpath%20d=%27M2%205h5M2%2023h5M4.5%205v18%27/%3E%3C/g%3E%3Crect%20x=%2716.6%27%20y=%273.5%27%20width=%273%27%20height=%275.2%27%20rx=%271.4%27%20fill=%27black%27%20stroke=%27white%27%20stroke-width=%271.2%27%20paint-order=%27stroke%27/%3E%3Crect%20x=%2710.5%27%20y=%278.2%27%20width=%2715%27%20height=%2710.3%27%20rx=%271.6%27%20fill=%27black%27%20stroke=%27white%27%20stroke-width=%271.2%27%20paint-order=%27stroke%27/%3E%3Cpath%20d=%27M10.5%2012.4%20H25.5%27%20stroke=%27white%27%20stroke-width=%271.3%27/%3E%3Cpath%20d=%27M15%2014.9%20V16.9%20M21%2014.9%20V16.9%27%20stroke=%27white%27%20stroke-width=%271.3%27%20stroke-linecap=%27round%27/%3E%3C/svg%3E')
+      4 14,
+    text;
+}
+.mo-word-core .ProseMirror.doc-selbar-hover {
+  cursor:
+    url('data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%3E%3Cpath%20d=%27M17.5%202.5v14.2l-3.8-3.7-3%206.3-2.9-1.4%203-6.3H5.2z%27%20fill=%27white%27%20stroke=%27black%27%20stroke-width=%271.2%27%20stroke-linejoin=%27round%27/%3E%3C/svg%3E')
+      17 3,
+    default;
+}
+.mo-word-core .ProseMirror-gapcursor {
+  display: none;
+  pointer-events: none;
+  position: absolute;
+}
+
+.mo-word-core .ProseMirror-gapcursor::after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: -2px;
+  width: 20px;
+  border-top: 1px solid var(--docs-paper-ink, currentColor);
+  animation: ProseMirror-cursor-blink 1.1s steps(2, start) infinite;
+}
+
+@keyframes ProseMirror-cursor-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.mo-word-core .ProseMirror-focused .ProseMirror-gapcursor {
+  display: block;
+}
+.mo-word-core .show-marks .doc-page p::after, .mo-word-core .show-marks .doc-page h1::after, .mo-word-core .show-marks .doc-page h2::after, .mo-word-core .show-marks .doc-page h3::after, .mo-word-core .show-marks .doc-page h4::after {
+  content: '¶';
+  color: var(--docs-paper-mark);
+  opacity: 0.55;
+  font-size: 0.85em;
+  margin-left: 2px;
+  user-select: none;
+}
+.mo-word-core .doc-page {
+  column-count: var(--page-cols, auto);
+  column-gap: 28px;
+  column-fill: auto;
+}
+.mo-word-core .doc-page .doc-col-block {
+  width: var(--col-w, auto);
+}
+.mo-word-core .doc-page .doc-sect-page-start, .mo-word-core .doc-page .page-gap:has(+ .doc-sect-page-start) {
+  clear: both;
+}
+.mo-word-core .doc-page .doc-col-block.doc-protected-floating, .mo-word-core .doc-page .doc-col-block.doc-img-float, .mo-word-core .doc-page .doc-col-block.doc-protected-wrapside {
+  width: var(--col-w, 100%);
+  max-width: var(--col-w, 100%);
+}
+.mo-word-core .doc-page .doc-col-split-float {
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+.mo-word-core .editor-scroll .doc-page:not(.measuring-columns) .doc-col-block {
+  transform: translate(calc(var(--col-dx, 0px) + var(--page-cx, 0px)), var(--col-dy, 0px));
+}
+.mo-word-core .doc-page {
+  letter-spacing: var(--doc-char-space-sb, var(--doc-char-space, normal));
+}
+.mo-word-core .doc-page .doc-charspace-block {
+  letter-spacing: var(--doc-char-space-sb, var(--doc-char-space, normal));
+}
+.mo-word-core .doc-page .page-gap-hf {
+  letter-spacing: normal;
+}
+.mo-word-core .editor-scroll .doc-page:not(.measuring-columns) .doc-col-block [data-page-rel-x='1'] {
+  transform: translateX(calc(-1 * var(--col-dx, 0px)));
+}
+.mo-word-core .editor-scroll .doc-page:not(.measuring-columns) img[data-page-rel-x='1'] {
+  --page-rel-x-undo: var(--page-rel-x-pin, var(--col-dx, 0px));
+}
+.mo-word-core .doc-page:not(.measuring-columns) .doc-vert-block {
+  writing-mode: vertical-rl;
+  height: var(--col-w);
+  width: fit-content;
+  margin-bottom: var(--vert-mb, 0px) !important;
+  transform: translate(
+    var(--pv-vdx, calc(var(--col-dx, 0px) + var(--page-cx, 0px))),
+    var(--pv-vdy, var(--col-dy, 0px))
+  );
+}
+.mo-word-core .doc-page:not(.measuring-columns) .doc-vert-block:not(.doc-vert-first) {
+  margin-top: 0 !important;
+}
+.mo-word-core .doc-page:not(.measuring-columns) .doc-vert-tbRlV {
+  text-orientation: sideways;
+}
+.mo-word-core .doc-page:not(.measuring-columns) .doc-vert-btLr {
+  writing-mode: sideways-lr;
+}
+.mo-word-core .doc-page .doc-para-frame {
+  position: relative;
+}
+.mo-word-core .editor-scroll .doc-page.measuring-columns .page-gap {
+  margin-top: 0 !important;
+}
+.mo-word-core .editor-scroll .doc-page.measuring-natural .page-gap-inline {
+  display: none !important;
+}
+.mo-word-core .editor-scroll .doc-page.measuring-natural .page-gap:not(.page-gap-inline) {
+  display: none !important;
+}
+.mo-word-core .editor-scroll .doc-page.measuring-natural tr.page-gap-inline {
+  display: table-row !important;
+  visibility: collapse;
+}
+.mo-word-core .ProseMirror.doc-tabs-measuring .has-tab-stops {
+  text-align: left !important;
+}
+.mo-word-core .doc-tab {
+  text-justify: none;
+}
+.mo-word-core .doc-justify-symbol {
+  text-justify: none;
+}
+.mo-word-core .doc-tab-collapse {
+  font-size: 0;
+}
+.mo-word-core .doc-tab-underline {
+  border-bottom: 1px solid currentColor;
+}
+.mo-word-core .doc-tab-fixed {
+  display: inline-block;
+  tab-size: 0;
+  text-indent: 0;
+  text-align: left;
+}
+.mo-word-core .doc-tab-wrap::before {
+  content: '\A';
+  white-space: pre;
+}
+.mo-word-core .doc-tab-glue {
+  white-space: pre;
+}
+.mo-word-core .doc-tab-leader-dot, .mo-word-core .doc-tab-leader-middleDot, .mo-word-core .doc-tab-leader-hyphen {
+  position: relative;
+}
+.mo-word-core .doc-tab-leader-dot::before, .mo-word-core .doc-tab-leader-middleDot::before, .mo-word-core .doc-tab-leader-hyphen::before {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  direction: rtl;
+  line-height: normal;
+  pointer-events: none;
+  user-select: none;
+}
+.mo-word-core .doc-tab-leader-dot::before {
+  content: '................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................';
+}
+.mo-word-core .doc-tab-leader-middleDot::before {
+  content: '\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7\00B7';
+}
+.mo-word-core .doc-tab-leader-hyphen::before {
+  content: '------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------';
+}
+.mo-word-core .doc-tab-leader-underscore {
+  border-bottom: 1px solid currentColor;
+}
+.mo-word-core .doc-tab-leader-heavy {
+  border-bottom: 2px solid currentColor;
+}
+
+.mo-word-core .page-hf-editor .doc-textbox-para {
+  min-height: 1.3em;
+}
+.mo-word-core .hf-field {
+  border-radius: 2px;
+}
+
+.mo-word-core .hf-field::after {
+  content: attr(data-hf-num);
+}
+
+.mo-word-core .hf-field.ProseMirror-selectednode {
+  background: var(--selection-soft, var(--hover));
+}
+.mo-word-core .page-wrap.hf-editing .ProseMirror > :not(.page-gap) {
+  opacity: 0.55;
+}
+.mo-word-core .page-gap:not(.page-gap-inline)::after, .mo-word-core .page-wrap:not(.paper-mixed)::before, .mo-word-core .page-wrap:not(.paper-mixed)::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  --cm: var(--docs-paper-crop-mark);
+  --cm-len: 16px;
+  background-repeat: no-repeat;
+}
+
+.mo-word-core .page-gap:not(.page-gap-inline)::after {
+  inset: 0;
+  background-image:
+    linear-gradient(var(--cm), var(--cm)), linear-gradient(var(--cm), var(--cm)),
+    linear-gradient(var(--cm), var(--cm)), linear-gradient(var(--cm), var(--cm)),
+    linear-gradient(var(--cm), var(--cm)), linear-gradient(var(--cm), var(--cm)),
+    linear-gradient(var(--cm), var(--cm)), linear-gradient(var(--cm), var(--cm));
+  /* arms never cross the paper edge into the gray band */
+  --cm-down: min(var(--cm-len), var(--gap-mb, 96px));
+  --cm-up: min(var(--cm-len), var(--gap-mt, 96px));
+  background-size:
+    var(--cm-len) 1px,
+    1px var(--cm-down),
+    var(--cm-len) 1px,
+    1px var(--cm-down),
+    var(--cm-len) 1px,
+    1px var(--cm-up),
+    var(--cm-len) 1px,
+    1px var(--cm-up);
+  background-position:
+    /* previous page bottom corners: arms down and outward from the boundary */
+    calc(var(--gap-ml, 96px) - var(--cm-len)) 0,
+    var(--gap-ml, 96px) 0,
+    calc(100% - var(--gap-mr, 96px) + var(--cm-len)) 0,
+    calc(100% - var(--gap-mr, 96px)) 0,
+    /* next page top corners (the gap ends at its text boundary): arms up and outward */
+    calc(var(--gap-ml, 96px) - var(--cm-len)) 100%,
+    var(--gap-ml, 96px) 100%,
+    calc(100% - var(--gap-mr, 96px) + var(--cm-len)) 100%,
+    calc(100% - var(--gap-mr, 96px)) 100%;
+}
+
+.mo-word-core .pv-clip .page-gap::after {
+  display: none;
+}
+.mo-word-core .doc-ins {
+  color: var(--rev-ins-ink, var(--docs-paper-rev-ink));
+  text-decoration: underline;
+  text-decoration-color: var(--rev-ins-ink, var(--docs-paper-rev-ink));
+}
+
+.mo-word-core .doc-del {
+  color: var(--rev-del-ink, var(--docs-paper-rev-ink));
+  text-decoration: line-through;
+  text-decoration-color: var(--rev-del-ink, var(--docs-paper-rev-ink));
+  opacity: 0.72;
+}
+.mo-word-core .doc-ins .doc-del, .mo-word-core .doc-del .doc-ins {
+  text-decoration: underline line-through;
+}
+.mo-word-core .doc-move-to, .mo-word-core .doc-move-from {
+  --docs-paper-rev-ink: var(--docs-paper-rev-move);
+  color: var(--docs-paper-rev-ink);
+  text-decoration-color: var(--docs-paper-rev-ink);
+  text-decoration-style: double;
+}
+.mo-word-core .doc-para-mark-del::after {
+  content: '\00B6';
+  color: var(--rev-del-ink, var(--docs-paper-rev-ink));
+  text-decoration: line-through;
+  opacity: 0.72;
+}
+
+.mo-word-core .rev-display-none .doc-para-mark-del::after, .mo-word-core .rev-display-simple .doc-para-mark-del::after, .mo-word-core .rev-display-original .doc-para-mark-del::after, .mo-word-core .rev-balloon .doc-para-mark-del::after {
+  content: none;
+}
+.mo-word-core .rev-display-none .doc-para-join-head, .mo-word-core .rev-display-simple .doc-para-join-head {
+  margin-bottom: 0 !important;
+}
+
+.mo-word-core .rev-display-none .doc-para-join-tail[data-join-on], .mo-word-core .rev-display-simple .doc-para-join-tail[data-join-on] {
+  margin-top: calc(-1 * var(--join-lift, 0px)) !important;
+  padding-top: 0 !important;
+  text-indent: var(--join-indent, 0px) !important;
+}
+
+.mo-word-core .rev-display-none .doc-para-join-head > br.ProseMirror-trailingBreak, .mo-word-core .rev-display-simple .doc-para-join-head > br.ProseMirror-trailingBreak {
+  display: none;
+}
+.mo-word-core .rev-display-none .doc-ins, .mo-word-core .rev-display-simple .doc-ins {
+  color: inherit;
+  text-decoration: none;
+  font-weight: inherit;
+  font-style: inherit;
+}
+
+.mo-word-core .rev-display-none .doc-del, .mo-word-core .rev-display-none .has-move-from, .mo-word-core .rev-display-none .doc-para-del-collapse, .mo-word-core .rev-display-simple .doc-del, .mo-word-core .rev-display-simple .has-move-from, .mo-word-core .rev-display-simple .doc-para-del-collapse {
+  display: none;
+}
+.mo-word-core .rev-display-original .doc-del {
+  color: inherit;
+  text-decoration: none;
+  font-weight: inherit;
+  font-style: inherit;
+  opacity: 1;
+}
+
+.mo-word-core .rev-display-original .doc-ins, .mo-word-core .rev-display-original .has-move-to {
+  display: none;
+}
+.mo-word-core .rev-hide-insdel .doc-ins {
+  color: inherit;
+  text-decoration: none;
+  font-weight: inherit;
+  font-style: inherit;
+}
+
+.mo-word-core .rev-hide-insdel .doc-del, .mo-word-core .rev-hide-insdel .doc-del-marker, .mo-word-core .rev-hide-insdel .has-move-from, .mo-word-core .rev-hide-insdel .doc-para-del-collapse {
+  display: none;
+}
+.mo-word-core .rev-display-none .doc-ins .doc-del, .mo-word-core .rev-display-simple .doc-ins .doc-del, .mo-word-core .rev-display-original .doc-del .doc-ins {
+  display: none;
+}
+.mo-word-core .rev-balloon .doc-del, .mo-word-core .rev-balloon .doc-para-del-collapse {
+  display: none;
+}
+.mo-word-core .rev-display-none .doc-para-content-del::after, .mo-word-core .rev-display-simple .doc-para-content-del::after, .mo-word-core .rev-balloon .doc-para-content-del::after {
+  content: '\200b';
+  /* the pPrChange badge shares ::after; its chip must not paint on the strut */
+  margin-left: 0;
+  font-size: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.mo-word-core .rev-display-none .doc-para-content-del > br.ProseMirror-trailingBreak, .mo-word-core .rev-display-simple .doc-para-content-del > br.ProseMirror-trailingBreak, .mo-word-core .rev-balloon .doc-para-content-del > br.ProseMirror-trailingBreak {
+  display: none;
+}
+.mo-word-core .doc-comment {
+  background: var(--rev-comment-bg, var(--docs-paper-comment-bg));
+  border-bottom: 2px solid var(--rev-comment-ink, var(--docs-paper-comment-line));
+  cursor: pointer;
+}
+.mo-word-core .doc-comment:has(.doc-comment-resolved), .mo-word-core .doc-comment-resolved, .mo-word-core .doc-comment-resolved .doc-comment {
+  background: none;
+  border-bottom: none;
+  cursor: text;
+}
+
+.mo-word-core .doc-comment-flash {
+  animation: comment-flash 350ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+@keyframes comment-flash {
+  0%,
+  40% {
+    background: var(--docs-paper-comment-flash);
+  }
+  100% {
+    background: var(--docs-paper-comment-bg);
+  }
+}
+.mo-word-core .hf-ribbon-body {
+  display: flex;
+  align-items: stretch;
+}
+
+.mo-word-core .hf-distances {
+  gap: 4px;
+  justify-content: center;
+}
+
+.mo-word-core .hf-distance > span:first-child {
+  width: auto;
+}
+.mo-word-core .hf-menu {
+  /* fixed + anchored like the other ribbon panels, so the ribbon-body
+     scroll clip can't cut it off */
+  position: fixed;
+  position-anchor: --rb-drop-wrap;
+  top: anchor(bottom);
+  left: anchor(left);
+  position-try-fallbacks: flip-inline;
+  position-visibility: anchors-visible;
+  z-index: 30;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--docs-shadow-menu);
+  padding: 10px;
+  width: 260px;
+}
+
+.mo-word-core .hf-menu-title {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.mo-word-core .hf-menu input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12.5px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.mo-word-core .hf-menu-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+.mo-word-core .hf-menu-actions button {
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.mo-word-core .hf-menu-actions .btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--docs-on-accent);
+}
+.mo-word-core .doc-page {
+  width: var(--page-w, 816px);
+  margin: 0 auto;
+  /* own stacking context: floating pictures rank via z-index (front band is
+     unbounded upward), so trap those ranks here — editor chrome mounted
+     outside the page (table handles, menus) always paints above them */
+  isolation: isolate;
+  background: var(--page-bg, var(--docs-paper));
+  box-shadow: var(--docs-page-shadow);
+  padding: var(--page-pad, 96px 96px 120px);
+  min-height: var(--page-h, 1056px);
+  outline: none;
+  font-family: Calibri, 'DengXian', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 11pt;
+  line-height: 1.35;
+  color: var(--docs-paper-ink);
+  /* Word's autoSpaceDE/DN (on by default): 1/8em gap between CJK and Latin/digits */
+  text-autospace: normal;
+  /* the other half of Word's ~1/4em gap, delivered by .doc-autospace-pad spans */
+  --doc-autospace-pad: 0.125em;
+}
+.mo-word-core .doc-autospace-pad {
+  margin-inline-start: var(--doc-autospace-pad, 0.125em);
+}
+.mo-word-core .doc-autospace-pad-full {
+  margin-inline-start: calc(var(--doc-autospace-pad, 0.125em) * 2);
+}
+.mo-word-core .doc-autospace-pad-le {
+  margin-inline-start: calc(var(--doc-autospace-pad, 0.125em) * var(--doc-autospace-pad-le, 1));
+}
+.mo-word-core .doc-kr-wj:empty::before {
+  content: '\2060';
+}
+.mo-word-core .doc-hangul-space {
+  font-family: 'GenOffice Hangul Space';
+}
+@media screen {
+  .mo-word-core .page-dark .doc-textbox-filled {
+    color: var(--docs-paper-ink);
+  }
+  .mo-word-core .page-dark [data-ink='light']:where(:not(.doc-textbox-filled *)) {
+    --docs-paper-ink: var(--docs-paper);
+  }
+
+  .mo-word-core .page-dark [data-ink='light'] [data-ink='dark']:where(:not(.doc-textbox-filled *)) {
+    --docs-paper-ink: #ffffff;
+  }
+  .mo-word-core :where(.page-dark) [style*='--dk-c:']:where(:not(.doc-textbox-filled, .doc-textbox-filled *)) {
+    color: var(--dk-c) !important;
+  }
+
+  .mo-word-core :where(.page-dark) [style*='--dk-bg:']:where(:not(.doc-textbox-filled, .doc-textbox-filled *)) {
+    background-color: var(--dk-bg) !important;
+  }
+  .mo-word-core :where(.page-dark) [style*='--dk-bg:']:where(:not(.doc-textbox-filled, .doc-textbox-filled *)) {
+    --pbdr-fill: var(--dk-bg) !important;
+  }
+
+  .mo-word-core :where(.page-dark) [style*='--dk-bgi:']:where(:not(.doc-textbox-filled, .doc-textbox-filled *)) {
+    background-image: var(--dk-bgi) !important;
+  }
+
+  .mo-word-core :where(.page-dark) [style*='--dk-b-t:']:where(:not(.doc-textbox-filled, .doc-textbox-filled *)) {
+    border-top: var(--dk-b-t) !important;
+  }
+
+  .mo-word-core :where(.page-dark) [style*='--dk-b-r:']:where(:not(.doc-textbox-filled, .doc-textbox-filled *)) {
+    border-right: var(--dk-b-r) !important;
+  }
+
+  .mo-word-core :where(.page-dark) [style*='--dk-b-b:']:where(:not(.doc-textbox-filled, .doc-textbox-filled *)) {
+    border-bottom: var(--dk-b-b) !important;
+  }
+
+  .mo-word-core :where(.page-dark) [style*='--dk-b-l:']:where(:not(.doc-textbox-filled, .doc-textbox-filled *)) {
+    border-left: var(--dk-b-l) !important;
+  }
+  .mo-word-core .page-dark .doc-table td:where(:not(.doc-textbox-filled *)), .mo-word-core .page-dark .doc-table th:where(:not(.doc-textbox-filled *)) {
+    border-top: var(--dk-tb-h, none);
+    border-bottom: var(--dk-tb-h, none);
+    border-left: var(--dk-tb-v, none);
+    border-right: var(--dk-tb-v, none);
+  }
+
+  .mo-word-core .page-dark .doc-table tr:first-child > td:where(:not(.doc-textbox-filled *)), .mo-word-core .page-dark .doc-table tr:first-child > th:where(:not(.doc-textbox-filled *)) {
+    border-top: var(--dk-tb-t, var(--dk-tb-h, none));
+  }
+
+  .mo-word-core .page-dark .doc-table tr:last-child > td:where(:not(.doc-textbox-filled *)), .mo-word-core .page-dark .doc-table tr:last-child > th:where(:not(.doc-textbox-filled *)) {
+    border-bottom: var(--dk-tb-b, var(--dk-tb-h, none));
+  }
+
+  .mo-word-core .page-dark .doc-table td:first-child:where(:not(.doc-textbox-filled *)), .mo-word-core .page-dark .doc-table th:first-child:where(:not(.doc-textbox-filled *)) {
+    border-left: var(--dk-tb-l, var(--dk-tb-v, none));
+  }
+
+  .mo-word-core .page-dark .doc-table td:last-child:where(:not(.doc-textbox-filled *)), .mo-word-core .page-dark .doc-table th:last-child:where(:not(.doc-textbox-filled *)) {
+    border-right: var(--dk-tb-r, var(--dk-tb-v, none));
+  }
+}
+.mo-word-core .doc-page .page-break-before {
+  position: relative;
+  margin-top: 14pt;
+}
+
+.mo-word-core .doc-page .page-break-before:where(:not(.doc-li))::before, .mo-word-core .doc-page .doc-li.page-break-before::after {
+  content: attr(data-page-break-label);
+  position: absolute;
+  top: -19px;
+  left: 0;
+  right: 0;
+  height: 13px;
+  border-bottom: 1px dashed var(--border-strong);
+  font-size: 10px;
+  line-height: 13px;
+  text-align: center;
+  text-indent: 0;
+  color: var(--text-dim);
+}
+
+.mo-word-core .doc-page p {
+  margin: 0 0 8pt;
+}
+.mo-word-core .page-gap {
+  position: relative;
+  cursor: default;
+  user-select: none;
+}
+
+.mo-word-core .page-gap::before {
+  content: '';
+  position: absolute;
+  top: var(--gap-mb, 96px);
+  bottom: var(--gap-mt, 96px);
+  left: 0;
+  right: 0;
+  background: var(--canvas);
+  box-shadow: var(--docs-gap-inset);
+}
+.mo-word-core .page-gap-inline {
+  display: inline-block;
+  vertical-align: top;
+  pointer-events: none;
+  text-indent: 0;
+  background: var(--page-bg, var(--docs-paper));
+}
+.mo-word-core .page-gap-cell {
+  background: var(--page-bg, var(--docs-paper));
+  z-index: 1;
+}
+.mo-word-core .page-gap-table {
+  display: table-row;
+}
+
+.mo-word-core .doc-table .page-gap-table > td {
+  position: relative;
+  height: auto;
+  padding: 0;
+  /* !important: the td edge-border rules (--doc-b-l/r on first/last-child) come
+     later in the sheet and would otherwise frame the page gutter */
+  border: 0 !important;
+  background: var(--page-bg, var(--docs-paper));
+}
+
+.mo-word-core .page-gap-table::before {
+  display: none;
+}
+.mo-word-core .page-gap-table-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--page-bg, var(--docs-paper)) 0 var(--gap-mb, 96px),
+    var(--canvas) var(--gap-mb, 96px) calc(var(--gap-mb, 96px) + 28px),
+    var(--page-bg, var(--docs-paper)) calc(var(--gap-mb, 96px) + 28px) 100%
+  );
+}
+
+.mo-word-core .page-wrap.paper-mixed .doc-page {
+  background: transparent;
+  box-shadow: none;
+}
+
+.mo-word-core .page-wrap.paper-mixed .page-gap::before {
+  box-shadow: none;
+}
+.mo-word-core .page-gap-notes {
+  position: absolute;
+  /* small offset keeps the separator off the last line's descenders when the break lands mid-paragraph */
+  top: 5px;
+  overflow: visible;
+  box-sizing: border-box;
+  pointer-events: auto;
+  font-size: 10pt;
+  /* font + line-height mirror the estimateFootnoteHeight model (line-height set
+     inline in px, docGrid-snapped) so reserved and rendered heights agree */
+  font-family: Calibri, Carlito, 'Carlito GO', sans-serif;
+  line-height: 1.3;
+  color: var(--docs-paper-ink-dim);
+  text-indent: 0;
+  text-align: left;
+}
+.mo-word-core .page-gap-notes::before {
+  content: '';
+  display: block;
+  width: min(2in, 100%);
+  height: 11px;
+  border-bottom: 1px solid var(--docs-paper-ink-faint);
+  margin-bottom: 4px;
+}
+.mo-word-core .page-gap-note {
+  cursor: default;
+}
+
+.mo-word-core .page-gap-note.rev-target {
+  outline: 2px solid var(--docs-paper-rev-ink);
+  outline-offset: 1px;
+}
+
+.mo-word-core .page-gap-note sup {
+  margin-right: 4px;
+  font-size: 0.65em;
+}
+.mo-word-core .page-gap-hf {
+  cursor: default;
+}
+
+.mo-word-core .page-gap-hf:hover:not(.page-hf-editing) {
+  outline: 1px dashed var(--docs-paper-hf-line);
+  outline-offset: 2px;
+}
+
+.mo-word-core .page-gap-hf .page-hf-tags {
+  display: none;
+}
+
+.mo-word-core .view-print .doc-page {
+  isolation: isolate;
+}
+.mo-word-core .page-gap + .page-break-before:where(:not(.doc-li))::before, .mo-word-core .page-gap + .doc-li.page-break-before::after {
+  display: none;
+}
+.mo-word-core .doc-oversize-clip {
+  overflow: hidden;
+}
+.mo-word-core .pv-clip .page-gap, .mo-word-core .pv-clip .page-gap-cut, .mo-word-core .pv-clip .page-float-host {
+  display: none;
+}
+.mo-word-core .pv-clip .doc-page {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  min-height: 0;
+  pointer-events: none;
+}
+.mo-word-core .pv-clip .doc-page .page-break-before:where(:not(.doc-li))::before, .mo-word-core .pv-clip .doc-page .doc-li.page-break-before::after {
+  visibility: hidden;
+}
+
+.mo-word-core .doc-page h1, .mo-word-core .doc-page h2, .mo-word-core .doc-page h3, .mo-word-core .doc-page h4, .mo-word-core .doc-page h5, .mo-word-core .doc-page h6 {
+  font-weight: 400;
+  line-height: 1.2;
+  margin: 14pt 0 4pt;
+}
+.mo-word-core .doc-page h1:where(:not(.doc-outline-only)) {
+  font-size: 16pt;
+  color: inherit;
+}
+
+.mo-word-core .doc-page h2:where(:not(.doc-outline-only)) {
+  font-size: 13pt;
+  color: inherit;
+}
+
+.mo-word-core .doc-page h3:where(:not(.doc-outline-only)) {
+  font-size: 12pt;
+  color: inherit;
+}
+
+.mo-word-core .doc-page h4:where(:not(.doc-outline-only)), .mo-word-core .doc-page h5:where(:not(.doc-outline-only)), .mo-word-core .doc-page h6:where(:not(.doc-outline-only)) {
+  font-size: 11pt;
+  color: inherit;
+  font-style: italic;
+}
+.mo-word-core .doc-page :where(h1, h2, h3, h4, h5, h6).doc-outline-only {
+  font-size: inherit;
+}
+.mo-word-core .doc-ltr-runs {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.mo-word-core .doc-link {
+  color: var(--docs-paper-link);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.mo-word-core .doc-link.doc-link-plain {
+  color: inherit;
+  text-decoration: none;
+}
+.mo-word-core .doc-li {
+  position: relative;
+  padding-inline-start: var(--li-left, var(--style-li-left, 0.55in));
+  margin: 0 0 4pt;
+}
+
+.mo-word-core .doc-li.ilvl-1 {
+  padding-inline-start: var(--li-left, var(--style-li-left, 0.85in));
+}
+
+.mo-word-core .doc-li.ilvl-2 {
+  padding-inline-start: var(--li-left, var(--style-li-left, 1.15in));
+}
+
+.mo-word-core .doc-li.ilvl-3 {
+  padding-inline-start: var(--li-left, var(--style-li-left, 1.45in));
+}
+
+.mo-word-core .doc-li.ilvl-4 {
+  padding-inline-start: var(--li-left, var(--style-li-left, 1.75in));
+}
+.mo-word-core .doc-page > .sp-auto-b:nth-child(1 of :not(.page-float-host)), .mo-word-core .doc-page
+  > .doc-protected:nth-child(1 of :not(.page-float-host))
+  > :is(.doc-anchor-line, .doc-textbox-stray).sp-auto-b {
+  margin-top: 0 !important;
+}
+.mo-word-core .doc-table :is(td, th, .cell-clip, .cell-vert) > .sp-auto-b:nth-child(1 of :not(.doc-cell-boxes)) {
+  margin-top: 0 !important;
+}
+
+.mo-word-core .doc-table
+  :is(td, th, .cell-clip, .cell-vert)
+  > .sp-auto-a:nth-last-child(1 of :not(.doc-cell-boxes)) {
+  margin-bottom: 0 !important;
+}
+.mo-word-core .doc-page
+  :is(p, .doc-li, .doc-outline-only).ctx-sp:not([data-style]):has(
+    + :is(p, .doc-li, .doc-outline-only):not([data-style])
+  ) {
+  margin-bottom: 0 !important;
+}
+
+.mo-word-core .doc-page
+  :is(p, .doc-li, .doc-outline-only):not([data-style])
+  + :is(p, .doc-li, .doc-outline-only).ctx-sp:not([data-style]) {
+  margin-top: 0 !important;
+}
+.mo-word-core .doc-page
+  :is(p, .doc-li, .doc-outline-only).ctx-sp:not([data-style]):has(
+    + :is(.page-gap, .page-gap-cut, .page-float-host, .page-float-carry)
+      + :is(p, .doc-li, .doc-outline-only):not([data-style])
+  ) {
+  margin-bottom: 0 !important;
+}
+
+.mo-word-core .doc-page
+  :is(p, .doc-li, .doc-outline-only):not([data-style])
+  + :is(.page-gap, .page-gap-cut, .page-float-host, .page-float-carry)
+  + :is(p, .doc-li, .doc-outline-only).ctx-sp:not([data-style]) {
+  margin-top: 0 !important;
+}
+.mo-word-core .doc-page
+  :is(p, .doc-li, .doc-outline-only).ctx-sp:not([data-style]):has(
+    + table.doc-table
+      > tbody
+      > tr:first-child
+      > :is(td, th):first-child
+      > :is(p, .doc-li):not([data-style]):nth-child(1 of :not(.doc-cell-boxes)),
+    + table.doc-table
+      > tbody
+      > tr:first-child
+      > :is(td, th):first-child
+      > :is(.cell-clip, .cell-vert)
+      > :is(p, .doc-li):not([data-style]):nth-child(1 of :not(.doc-cell-boxes))
+  ), .mo-word-core .doc-table
+  :is(
+    :is(td, th):is(
+        :last-child,
+        :has(
+          + :is(td, th) > :is(p, .doc-li):not([data-style]):nth-child(1 of :not(.doc-cell-boxes)),
+          + :is(td, th)
+            > :is(.cell-clip, .cell-vert)
+            > :is(p, .doc-li):not([data-style]):nth-child(1 of :not(.doc-cell-boxes))
+        )
+      )
+      > :is(p, .doc-li).ctx-sp:not([data-style]):nth-last-child(1 of :not(.doc-cell-boxes)),
+    :is(td, th):is(
+        :last-child,
+        :has(
+          + :is(td, th) > :is(p, .doc-li):not([data-style]):nth-child(1 of :not(.doc-cell-boxes)),
+          + :is(td, th)
+            > :is(.cell-clip, .cell-vert)
+            > :is(p, .doc-li):not([data-style]):nth-child(1 of :not(.doc-cell-boxes))
+        )
+      )
+      > :is(.cell-clip, .cell-vert)
+      > :is(p, .doc-li).ctx-sp:not([data-style]):nth-last-child(1 of :not(.doc-cell-boxes))
+  ) {
+  margin-bottom: 0 !important;
+}
+
+.mo-word-core .doc-li::before {
+  display: inline-block;
+  /* --li-tab: measured marker escaped the hanging area; box widens to the next default tab stop.
+     --style-li-hang: style-level w:hanging fallback (doc-style-css.ts) */
+  min-width: var(--li-tab, var(--li-hang, var(--style-li-hang, 0.25in)));
+  margin-inline-start: calc(-1 * var(--li-hang, var(--style-li-hang, 0.25in)));
+  /* the marker box is a block container: an inherited first-line indent would
+     drag the glyphs out of the hanging area */
+  text-indent: 0;
+  /* glyphs lead the box whatever the paragraph alignment: Word's tab follows the marker */
+  text-align: start;
+  font-family: var(--li-marker-font, inherit);
+  font-size: var(--li-marker-size, 1em);
+  /* an oversized level w:sz sets the marker's natural height (Word does not
+     grid-snap the number like a run) */
+  line-height: var(--li-marker-lh, inherit);
+  vertical-align: var(--li-marker-va, baseline);
+  /* w:lvl rPr color; the --dk-li-mc twin recolors it on the dark page */
+  color: var(--li-marker-color, inherit);
+}
+
+.mo-word-core .page-dark .doc-li[style*='--dk-li-mc:']::before, .mo-word-core .page-dark [data-stray-marker][style*='--dk-li-mc:'] .doc-li-stray::before {
+  color: var(--dk-li-mc);
+}
+
+.mo-word-core .doc-li-bullet::before {
+  content: '•';
+}
+
+.mo-word-core .doc-li.ilvl-1.doc-li-bullet::before {
+  content: '◦';
+}
+
+.mo-word-core .doc-li.ilvl-2.doc-li-bullet::before {
+  content: '▪';
+}
+
+.mo-word-core .doc-page {
+  counter-reset: doc-ol;
+}
+
+.mo-word-core .doc-li-ordered {
+  counter-increment: doc-ol;
+}
+
+.mo-word-core .doc-li-ordered::before {
+  content: counter(doc-ol) '.';
+}
+.mo-word-core .doc-page > :not(.doc-li-ordered) + .doc-li-ordered {
+  counter-set: doc-ol 1;
+}
+.mo-word-core .doc-page .doc-li[data-marker] {
+  counter-increment: none;
+}
+
+.mo-word-core .doc-page .doc-li[data-marker]::before {
+  content: attr(data-marker);
+}
+.mo-word-core .doc-page .doc-li[data-marker-clip]::before {
+  visibility: hidden;
+}
+.mo-word-core .doc-page .doc-li[data-suff]::before {
+  min-width: 0;
+  margin-inline-start: calc(-1 * var(--li-hang, var(--style-li-hang, 0)));
+}
+
+.mo-word-core .doc-page .doc-li[data-suff='space'][data-marker]:not([data-marker-pic])::before {
+  content: attr(data-marker) '\00a0';
+}
+.mo-word-core .doc-page .doc-li[data-marker-pic]::before, .mo-word-core .doc-page [data-stray-marker][data-marker-pic] .doc-li-stray::before {
+  content: '';
+  width: 1em;
+  min-width: 0;
+  height: 1em;
+  vertical-align: -0.1em;
+  background: var(--li-marker-pic) center / contain no-repeat;
+}
+
+.mo-word-core .doc-page .doc-li[data-marker-pic]::before {
+  margin-inline-end: max(
+    0px,
+    calc(var(--li-tab, var(--li-hang, var(--style-li-hang, 0.25in))) - 1em)
+  );
+}
+
+.mo-word-core .doc-page [data-stray-marker][data-marker-pic] .doc-li-stray::before {
+  margin-inline-end: max(0px, calc(var(--li-tab, var(--li-hang, var(--style-li-hang, 0))) - 1em));
+}
+.mo-word-core .doc-page .doc-li[data-suff][data-marker-pic]::before, .mo-word-core .doc-page [data-stray-marker][data-suff][data-marker-pic] .doc-li-stray::before {
+  margin-inline-end: 0;
+}
+
+.mo-word-core .doc-page .doc-li[data-suff='space'][data-marker-pic]::before, .mo-word-core .doc-page [data-stray-marker][data-suff='space'][data-marker-pic] .doc-li-stray::before {
+  margin-inline-end: 0.25em;
+}
+.mo-word-core .doc-protected {
+  position: relative;
+  border: 1px dashed var(--border-strong);
+  border-radius: 3px;
+  padding: 10px 14px;
+  margin: 0 0 8pt;
+  background: var(--docs-paper-chip-bg);
+  cursor: grab;
+  user-select: none;
+}
+
+.mo-word-core .doc-move-handle {
+  position: absolute;
+  z-index: 4;
+  top: -14px;
+  left: -14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--word-blue);
+  border-radius: 3px;
+  background: var(--docs-paper);
+  color: var(--word-blue);
+  font: 13px/1 sans-serif;
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mo-word-core .doc-protected:hover > .doc-move-handle, .mo-word-core .ProseMirror-focused .doc-protected.ProseMirror-selectednode > .doc-move-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+.mo-word-core .doc-protected[data-doc-protected='image'] > .doc-move-handle {
+  display: none;
+}
+.mo-word-core .doc-protected[data-doc-protected='image'] .doc-img-wrap {
+  cursor: grab;
+}
+
+.mo-word-core body.docs-crop-active .doc-protected[data-doc-protected='image'] .doc-img-wrap {
+  cursor: default;
+}
+.mo-word-core .doc-inactive-selection {
+  --doc-inactive-selection-bg: rgb(0 0 0 / 18%);
+
+  background-color: var(--doc-inactive-selection-bg);
+}
+
+.mo-word-core .doc-protected-textboxes:hover > .box-rotator > .box-resize-handle, .mo-word-core .ProseMirror-focused
+  .doc-protected-textboxes.ProseMirror-selectednode
+  > .box-rotator
+  > .box-resize-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+.mo-word-core .doc-protected-chart:hover > .box-resize-handle, .mo-word-core .ProseMirror-focused .doc-protected-chart.ProseMirror-selectednode > .box-resize-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mo-word-core .doc-content-editing > .box-rotator > .box-resize-handle, .mo-word-core .doc-content-editing > .box-resize-handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mo-word-core .doc-protected-textboxes:hover > .box-rotator > .box-rotate-handle, .mo-word-core .ProseMirror-focused
+  .doc-protected-textboxes.ProseMirror-selectednode
+  > .box-rotator
+  > .box-rotate-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mo-word-core .doc-content-editing > .box-rotator > .box-rotate-handle {
+  opacity: 0;
+  pointer-events: none;
+}
+.mo-word-core .doc-protected-textboxes.has-turned-box, .mo-word-core .doc-protected-textboxes.has-turned-box:hover, .mo-word-core .ProseMirror-focused
+  .doc-protected.doc-protected-textboxes.has-turned-box.ProseMirror-selectednode {
+  border-color: transparent;
+}
+
+.mo-word-core .doc-protected-textboxes.has-turned-box:hover > .box-rotator > .doc-textbox {
+  outline: 1px dashed var(--border);
+}
+
+.mo-word-core .ProseMirror-focused
+  .doc-protected.doc-protected-textboxes.has-turned-box.ProseMirror-selectednode
+  > .box-rotator
+  > .doc-textbox {
+  outline: 1px dashed var(--word-blue);
+}
+.mo-word-core .doc-page > .doc-table {
+  margin: 0;
+}
+
+.mo-word-core .doc-protected[data-doc-protected='table'] {
+  border-color: transparent;
+  background: transparent;
+  padding: 2px;
+}
+
+.mo-word-core .doc-protected[data-doc-protected='table']:hover {
+  border-color: var(--border-strong);
+}
+
+.mo-word-core .doc-table {
+  /* fallback when there are no absolute grid widths; tables with w:tblGrid are overridden by inline width.
+     font size/line spacing inherit the document defaults (.doc-page, i.e. the Normal style) */
+  width: 100%;
+  /* paper-width cap: over-wide tables may spill into the page margins like Word
+     (inline widths in extensions.ts/protected-render.ts grant up to this much);
+     --doc-content-w = per-block section content width (differing-width sections) */
+  max-width: calc(
+    var(--doc-content-w, 100%) + var(--doc-margin-left, var(--doc-margin-right, 0px)) +
+      var(--doc-margin-right, 0px)
+  );
+  border-collapse: collapse;
+  table-layout: fixed;
+  /* share of a vertical border the cell margin absorbs; spaced tables set 0 inline
+     (declared per table so nested tables do not inherit the parent's value) */
+  --doc-bw-share: 0.5;
+  /* share of a horizontal border's snap delta each adjacent row carries; spaced tables set 1 */
+  --doc-bd-share: 0.5;
+  /* row gridline advance: the table sets --doc-row-eat from insideH and spaced tables
+     set --doc-row-grid 0 inline; reset here so nested tables do not inherit them */
+  --doc-row-eat: 0px;
+  --doc-row-grid: 1;
+  /* fixed-layout tables set normal inline (w:noWrap ignored); a nested table decides for itself */
+  --doc-cell-nowrap: nowrap;
+  /* row-wide cell padding is set per tr; a nested table must fall back to its
+     own --doc-cell-pad-* instead of inheriting the host row's */
+  --doc-row-pad-t: initial;
+  --doc-row-pad-b: initial;
+}
+
+.mo-word-core .doc-table.doc-table-autofit-contents, .mo-word-core .doc-table.doc-table-autofit-window {
+  table-layout: auto;
+}
+
+.mo-word-core .doc-table.doc-table-autofit-contents {
+  max-width: 100%;
+}
+
+.mo-word-core .doc-table td, .mo-word-core .doc-table th {
+  /* not positioned: a positioned cell's fill paints over the inner half of the collapsed borders */
+  box-sizing: border-box;
+  /* the w:docGrid line grid applies to the body flow only, UNLESS settings.xml
+     w:compat carries w:adjustLineHeightInTable — then docStyleCss restores the
+     pitch in cells and they snap like body lines (Word probe 2026-09-02) */
+  --doc-grid-pitch: 0.0001px;
+}
+.mo-word-core .doc-table td .doc-p-empty, .mo-word-core .doc-table th .doc-p-empty {
+  --doc-line-factor: var(--doc-line-factor-latin, 1.2);
+}
+.mo-word-core .doc-table td > .doc-nested-table + .doc-p-empty:last-child, .mo-word-core .doc-table th > .doc-nested-table + .doc-p-empty:last-child, .mo-word-core .doc-table td > table.doc-table + .doc-p-empty:last-child, .mo-word-core .doc-table th > table.doc-table + .doc-p-empty:last-child {
+  height: 0;
+  min-height: 0;
+  line-height: 0;
+  padding: 0;
+  margin: 0 !important;
+}
+.mo-word-core .doc-table td[data-hide-mark] > .doc-p-empty:not(.doc-p-pic):only-child, .mo-word-core .doc-table th[data-hide-mark] > .doc-p-empty:not(.doc-p-pic):only-child {
+  height: 0;
+  min-height: 0;
+  line-height: 0;
+  padding: 0;
+  margin: 0 !important;
+}
+.mo-word-core .doc-table td .doc-page-br, .mo-word-core .doc-table th .doc-page-br {
+  display: none;
+}
+
+.mo-word-core .doc-table td, .mo-word-core .doc-table th {
+  /* undeclared borders render as none (Word's on-screen gridlines are non-printing
+     view furniture, not part of the document); w:tblBorders drives --doc-b-* */
+  border-top: var(--doc-b-h, none);
+  border-bottom: var(--doc-b-h, none);
+  border-left: var(--doc-b-v, none);
+  border-right: var(--doc-b-v, none);
+  /* Word default cell margins: 108 twips sides / 0 top-bottom (--doc-cell-pad-* overrides);
+     text inset = max(margin, border/2), so the margin absorbs the half border (probe 2026-09-03) */
+  --cell-bw-l: var(--doc-bw-v, 0px);
+  --cell-bw-r: var(--doc-bw-v, 0px);
+  --cell-bd-t: var(--doc-bd-h, 0px);
+  --cell-bd-b: var(--doc-bd-h, 0px);
+  /* top/bottom are row-wide: Word pads every cell with the row's largest tcMar
+     (tr --doc-row-pad-*, extensions rowPadVarsCss; probe 2026-10-13) */
+  padding: var(--doc-row-pad-t, var(--doc-cell-pad-t, 0px))
+    max(0px, calc(var(--doc-cell-pad-r, 7.2px) - var(--cell-bw-r) * var(--doc-bw-share, 0.5)))
+    var(--doc-row-pad-b, var(--doc-cell-pad-b, 0px))
+    max(0px, calc(var(--doc-cell-pad-l, 7.2px) - var(--cell-bw-l) * var(--doc-bw-share, 0.5)));
+  vertical-align: top;
+  /* Word breaks a token wider than the cell character-by-character rather
+     than letting it overflow (unless w:noWrap, which we don't model yet) */
+  overflow-wrap: break-word;
+}
+.mo-word-core .doc-table td::before, .mo-word-core .doc-table th::before {
+  content: '';
+  display: block;
+  --cell-bd-sum: calc((var(--cell-bd-t) + var(--cell-bd-b)) * var(--doc-bd-share, 0.5));
+  height: max(0px, var(--cell-bd-sum));
+  margin-bottom: min(0px, var(--cell-bd-sum));
+}
+.mo-word-core .doc-table .page-gap-table > td::before {
+  content: none;
+}
+.mo-word-core .doc-table tr.page-repeat-header {
+  display: table-row;
+  user-select: none;
+  pointer-events: none;
+}
+.mo-word-core .doc-table tr:first-child > td, .mo-word-core .doc-table tr:first-child > th {
+  border-top: var(--doc-b-t, var(--doc-b-h, none));
+  --cell-bd-t: var(--doc-bd-t, var(--doc-bd-h, 0px));
+}
+.mo-word-core .doc-table tr:last-child > td, .mo-word-core .doc-table tr:last-child > th {
+  border-bottom: var(--doc-b-b, var(--doc-b-h, none));
+  --cell-bd-b: var(--doc-bd-b, var(--doc-bd-h, 0px));
+}
+.mo-word-core .doc-table td:first-child, .mo-word-core .doc-table th:first-child {
+  border-left: var(--doc-b-l, var(--doc-b-v, none));
+  --cell-bw-l: var(--doc-bw-l, var(--doc-bw-v, 0px));
+}
+.mo-word-core .doc-table td:last-child, .mo-word-core .doc-table th:last-child {
+  border-right: var(--doc-b-r, var(--doc-b-v, none));
+  --cell-bw-r: var(--doc-bw-r, var(--doc-bw-v, 0px));
+}
+.mo-word-core .doc-table th {
+  font-weight: inherit;
+  text-align: inherit;
+}
+.mo-word-core .doc-table .selectedCell, .mo-word-core .doc-table.ProseMirror-selectednode > tbody > tr:not(.page-gap-table) > td, .mo-word-core .doc-table.ProseMirror-selectednode > tbody > tr:not(.page-gap-table) > th {
+  position: relative;
+}
+
+.mo-word-core .doc-table .selectedCell::after, .mo-word-core .doc-table.ProseMirror-selectednode > tbody > tr:not(.page-gap-table) > td::after, .mo-word-core .doc-table.ProseMirror-selectednode > tbody > tr:not(.page-gap-table) > th::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background: color-mix(in srgb, var(--word-blue) 18%, transparent);
+}
+
+.mo-word-core .doc-page.resize-cursor {
+  cursor: col-resize;
+}
+
+.mo-word-core .doc-page.row-resize-cursor, .mo-word-core .row-resize-cursor .doc-table td, .mo-word-core .row-resize-cursor .doc-table th {
+  cursor: row-resize;
+}
+.mo-word-core .resize-cursor .doc-table td, .mo-word-core .resize-cursor .doc-table th {
+  position: relative;
+}
+.mo-word-core .doc-protected-textboxes {
+  border-color: transparent;
+  background: transparent;
+  /* Word gives inline drawings no intrinsic spacing: chip chrome (8pt margin +
+     vertical padding) inflated flow height and pushed following blocks to the
+     next page (floating boxes already zero it out) */
+  padding: 0;
+  margin: 0;
+  cursor: default;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.mo-word-core .doc-protected-textboxes:hover {
+  border-color: var(--border);
+}
+.mo-word-core .doc-protected-textboxes.doc-protected-wrapside {
+  width: 100%;
+}
+.mo-word-core .doc-protected-textboxes.doc-protected-boxes-center {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.mo-word-core .doc-protected-textboxes.doc-protected-boxes-right {
+  margin-left: auto;
+}
+.mo-word-core .doc-protected-floating > .doc-textbox, .mo-word-core .doc-protected-floating > .box-rotator {
+  translate: 0 var(--page-float-dy, 0px);
+  /* anchored shapes keep their declared extent past the column (Word) */
+  max-width: none;
+}
+.mo-word-core .doc-protected-floating > .box-rotator > .doc-textbox {
+  /* the rotator already mirrors the float slot and carries the shift; the box
+     stays unturned and in place inside it */
+  max-width: none;
+}
+.mo-word-core .pv-clip .doc-protected-floating > .doc-textbox, .mo-word-core .pv-clip .doc-protected-floating > .box-rotator {
+  translate: none;
+}
+
+.mo-word-core .doc-protected.doc-protected-floating {
+  position: relative;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  width: 100%;
+  max-width: 100%;
+}
+.mo-word-core .doc-protected.doc-protected-floating.doc-protected-behind {
+  z-index: -1;
+  overflow: visible;
+}
+
+.mo-word-core .doc-protected.doc-protected-behind .doc-textbox {
+  z-index: -1;
+}
+.mo-word-core .doc-protected.doc-protected-floating.doc-protected-pagepinned {
+  position: static;
+}
+
+.mo-word-core .doc-protected-pagepinned > .doc-move-handle {
+  display: none;
+}
+.mo-word-core .doc-protected.doc-img-float {
+  position: relative;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+}
+.mo-word-core .doc-protected.doc-img-float.img-wrap-band {
+  height: auto;
+}
+
+.mo-word-core .doc-img-float > .doc-img-wrap {
+  translate: 0 var(--page-float-dy, 0px);
+}
+.mo-word-core .doc-protected.doc-img-float.doc-img-float-line {
+  height: auto;
+  display: flow-root;
+}
+.mo-word-core .doc-img-float.img-wrap-band > .doc-img-wrap, .mo-word-core .doc-img-float.img-wrap-band > .doc-img-wrap > .doc-protected-img {
+  max-width: none;
+}
+.mo-word-core .doc-cell-boxes > .doc-textbox, .mo-word-core .doc-cell-boxes > div {
+  translate: var(--cell-page-dx, 0px) calc(var(--page-float-dy, 0px) + var(--cell-page-dy, 0px));
+}
+.mo-word-core .pv-clip .doc-cell-boxes > .doc-textbox, .mo-word-core .pv-clip .doc-cell-boxes > div {
+  translate: none;
+}
+.mo-word-core .pv-clip .doc-cell-boxes-page > .doc-textbox[data-cell-page] {
+  visibility: hidden;
+}
+.mo-word-core .pv-cell-page-box > .doc-textbox {
+  left: 0 !important;
+  top: 0 !important;
+  translate: none;
+  max-width: none;
+}
+
+.mo-word-core .pv-clip .doc-img-float > .doc-img-wrap {
+  translate: none;
+}
+.mo-word-core .doc-protected.doc-protected-floating.doc-protected-floating-stray {
+  height: auto;
+  display: flow-root;
+}
+.mo-word-core .pv-clip [data-anchor-dy] > .doc-textbox, .mo-word-core .pv-clip [data-anchor-dy] > .box-rotator {
+  translate: 0 var(--pv-anchor-lift, 0px);
+}
+.mo-word-core .pv-page [data-pv-pagerel='1'], .mo-word-core .pv-page .doc-anchor-origin[data-pv-pagerel='1'] {
+  position: static;
+}
+.mo-word-core .pv-page [data-pv-pagerel='1'] > .doc-textbox[data-page-rel-v='1'], .mo-word-core .pv-page [data-pv-pagerel='1'] > .box-rotator:has(> .doc-textbox[data-page-rel-v='1']), .mo-word-core .pv-page [data-pv-pagerel='1'] > .doc-img-wrap[data-page-rel-v='1'], .mo-word-core .pv-page [data-pv-pagerel='1'] .doc-inline-img-anchor > img[data-page-rel-v='1'] {
+  translate: var(--pv-ml, 0px) var(--pv-mt, 0px);
+}
+.mo-word-core .pv-page [data-pv-pagerel='1'] > .doc-textbox[data-page-rel-from='page'], .mo-word-core .pv-page [data-pv-pagerel='1'] > .box-rotator:has(> .doc-textbox[data-page-rel-from='page']), .mo-word-core .pv-page [data-pv-pagerel='1'] > .doc-img-wrap[data-page-rel-from='page'], .mo-word-core .pv-page [data-pv-pagerel='1'] .doc-inline-img-anchor > img[data-page-rel-from='page'] {
+  translate: var(--pv-ml, 0px) var(--pv-mt-page, var(--pv-mt, 0px));
+}
+.mo-word-core .pv-page [data-pv-hoist='1'] > .doc-textbox, .mo-word-core .pv-page [data-pv-hoist='1'] > .box-rotator, .mo-word-core .pv-page [data-pv-hoist='1'] > .doc-img-wrap {
+  translate: var(--pv-ml, 0px) calc(var(--pv-mt, 0px) + var(--pv-hoist-dy, 0px));
+}
+.mo-word-core .pv-page [data-pv-hoist-slot='center'] > .doc-textbox, .mo-word-core .pv-page [data-pv-hoist-slot='center'] > .box-rotator, .mo-word-core .pv-page [data-pv-hoist-slot='center'] > .doc-img-wrap {
+  translate: calc((var(--pv-ml, 0px) - var(--pv-mr, 0px)) / 2)
+    calc(var(--pv-mt, 0px) + var(--pv-hoist-dy, 0px));
+}
+.mo-word-core .pv-page [data-pv-hoist-slot='right'] > .doc-textbox, .mo-word-core .pv-page [data-pv-hoist-slot='right'] > .box-rotator, .mo-word-core .pv-page [data-pv-hoist-slot='right'] > .doc-img-wrap {
+  translate: calc(-1 * var(--pv-mr, 0px)) calc(var(--pv-mt, 0px) + var(--pv-hoist-dy, 0px));
+}
+
+.mo-word-core .ProseMirror-focused .doc-protected.doc-protected-textboxes.ProseMirror-selectednode {
+  border-color: var(--word-blue);
+  outline: none;
+  background: transparent;
+}
+
+.mo-word-core .doc-textbox {
+  /* no reserved edge: Word's text rectangle is the shape rect minus insets */
+  border: 0 solid transparent;
+  border-radius: 3px;
+  padding: 5px 10px;
+  margin: 2px 0;
+  max-width: 100%;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  /* fixed-height boxes (noAutofit) clip overflow instead of growing */
+  overflow: hidden;
+}
+
+.mo-word-core .doc-protected-textboxes:not(.doc-content-editing) .doc-textbox, .mo-word-core .doc-protected[data-doc-protected='table']:not(.doc-content-editing) td {
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mo-word-core .doc-content-editing > .doc-move-handle {
+  opacity: 0;
+  pointer-events: none;
+}
+.mo-word-core .doc-textbox .doc-textbox-editor {
+  outline: none;
+  white-space: pre-wrap;
+}
+
+.mo-word-core .doc-textbox-editor p {
+  margin: 0;
+}
+
+.mo-word-core .doc-textbox:focus-within {
+  outline: 2px solid var(--word-blue);
+  outline-offset: 1px;
+}
+
+.mo-word-core .doc-textbox-para {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.mo-word-core .doc-textbox-para[data-marker]::before {
+  content: attr(data-marker);
+  display: inline-block;
+  min-width: var(--li-tab, var(--li-hang, 0));
+  margin-inline-start: calc(-1 * var(--li-hang, 0));
+  text-indent: 0;
+  font-family: var(--li-marker-font, inherit);
+  font-size: var(--li-marker-size, 1em);
+  line-height: var(--li-marker-lh, inherit);
+  vertical-align: var(--li-marker-va, baseline);
+  color: var(--li-marker-color, inherit);
+}
+.mo-word-core .doc-textbox-para[data-marker-pic]::before {
+  content: '';
+  width: 1em;
+  min-width: 0;
+  height: 1em;
+  vertical-align: -0.1em;
+  margin-inline-end: max(0px, calc(var(--li-tab, var(--li-hang, 0)) - 1em));
+  background: var(--li-marker-pic) center / contain no-repeat;
+}
+.mo-word-core .doc-page .doc-li-stray {
+  padding-inline-start: var(--li-left, var(--style-li-left, 0));
+}
+
+.mo-word-core .doc-page [data-stray-marker] .doc-li-stray::before {
+  content: var(--li-marker);
+  display: inline-block;
+  min-width: var(--li-tab, var(--li-hang, var(--style-li-hang, 0)));
+  margin-inline-start: calc(-1 * var(--li-hang, var(--style-li-hang, 0)));
+  text-indent: 0;
+  font-family: var(--li-marker-font, inherit);
+  font-size: var(--li-marker-size, 1em);
+  line-height: var(--li-marker-lh, inherit);
+  vertical-align: var(--li-marker-va, baseline);
+  color: var(--li-marker-color, inherit);
+}
+.mo-word-core .doc-page [data-stray-marker][data-marker-clip] .doc-li-stray::before {
+  visibility: hidden;
+}
+
+.mo-word-core .doc-page [data-stray-marker][data-suff] .doc-li-stray::before {
+  min-width: 0;
+  margin-inline-start: calc(-1 * var(--li-hang, var(--style-li-hang, 0)));
+}
+
+.mo-word-core .doc-page [data-stray-marker][data-suff='space']:not([data-marker-pic]) .doc-li-stray::before {
+  content: var(--li-marker) '\00a0';
+}
+.mo-word-core .doc-inline-img {
+  max-width: 100%;
+}
+.mo-word-core .doc-page .doc-p-pic:not(.doc-lh-fixed) {
+  line-height: 0;
+  padding-bottom: calc((var(--doc-line-mult, 1) - 1) * var(--doc-line-factor, 1.2) * 1em);
+}
+
+.mo-word-core .doc-page .doc-p-pic .doc-inline-img {
+  vertical-align: bottom;
+}
+.mo-word-core .doc-page .doc-p-pic .doc-inline-pic {
+  vertical-align: bottom;
+}
+.mo-word-core .doc-inline-img-anchor {
+  display: inline;
+}
+.mo-word-core .doc-page .doc-anchor-origin {
+  position: relative;
+}
+.mo-word-core .doc-page .doc-br-line {
+  display: block;
+}
+.mo-word-core .doc-page .doc-run-lf {
+  line-height: var(
+    --doc-line-max,
+    calc(var(--doc-line-factor, 1.2) * 1em * var(--doc-line-mult, 1))
+  );
+}
+.mo-word-core .doc-table
+  :is(td, th)
+  .doc-mixed-face:not(.doc-lh-fixed)
+  span[style*='--doc-run-lh']:not([style*='vertical-align']) {
+  line-height: calc(var(--doc-run-lh) * 1em * var(--doc-line-mult, 1));
+}
+.mo-word-core :where(:is(.doc-page, .page-hf) .doc-strut-mixed > :not([style*='font-size'])) {
+  font-size: var(--doc-base-fs, 11pt);
+}
+.mo-word-core .doc-page span.doc-cs.doc-cs-b {
+  font-weight: 600;
+}
+.mo-word-core .doc-page span.doc-cs.doc-cs-nb:not(strong *) {
+  font-weight: normal;
+}
+.mo-word-core .doc-page span.doc-cs.doc-cs-i {
+  font-style: italic;
+}
+.mo-word-core .doc-page span.doc-cs.doc-cs-ni:not(em *) {
+  font-style: normal;
+}
+.mo-word-core .doc-page .doc-cs-mixed span[data-cs]:not([style*='vertical-align']), .mo-word-core .doc-table
+  :is(td, th)
+  .doc-cs-mixed:not(.doc-lh-fixed)
+  span[data-cs][style*='--doc-run-lh']:not([style*='vertical-align']) {
+  line-height: 0;
+}
+.mo-word-core .doc-page .doc-cut-adjusted span[data-cut-adj]:not([style*='vertical-align']), .mo-word-core .doc-page .doc-cut-adjusted :is(strong, em), .mo-word-core .doc-table
+  :is(td, th)
+  .doc-cut-adjusted:not(.doc-lh-fixed)
+  span[data-cut-adj][style*='--doc-run-lh']:not([style*='vertical-align']) {
+  line-height: 0;
+}
+.mo-word-core .doc-inline-img--behind {
+  z-index: -1;
+}
+.mo-word-core .doc-page :is(p, h1, h2, h3, h4, h5, h6, .doc-li, .doc-textbox-para, .doc-protected-field) {
+  --doc-lead-gap: calc(
+    (1 - var(--doc-lead-grid, 0)) *
+      (var(--doc-line-factor, 1.2) - var(--doc-font-box, var(--doc-line-factor, 1.2))) * 1em / 2
+  );
+  --doc-lead-exact: calc(0.3 * var(--doc-lh-cap) - var(--doc-font-skew) * 1em / 2);
+  --doc-lead-shift: var(
+    --doc-lead-top,
+    calc(
+      (1 - var(--doc-lead-grid, 0)) * (1 - var(--doc-line-mult, 1)) * var(--doc-line-factor, 1.2) *
+        1em / 2 + var(--doc-lead-gap)
+    )
+  );
+  position: relative;
+  top: var(--doc-lead-shift);
+}
+.mo-word-core .doc-page .doc-anchor-origin .doc-inline-img-anchor > img {
+  translate: 0 calc(-1 * var(--doc-lead-shift, 0px));
+}
+.mo-word-core .doc-anchor-origin .doc-inline-img-anchor > img[data-page-rel-v='1'] {
+  translate: 0 calc(var(--page-float-dy, 0px) - var(--doc-lead-shift, 0px));
+}
+.mo-word-core .pv-clip .doc-inline-img-anchor > img[data-page-rel-v='1'] {
+  translate: 0 calc(-1 * var(--doc-lead-shift, 0px));
+}
+.mo-word-core .doc-inline-img--wrap-square-left, .mo-word-core .doc-inline-img--wrap-tight-left, .mo-word-core .doc-inline-img--wrap-through-left {
+  float: left;
+  margin: 0 12px 0 0;
+}
+
+.mo-word-core .doc-inline-img--wrap-square-right, .mo-word-core .doc-inline-img--wrap-tight-right, .mo-word-core .doc-inline-img--wrap-through-right {
+  float: right;
+  margin: 0 0 0 12px;
+}
+
+.mo-word-core .doc-inline-img--wrap-topBottom {
+  display: block;
+  margin: 2px auto;
+}
+.mo-word-core .doc-inline-img--wrap-topBottom.doc-inline-img--band-offset {
+  float: left;
+  clear: both;
+}
+
+.mo-word-core .doc-page .doc-band-host {
+  display: flow-root;
+}
+.mo-word-core .doc-page
+  :where(
+    img.doc-inline-img--wrap-square-left,
+    img.doc-inline-img--wrap-square-right,
+    img.doc-inline-img--wrap-tight-left,
+    img.doc-inline-img--wrap-tight-right,
+    img.doc-inline-img--wrap-through-left,
+    img.doc-inline-img--wrap-through-right,
+    img.doc-inline-img--wrap-topBottom
+  ) {
+  position: relative;
+  z-index: 1;
+}
+
+.mo-word-core .doc-page :where(.doc-inline-img-anchor > img:not(.doc-inline-img--behind)) {
+  z-index: 1;
+}
+.mo-word-core .ProseMirror-focused img.doc-inline-img.ProseMirror-selectednode, .mo-word-core .ProseMirror-focused .doc-inline-img-anchor.ProseMirror-selectednode > img {
+  outline: 2px solid var(--word-blue);
+}
+
+.mo-word-core .doc-run-pic-frame {
+  position: fixed;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.mo-word-core .doc-run-pic-frame > .img-resize-handle {
+  display: block;
+  pointer-events: auto;
+}
+
+.mo-word-core body.docs-run-pic-dragging .doc-run-pic-frame {
+  display: none;
+}
+.mo-word-core .hf-float-frame {
+  outline: 2px solid var(--word-blue);
+}
+.mo-word-core .hf-float-hover, .mo-word-core .hf-float-hover * {
+  cursor: move !important;
+}
+.mo-word-core [data-obs-mode='1'] img.doc-inline-img--wrap-square-left, .mo-word-core [data-obs-mode='1'] img.doc-inline-img--wrap-tight-left, .mo-word-core [data-obs-mode='1'] img.doc-inline-img--wrap-through-left, .mo-word-core [data-obs-mode='1'] img.doc-inline-img--wrap-square-right, .mo-word-core [data-obs-mode='1'] img.doc-inline-img--wrap-tight-right, .mo-word-core [data-obs-mode='1'] img.doc-inline-img--wrap-through-right {
+  position: absolute;
+  float: none;
+  margin: 0 !important;
+  left: var(--obs-left, auto);
+  right: var(--obs-right, auto);
+  top: var(--obs-top, 0px);
+}
+.mo-word-core .doc-protected.doc-protected-anchor-line {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  background: none;
+  pointer-events: none;
+  user-select: none;
+}
+.mo-word-core .doc-protected-invisible {
+  height: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  pointer-events: none;
+  user-select: none;
+}
+.mo-word-core .doc-protected-sectbreak {
+  border-color: transparent;
+  background: transparent;
+  padding: 0;
+  border-width: 0;
+  margin: 0;
+  height: 0;
+  min-height: 0;
+  position: relative;
+  overflow: visible;
+}
+
+.mo-word-core .doc-protected-sectbreak .doc-sectbreak-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.mo-word-core .doc-protected-sectbreak:hover {
+  border-color: var(--border-strong);
+}
+
+.mo-word-core .doc-sectbreak-label {
+  display: block;
+  font-size: 10px;
+  color: transparent;
+  line-height: 1.2;
+  user-select: none;
+}
+
+.mo-word-core .doc-protected-sectbreak:hover .doc-sectbreak-label, .mo-word-core .ProseMirror-focused .doc-protected-sectbreak.ProseMirror-selectednode .doc-sectbreak-label {
+  color: var(--text-dim);
+}
+.mo-word-core .doc-protected-rule {
+  border-color: transparent;
+  background: transparent;
+  padding: 4px 0;
+  line-height: 0;
+}
+
+.mo-word-core .doc-protected-rule:hover {
+  border-color: var(--border-strong);
+}
+.mo-word-core .doc-protected-rule.doc-protected-rule-anchored {
+  position: relative;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  line-height: normal;
+}
+
+.mo-word-core .doc-protected-rule-anchored > .doc-rule-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.mo-word-core .doc-rule-line {
+  display: inline-block;
+  vertical-align: top;
+  width: 100%;
+  height: 1px;
+  background: var(--docs-paper-ink-dim);
+}
+.mo-word-core .doc-inline-rule {
+  display: block;
+  font-size: var(--doc-base-fs, 11pt);
+  line-height: calc(
+    var(--doc-line-factor-latin, var(--doc-line-factor, 1.2)) * var(--doc-line-mult, 1) * 1em
+  );
+  box-sizing: content-box;
+  height: var(--doc-rule-h, 1px);
+  /* padding, not margins: a leading/trailing rule's margin would collapse into
+     the paragraph's own and lose part of the line */
+  padding-top: calc(1lh - 0.22em - var(--doc-rule-h, 1px));
+  padding-bottom: 0.22em;
+  background: var(--doc-rule-color, var(--docs-paper-ink-dim));
+  background-clip: content-box;
+}
+.mo-word-core .doc-inline-rule[data-lead-rule] {
+  padding-top: 5.5pt;
+  padding-bottom: 0;
+}
+.mo-word-core .doc-inline-rule[data-lead-rule-full] {
+  font-size: inherit;
+}
+.mo-word-core .doc-lh-fixed span {
+  line-height: min(calc(var(--doc-line-factor, 1.2) * 1em), var(--doc-lh-cap, 9999px));
+}
+.mo-word-core .doc-lh-fixed > .doc-inline-rule {
+  line-height: inherit;
+}
+
+.mo-word-core .doc-lh-fixed > .doc-inline-rule[data-lead-rule] {
+  padding-top: calc(1lh - 0.22em - var(--doc-rule-h, 1px));
+  padding-bottom: 0.22em;
+}
+.mo-word-core .doc-inline-rule + .ProseMirror-separator, .mo-word-core .doc-inline-rule + .ProseMirror-separator + .ProseMirror-trailingBreak {
+  display: none !important;
+}
+.mo-word-core .doc-page
+  :is(span, strong, em, u, s):has(.doc-inline-rule:last-of-type)
+  + .ProseMirror-trailingBreak, .mo-word-core .doc-page
+  :is(span, strong, em, u, s):has(.doc-inline-rule:last-of-type)
+  + .ProseMirror-separator
+  + .ProseMirror-trailingBreak {
+  display: none !important;
+}
+.mo-word-core .ProseMirror-separator:has(+ .doc-inline-rule) {
+  display: none !important;
+}
+
+.mo-word-core .doc-page br.doc-wrap-br {
+  clear: both;
+}
+.mo-word-core .doc-page br.doc-col-br + br.ProseMirror-trailingBreak {
+  display: none;
+}
+.mo-word-core .doc-page .doc-lead-col-br > br.doc-col-br:first-child, .mo-word-core .doc-page .doc-lead-col-br > :first-child br.doc-col-br:first-of-type {
+  display: none;
+}
+.mo-word-core .doc-page br.doc-page-br + br.ProseMirror-trailingBreak, .mo-word-core .doc-page *:has(br.doc-page-br:last-child) + br.ProseMirror-trailingBreak {
+  display: none;
+}
+.mo-word-core .doc-page span:last-of-type > br.doc-col-br:last-child {
+  display: none;
+}
+.mo-word-core .doc-protected-broken-img {
+  border-color: transparent;
+  background: transparent;
+  padding: 0;
+}
+
+.mo-word-core .doc-protected-broken-img:hover {
+  border-color: var(--border-strong);
+}
+
+.mo-word-core .doc-broken-img-frame {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 2px 8px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+  user-select: none;
+}
+.mo-word-core .doc-protected-field {
+  /* outline, not border: the chip border's 1px top/bottom would add 2px to
+     every field row (a 40-line TOC gains ~4 lines and drifts a page) */
+  border: none;
+  outline: 1px dashed transparent;
+  outline-offset: -1px;
+  background: transparent;
+  /* no vertical padding/margin: field paragraphs (TOC entries, filled text
+     fields) must occupy paragraph-height boxes or pagination drifts; document
+     CSS (docStyleCss blockSel + [data-style]) supplies the real spacing */
+  padding: 0 4px;
+  margin: 0;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mo-word-core .doc-protected-field:hover {
+  outline-color: var(--border-strong);
+}
+.mo-word-core .doc-protected-field.doc-protected-field-text, .mo-word-core .doc-protected-field.doc-protected-field-toc {
+  padding: 0;
+}
+
+.mo-word-core .doc-toc-line {
+  /* inherit the document's paragraph metrics: a hardcoded 11pt/1.7 line made
+     every TOC entry ~50% taller than Word/LO and drifted long TOCs a page+ */
+  font-size: inherit;
+  line-height: inherit;
+  /* the wrapper's inherited indent is re-applied on the body from the field */
+  text-indent: 0;
+  cursor: pointer;
+}
+.mo-word-core .doc-toc-body {
+  display: block;
+  padding-left: var(--doc-toc-indent, 0px);
+  text-indent: var(--doc-toc-hang, 0px);
+}
+.mo-word-core .ProseMirror [contenteditable='false'].doc-toc-title, .mo-word-core .ProseMirror [contenteditable='false'] .doc-toc-title {
+  white-space: pre-wrap;
+}
+
+.mo-word-core .doc-toc-line:hover .doc-toc-title {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.mo-word-core .doc-toc-l2 > .doc-toc-body {
+  --doc-toc-indent: 1.5em;
+}
+
+.mo-word-core .doc-toc-l3 > .doc-toc-body {
+  --doc-toc-indent: 3em;
+}
+
+.mo-word-core .doc-toc-l4 > .doc-toc-body {
+  --doc-toc-indent: 4.5em;
+}
+.mo-word-core .doc-toc-num {
+  display: inline-block;
+  white-space: pre;
+  text-indent: 0;
+  box-sizing: border-box;
+  padding-right: 8px;
+  vertical-align: baseline;
+}
+
+.mo-word-core .doc-toc-num[style*='width'] {
+  padding-right: 0;
+}
+.mo-word-core .doc-toc-tail {
+  display: inline-block;
+  white-space: nowrap;
+  text-indent: 0;
+  vertical-align: baseline;
+}
+.mo-word-core .doc-toc-dots {
+  display: inline-block;
+  width: var(--doc-toc-gap, 24px);
+  overflow: clip;
+  white-space: nowrap;
+  vertical-align: baseline;
+  user-select: none;
+}
+
+.mo-word-core .doc-toc-leader-heavy {
+  font-weight: bold;
+}
+.mo-word-core .ProseMirror [contenteditable='false'] .doc-toc-dots, .mo-word-core .ProseMirror [contenteditable='false'].doc-toc-dots, .mo-word-core .ProseMirror [contenteditable='false'] .doc-toc-tail, .mo-word-core .ProseMirror [contenteditable='false'].doc-toc-tail {
+  white-space: nowrap;
+}
+.mo-word-core .ProseMirror [contenteditable='false'] .doc-toc-num, .mo-word-core .ProseMirror [contenteditable='false'].doc-toc-num {
+  white-space: pre;
+}
+.mo-word-core .ProseMirror [contenteditable='false'] .doc-textbox-stray {
+  white-space: pre-wrap;
+}
+
+.mo-word-core .doc-field-pagebreak {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  user-select: none;
+}
+
+.mo-word-core .doc-field-pagebreak::before, .mo-word-core .doc-field-pagebreak::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed var(--border-strong);
+}
+
+.mo-word-core .doc-field-text {
+  font-size: inherit;
+  line-height: inherit;
+}
+.mo-word-core .ProseMirror [contenteditable='false'].doc-field-text, .mo-word-core .ProseMirror [contenteditable='false'] .doc-field-text {
+  white-space: pre-wrap;
+}
+
+.mo-word-core .doc-content-editing .doc-toc-title, .mo-word-core .doc-content-editing .doc-toc-page, .mo-word-core .doc-content-editing .doc-field-text, .mo-word-core .doc-content-editing .doc-formula-token {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  outline: 1px solid color-mix(in srgb, var(--word-blue) 45%, transparent);
+  border-radius: 2px;
+}
+
+.mo-word-core .doc-protected-formula {
+  padding: 5px 8px;
+  background: transparent;
+}
+
+.mo-word-core .doc-formula {
+  display: inline-flex;
+  align-items: baseline;
+  min-height: 24px;
+  font-family: 'Cambria Math', 'STIX Two Math', serif;
+  font-size: 16px;
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mo-word-core .doc-content-editing .doc-formula {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.mo-word-core .doc-formula-token:empty::before {
+  content: '\00a0';
+}
+.mo-word-core .doc-formula-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.mo-word-core .doc-formula-math {
+  display: inline-block;
+  font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', serif;
+  font-size: 16px;
+  /* maths runs carry their own formatting: the paragraph style's bold/italic must not leak in */
+  font-weight: normal;
+  font-style: normal;
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mo-word-core .doc-formula-math math {
+  font-family: inherit;
+}
+
+.mo-word-core .doc-formula.doc-formula-has-math {
+  display: none;
+}
+
+.mo-word-core .doc-content-editing .doc-formula.doc-formula-has-math {
+  display: inline-flex;
+}
+
+.mo-word-core .doc-content-editing .doc-formula-math {
+  display: none;
+}
+.mo-word-core .doc-protected-formula-display {
+  text-align: center;
+  border: none;
+  outline: 1px dashed transparent;
+  outline-offset: -1px;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+}
+
+.mo-word-core .doc-protected-formula-display:hover {
+  outline-color: var(--border-strong);
+}
+
+.mo-word-core .ProseMirror-focused .doc-protected-formula-display.ProseMirror-selectednode {
+  border: none;
+}
+.mo-word-core .doc-protected-chart {
+  background: var(--docs-paper);
+  padding: 0;
+}
+.mo-word-core .doc-chart {
+  display: flex;
+  flex-direction: column;
+}
+
+.mo-word-core .doc-chart-title {
+  font-size: 13pt;
+  font-weight: 600;
+  text-align: center;
+  color: var(--docs-paper-ink-dim);
+  /* pinned to CHART_TITLE_ROW_PX: the plot SVG budgets exactly this row so
+     title + plot fill the wp:extent box; inherited (CJK) line-height must not
+     re-inflate it */
+  height: 22px;
+  line-height: 22px;
+  overflow: hidden;
+}
+
+.mo-word-core .doc-chart-svg {
+  display: block;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.mo-word-core .doc-chart-grid {
+  stroke: var(--docs-paper-chart-grid);
+  stroke-width: 1;
+}
+
+.mo-word-core .doc-chart-axis-label {
+  font:
+    10px 'Segoe UI',
+    var(--ui-cjk),
+    sans-serif;
+  fill: var(--docs-paper-ink-faint);
+}
+
+.mo-word-core .doc-chart-axis-title {
+  font:
+    600 10px 'Segoe UI',
+    var(--ui-cjk),
+    sans-serif;
+  fill: var(--docs-paper-ink-dim);
+}
+
+.mo-word-core .doc-chart-label-in {
+  fill: var(--docs-paper-ink-dim);
+}
+
+.mo-word-core .doc-chart-frame {
+  max-width: 100%;
+  margin: 0 auto;
+}
+.mo-word-core .doc-protected .doc-chart-data {
+  display: none;
+  margin-top: 8px;
+}
+
+.mo-word-core .ProseMirror-focused .doc-protected.ProseMirror-selectednode .doc-chart-data, .mo-word-core .doc-protected.doc-content-editing .doc-chart-data {
+  display: table;
+}
+
+.mo-word-core .doc-chart-data {
+  border-collapse: collapse;
+  align-self: center;
+  font-size: 10pt;
+  line-height: 1.4;
+}
+
+.mo-word-core .doc-chart-data th, .mo-word-core .doc-chart-data td {
+  border: 1px solid var(--docs-paper-chart-border);
+  padding: 2px 10px;
+  min-width: 52px;
+  text-align: right;
+  font-weight: 400;
+}
+
+.mo-word-core .doc-chart-data th.doc-chart-corner {
+  border: none;
+}
+
+.mo-word-core .doc-chart-data th.doc-chart-cat {
+  font-weight: 600;
+  text-align: center;
+  background: color-mix(in srgb, var(--docs-paper-accent) 6%, transparent);
+}
+
+.mo-word-core .doc-chart-data th.doc-chart-name {
+  font-weight: 600;
+  text-align: left;
+  border-left-width: 4px;
+  border-left-style: solid;
+}
+
+.mo-word-core .doc-chart-data td.doc-chart-gap {
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    var(--docs-paper-stripe) 4px,
+    var(--docs-paper-stripe) 8px
+  );
+}
+
+.mo-word-core .doc-content-editing .doc-chart-title, .mo-word-core .doc-content-editing .doc-chart-cell {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  outline: 1px solid color-mix(in srgb, var(--word-blue) 45%, transparent);
+  border-radius: 2px;
+}
+
+.mo-word-core .ProseMirror-focused .doc-protected.ProseMirror-selectednode {
+  border: 1px solid var(--word-blue);
+  outline: 1px solid var(--word-blue);
+  /* blue-tinted like an in-document selection, not the gray toolbar plate */
+  background: var(--docs-paper-select-bg);
+}
+.mo-word-core .ProseMirror-focused .doc-protected-field.ProseMirror-selectednode {
+  border: none;
+}
+.mo-word-core .ProseMirror-focused .doc-protected.doc-protected-floating.ProseMirror-selectednode {
+  border: none;
+}
+
+.mo-word-core .doc-protected-label {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 8px;
+  margin-right: 10px;
+  background: var(--surface);
+  font-family: 'Segoe UI', var(--ui-cjk), sans-serif;
+}
+
+.mo-word-core .doc-protected-preview {
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  /* SmartArt degrade lists one node label per line */
+  white-space: pre-line;
+}
+.mo-word-core .doc-diagram {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.mo-word-core .doc-diagram-shape {
+  position: absolute;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-line;
+  line-height: 1.15;
+}
+
+.mo-word-core .doc-diagram-text {
+  position: relative;
+  z-index: 1;
+  padding: 0 4px;
+}
+.mo-word-core .doc-diagram-canvas, .mo-word-core .doc-diagram-canvas .doc-diagram-shape {
+  overflow: visible;
+}
+
+.mo-word-core .doc-diagram-canvas .doc-diagram-shape {
+  align-items: flex-start;
+}
+
+.mo-word-core .doc-diagram-canvas .doc-diagram-text {
+  word-break: break-all;
+  line-height: 1.2;
+}
+.mo-word-core .doc-protected-ole {
+  border-color: transparent;
+  background: none;
+  padding: 0;
+  margin: 0;
+}
+
+.mo-word-core .doc-protected-ole:hover {
+  border-color: var(--border-strong);
+}
+.mo-word-core .doc-protected-ole .doc-ole-wrap {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.mo-word-core .doc-protected-ole .doc-ole-img {
+  display: block;
+  max-width: 100%;
+}
+
+.mo-word-core .doc-protected-img {
+  max-width: 100%;
+  display: block;
+}
+.mo-word-core .doc-protected-diagram {
+  border-color: transparent;
+  background: none;
+  padding: 0;
+  margin: 0;
+}
+
+.mo-word-core .doc-protected-diagram:hover {
+  border-color: var(--border);
+}
+.mo-word-core .doc-protected .doc-img-crop {
+  max-width: none;
+}
+.mo-word-core .doc-protected[data-doc-protected='image'] {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  line-height: 0;
+}
+.mo-word-core .doc-protected[data-doc-protected='image'].doc-img-para {
+  line-height: 0;
+  --doc-pic-mult: calc(1 + (var(--doc-line-mult, 1) - 1) * (1 - var(--doc-line-fixed, 0)));
+  --doc-pic-extra: calc((var(--doc-pic-mult) - 1) * var(--doc-line-factor, 1.2) * 1em);
+  padding-top: var(--doc-pic-effect-t, 0px);
+  padding-bottom: calc(var(--doc-pic-effect-b, 0px) + var(--doc-pic-extra));
+}
+
+.mo-word-core .doc-protected[data-doc-protected='image'] .doc-img-wrap > img, .mo-word-core .doc-protected[data-doc-protected='image'] .doc-img-crop-viewport > img {
+  vertical-align: bottom;
+}
+.mo-word-core .doc-protected[data-doc-protected='image'] .doc-img-caption {
+  line-height: var(--doc-line-max, calc(var(--doc-line-factor, 1.2) * var(--doc-line-mult, 1)));
+}
+.mo-word-core .doc-page .doc-img-para > .doc-img-wrap, .mo-word-core .doc-page .doc-img-para > .doc-img-wrap > .doc-protected-img {
+  max-width: none;
+}
+.mo-word-core .doc-image-leading-space {
+  white-space: pre-wrap;
+  vertical-align: bottom;
+  line-height: calc(
+    var(--doc-line-factor, 1.2) * 1em * var(--doc-pic-mult, var(--doc-line-mult, 1))
+  );
+}
+.mo-word-core .doc-protected[data-doc-protected='image']:not(.doc-img-float):hover {
+  outline: 1px solid var(--border);
+  outline-offset: 2px;
+}
+
+.mo-word-core .ProseMirror-focused .doc-protected[data-doc-protected='image'].ProseMirror-selectednode {
+  border-color: transparent;
+  outline: none;
+  background: none;
+}
+
+.mo-word-core .doc-img-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.mo-word-core .doc-img-crop-viewport {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.mo-word-core .doc-ref-field {
+  border-radius: 2px;
+}
+
+.mo-word-core .doc-ref-field:hover {
+  background: var(--docs-paper-field-bg);
+}
+.mo-word-core .doc-field-result-hidden {
+  font-size: 0;
+}
+
+.mo-word-core .doc-field-code {
+  background: var(--docs-paper-field-bg);
+  border-radius: 2px;
+  white-space: pre-wrap;
+}
+
+.mo-word-core .doc-ref-field[data-instr-field='FORMCHECKBOX'], .mo-word-core .doc-checkbox-control {
+  cursor: pointer;
+}
+.mo-word-core .doc-protected.img-wrap-square-left, .mo-word-core .doc-protected.img-wrap-tight-left, .mo-word-core .doc-protected.img-wrap-through-left {
+  float: left;
+  width: fit-content;
+  max-width: 60%;
+  margin: 0 12px 0 0;
+}
+
+.mo-word-core .doc-protected.img-wrap-square-right, .mo-word-core .doc-protected.img-wrap-tight-right, .mo-word-core .doc-protected.img-wrap-through-right {
+  float: right;
+  width: fit-content;
+  max-width: 60%;
+  margin: 0 0 0 12px;
+}
+
+.mo-word-core .doc-protected.img-wrap-topBottom {
+  text-align: center;
+}
+.mo-word-core .doc-page
+  .doc-protected[data-doc-protected='image']:is(
+    .img-wrap-square-left,
+    .img-wrap-square-right,
+    .img-wrap-tight-left,
+    .img-wrap-tight-right,
+    .img-wrap-through-left,
+    .img-wrap-through-right
+  ) {
+  z-index: 2;
+}
+.mo-word-core .doc-table.doc-table-float-left {
+  float: left;
+  margin: 2px 12px 6px 0;
+}
+
+.mo-word-core .doc-page :is(.doc-table-float-left, .doc-table-float-right):not(.doc-table-float-flow) {
+  position: relative;
+  z-index: 1;
+}
+
+.mo-word-core .doc-table.doc-table-float-right {
+  float: right;
+  margin: 2px 0 6px 12px;
+}
+.mo-word-core .doc-table.doc-table-float-flow {
+  float: none;
+}
+.mo-word-core .doc-page
+  :is(.doc-table-float-left, .doc-table-float-right):not(.doc-table-float-flow)
+  + .doc-after-tblp {
+  margin-top: var(--tblp-sp-before) !important;
+}
+.mo-word-core .page-float-carry, .mo-word-core .page-gap-carry {
+  pointer-events: none;
+  user-select: none;
+}
+
+.mo-word-core .page-gap-carry::before {
+  display: none;
+}
+.mo-word-core .img-wrap-behind > .doc-img-wrap {
+  z-index: -1;
+}
+
+.mo-word-core .ProseMirror-focused
+  .doc-protected[data-doc-protected='image'].ProseMirror-selectednode
+  .doc-img-wrap {
+  outline: 2px solid var(--word-blue);
+}
+
+.mo-word-core .ProseMirror-focused
+  .doc-protected[data-doc-protected='image'].ProseMirror-selectednode
+  .img-resize-handle {
+  display: block;
+}
+.mo-word-core .doc-inline-pic {
+  display: inline-block;
+  position: relative;
+  line-height: 0;
+  max-width: 100%;
+}
+
+.mo-word-core .ProseMirror-focused .doc-inline-pic.ProseMirror-selectednode > img {
+  outline: 1px solid var(--word-blue);
+  outline-offset: -1px;
+}
+
+.mo-word-core .ProseMirror-focused .doc-inline-pic.ProseMirror-selectednode > .img-resize-handle {
+  display: block;
+}
+.mo-word-core .page-hf-cell:has(> * > .doc-inline-pic.ProseMirror-selectednode) {
+  overflow: visible;
+}
+
+.mo-word-core .doc-image-anchor-marker {
+  display: none;
+  position: absolute;
+  z-index: 6;
+  top: -11px;
+  left: -32px;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  font: 16px/1 sans-serif;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mo-word-core .ProseMirror-focused
+  .doc-protected[data-doc-protected='image'].ProseMirror-selectednode
+  > .doc-image-anchor-marker {
+  display: flex;
+}
+.mo-word-core body.docs-crop-active
+  .doc-protected[data-doc-protected='image'].ProseMirror-selectednode
+  .doc-img-wrap {
+  outline: none;
+}
+
+.mo-word-core body.docs-crop-active
+  .doc-protected[data-doc-protected='image'].ProseMirror-selectednode
+  .img-resize-handle, .mo-word-core body.docs-crop-active
+  .doc-protected[data-doc-protected='image'].ProseMirror-selectednode
+  > .doc-image-anchor-marker, .mo-word-core body.docs-crop-active
+  .doc-protected[data-doc-protected='image'].ProseMirror-selectednode
+  > .doc-move-handle {
+  display: none !important;
+  pointer-events: none !important;
+}
+.mo-word-core .doc-page .ai-changed {
+  background: var(--ai-highlight);
+  box-shadow: -3px 0 0 var(--ai-highlight-border);
+}
+
+.mo-word-core .editor-scroll.start-screen-host {
+  padding: 0;
+  background: var(--surface);
+}
+
+@keyframes ai-summary-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes ai-hourglass-flip {
+  0%,
+  12% {
+    transform: rotate(0);
+  }
+  44%,
+  56% {
+    transform: rotate(180deg);
+  }
+  88%,
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ai-tool-dot-grow {
+  0%,
+  100% {
+    transform: scale(0.333);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes ai-tool-dot-shrink {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.333);
+    opacity: 0.45;
+  }
+}
+@keyframes ai-row-ease-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ai-thinking-shimmer {
+  0% {
+    background-position: -100% top;
+  }
+  100% {
+    background-position: 250% top;
+  }
+}
+
+@keyframes ai-dot-grow {
+  0%,
+  100% {
+    width: 4px;
+    height: 4px;
+    opacity: 0.45;
+  }
+  50% {
+    width: 12px;
+    height: 12px;
+    opacity: 1;
+  }
+}
+
+@keyframes ai-dot-shrink {
+  0%,
+  100% {
+    width: 12px;
+    height: 12px;
+    opacity: 1;
+  }
+  50% {
+    width: 4px;
+    height: 4px;
+    opacity: 0.45;
+  }
+}
+
+@keyframes ai-caret-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+.mo-word-core .doc-multi-range {
+  background: Highlight;
+  color: HighlightText;
+}
+
+@keyframes pwd-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+.mo-word-core .ProseMirror.ProseMirror {
+  white-space: pre-wrap;
+}
+.mo-word-core .page-wrap, .mo-word-core .doc-page, .mo-word-core .pv-page {
+  font-kerning: none;
+}
+
+.mo-word-core .ProseMirror:focus {
+  outline: none;
+}
+
+.mo-word-core .doc-table td[contenteditable='true'] {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.mo-word-core .doc-table td[contenteditable='true']:focus {
+  outline: 2px solid var(--word-blue);
+  outline-offset: -2px;
+}
+
+@media print {
+  .mo-word-core .doc-protected-label {
+    display: none !important;
+  }
+  .mo-word-core .doc-sectbreak-label {
+    visibility: hidden !important;
+  }
+  .mo-word-core .doc-protected {
+    border-color: transparent !important;
+    background: none !important;
+  }
+
+  .mo-word-core .app, .mo-word-core .workspace, .mo-word-core .editor-scroll {
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+    padding: 0 !important;
+    background: none !important;
+  }
+
+  .mo-word-core .doc-zoom {
+    zoom: 1 !important;
+    width: auto !important;
+  }
+
+  .mo-word-core .doc-page {
+    width: auto !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+  .mo-word-core .app:not(:has(.pagination-preview)) .doc-page {
+    min-height: var(--page-h, 1056px) !important;
+  }
+  .mo-word-core .page-break-before:where(:not(.doc-li))::before, .mo-word-core .doc-li.page-break-before::after {
+    display: none !important;
+  }
+
+  .mo-word-core .doc-field-pagebreak {
+    break-after: page;
+    visibility: hidden;
+    height: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .mo-word-core .img-resize-handle, .mo-word-core .doc-image-anchor-marker {
+    display: none !important;
+  }
+  .mo-word-core .doc-move-handle {
+    display: none !important;
+  }
+  .mo-word-core .ProseMirror-focused .doc-protected.ProseMirror-selectednode {
+    border-color: transparent !important;
+    outline: none !important;
+    background: none !important;
+  }
+  .mo-word-core .page-gap, .mo-word-core .page-float-host {
+    display: none !important;
+  }
+
+  .mo-word-core .page-gap::after, .mo-word-core .page-wrap::before, .mo-word-core .page-wrap::after {
+    display: none !important;
+  }
+
+  .mo-word-core .pv-clip .doc-field-pagebreak {
+    break-after: auto;
+    height: auto;
+  }
+}
+
+.mo-word-core .read-mode .editor-scroll {
+  background: var(--docs-pv-canvas);
+  padding-top: 44px;
+}
+
+.mo-word-core .view-web .doc-page {
+  width: auto;
+  min-height: 0;
+  box-shadow: none;
+  padding: 24px 40px 80px;
+}
+
+.mo-word-core .view-outline .doc-page > :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) {
+  display: none;
+}
+
+.mo-word-core .view-outline .doc-page {
+  min-height: 400px;
+  column-count: auto;
+}
+
+.mo-word-core .view-outline .doc-page h1, .mo-word-core .view-outline .doc-page h2, .mo-word-core .view-outline .doc-page h3, .mo-word-core .view-outline .doc-page h4, .mo-word-core .view-outline .doc-page h5, .mo-word-core .view-outline .doc-page h6 {
+  position: relative;
+  padding-left: 22px;
+}
+
+.mo-word-core .view-outline .doc-page h1 {
+  margin-left: 0;
+}
+.mo-word-core .view-outline .doc-page h2 {
+  margin-left: 26px;
+}
+.mo-word-core .view-outline .doc-page h3 {
+  margin-left: 52px;
+}
+.mo-word-core .view-outline .doc-page h4 {
+  margin-left: 78px;
+}
+.mo-word-core .view-outline .doc-page h5 {
+  margin-left: 104px;
+}
+.mo-word-core .view-outline .doc-page h6 {
+  margin-left: 130px;
+}
+.mo-word-core .view-outline .doc-page .outline-handle {
+  position: absolute;
+  left: 0;
+  top: 0.25em;
+  color: var(--docs-paper-ink-faint);
+  font-size: 0.8em;
+  cursor: pointer;
+  user-select: none;
+}
+.mo-word-core .view-outline .doc-page .outline-handle.is-leaf {
+  cursor: default;
+  opacity: 0.55;
+}
+.mo-word-core .view-outline .doc-page .outline-collapsed {
+  display: none;
+}
+
+.mo-word-core .show-grid .doc-page {
+  background-image:
+    linear-gradient(to right, var(--docs-paper-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--docs-paper-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-origin: content-box;
+  background-clip: content-box;
+}
+.mo-word-core .doc-note-ref {
+  cursor: default;
+  /* Word's reference-mark superscript is ~65% of the run size; the UA default
+     (font-size:smaller) rendered it visibly larger and taller than Word */
+  font-size: 0.65em;
+}
+
+.mo-word-core .doc-note-ref:hover {
+  color: var(--docs-paper-accent);
+}
+
+.mo-word-core .ProseMirror-focused .doc-note-ref.ProseMirror-selectednode {
+  color: var(--docs-paper-accent);
+  outline: 2px solid var(--word-blue);
+  border-radius: 2px;
+}
+
+.mo-word-core ruby.doc-ruby {
+  ruby-position: over;
+}
+
+.mo-word-core ruby.doc-ruby rt {
+  font-size: 0.5em;
+  line-height: 1;
+}
+
+.mo-word-core .ProseMirror-focused ruby.doc-ruby.ProseMirror-selectednode {
+  outline: 2px solid var(--word-blue);
+  border-radius: 2px;
+}
+
+.mo-word-core .doc-inline-math {
+  display: inline-block;
+  /* The atom must not restart its paragraph's first-line indent or alignment. */
+  text-indent: 0;
+  text-align: left;
+  vertical-align: baseline;
+  padding: 0 1px;
+  border-radius: 2px;
+  cursor: default;
+}
+
+.mo-word-core .doc-inline-math:hover {
+  background: color-mix(in srgb, var(--word-blue) 10%, transparent);
+}
+
+.mo-word-core .ProseMirror-focused .doc-inline-math.ProseMirror-selectednode {
+  outline: 2px solid var(--word-blue);
+  background: color-mix(in srgb, var(--word-blue) 14%, transparent);
+}
+
+.mo-word-core .doc-inline-math math {
+  font-size: 1em;
+  /* a real OpenType MATH face: the run's Cambria Math alias (Caladea) has no
+     MATH table, so large operators, stacked limits and radicals collapse */
+  font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', serif;
+}
+.mo-word-core .doc-inline-math::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 1.172em;
+  vertical-align: -0.222em;
+}
+
+.mo-word-core :is(.doc-inline-math, .doc-formula-math) :is(msub, msubsup) > :nth-child(2) {
+  padding-bottom: 0.1em;
+}
+
+.mo-word-core :is(.doc-inline-math, .doc-formula-math) :is(mover:not([accent]), munderover) > :last-child {
+  padding-top: 0.25em;
+  padding-bottom: 0.38em;
+}
+
+.mo-word-core :is(.doc-inline-math, .doc-formula-math) :is(munder, munderover) > :nth-child(2) {
+  padding-top: 0.29em;
+  padding-bottom: 0.22em;
+}
+
+.mo-word-core :is(.doc-inline-math, .doc-formula-math) math[displaystyle='true'] mfrac > :first-child, .mo-word-core .doc-formula-math mfrac > :first-child {
+  padding-bottom: 0.117em;
+}
+.mo-word-core .doc-inline-math-display {
+  padding-bottom: calc((var(--doc-line-mult, 1) - 1) * var(--doc-line-factor, 1.2) * 1em);
+}
+.mo-word-core .doc-field-math math {
+  font-family: inherit;
+}
+
+.mo-word-core .doc-formula-edit {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  padding: 1px 6px;
+  font-size: 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.mo-word-core .doc-protected-formula {
+  position: relative;
+}
+
+.mo-word-core .doc-protected-formula:hover .doc-formula-edit {
+  opacity: 1;
+}
+
+.mo-word-core .doc-formula-edit:hover {
+  background: var(--active-bg);
+  color: var(--text);
+}
+
+.mo-word-core .doc-xe-mark {
+  display: inline-block;
+  font-size: 0;
+  line-height: 0;
+  vertical-align: baseline;
+  cursor: default;
+}
+
+.mo-word-core .show-marks .doc-xe-mark {
+  font-size: 9px;
+  line-height: 1.3;
+  color: var(--docs-paper-xe-ink);
+  background: var(--docs-paper-xe-bg);
+  border: 1px dashed var(--docs-paper-xe-border);
+  border-radius: 2px;
+  padding: 0 3px;
+  margin: 0 1px;
+}
+
+.mo-word-core .show-marks .doc-xe-mark::before {
+  content: 'XE:' attr(data-xe-term);
+}
+
+.mo-word-core .ProseMirror-focused .doc-xe-mark.ProseMirror-selectednode {
+  outline: 2px solid var(--word-blue);
+}
+.mo-word-core .page-gap-cut {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  position: relative;
+  pointer-events: none;
+}
+.mo-word-core table > .page-gap-cut, .mo-word-core tbody > .page-gap-cut, .mo-word-core tr > .page-gap-cut {
+  display: none;
+}
+
+.mo-word-core .page-gap-cut::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100vw;
+  width: 200vw;
+  border-top: 2px dashed var(--docs-gap-cut);
+}
+.mo-word-core .doc-cell-boxes {
+  position: relative;
+  float: left;
+  width: 0;
+  overflow: visible;
+}
+.mo-word-core .doc-cell-boxes > .doc-textbox {
+  max-width: none;
+}
+
+.mo-word-core .doc-nested-table .doc-table {
+  max-width: 100%;
+}
+.mo-word-core .doc-table .doc-p-picture > .doc-inline-img {
+  vertical-align: bottom;
+}
+.mo-word-core .ProseMirror.doc-shape-drawing, .mo-word-core .ProseMirror.doc-shape-drawing * {
+  cursor: crosshair !important;
+}
+.mo-word-core .doc-page .doc-ws-run, .mo-word-core .doc-page span[data-doc-style]:has(.doc-ws-run), .mo-word-core .doc-page span[data-doc-style]:has(.doc-ws-run) span {
+  line-height: 0;
+}
+.mo-word-core .doc-ea-quotes {
+  font-family: 'Noto Serif CJK SC';
+}
+@media screen {
+  .mo-word-core .show-table-gridlines .doc-table td, .mo-word-core .show-table-gridlines .doc-table th {
+    outline: 1px dashed var(--border-strong);
+    outline-offset: -1px;
+  }
+}
+
+.mo-word-core .redact-span.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+}
+.mo-word-core .rev-balloon .doc-del-marker {
+  display: inline-block;
+  width: 0;
+  height: 1em;
+  vertical-align: text-bottom;
+  border-left: 2px solid var(--rev-del-ink, var(--docs-paper-rev-ink));
+  margin: 0 1px;
+  cursor: context-menu;
+}
+
+.mo-word-core .doc-del-marker.doc-move-from {
+  border-left-style: double;
+  border-left-width: 3px;
+}
+.mo-word-core .doc-comment-marker {
+  font-size: 0.75em;
+  font-weight: 600;
+  vertical-align: super;
+  color: var(--rev-comment-ink, var(--docs-paper-comment-line));
+  background: var(--rev-comment-bg, var(--docs-paper-comment-bg));
+  padding: 0 2px;
+  border-radius: 2px;
+  cursor: pointer;
+  user-select: none;
+}

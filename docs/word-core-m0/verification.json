@@ -1,0 +1,23 @@
+{
+  "_comment": "功能：记录 M0 实际核验结果，不代表新核心已编译或迁移完成；时间：2026-11-08；作者：lq。",
+  "checkedAt": "2026-11-08T00:08:42.840Z",
+  "status": "passed",
+  "workspaceCommit": "d965e7bb8decc3050da33056fb007ead81477090",
+  "protectedFiles": 350,
+  "upstreamCommit": "e1f50e90d246f3ecc6427d2a0af90f04f37810ec",
+  "upstreamFiles": 2495,
+  "errors": [],
+  "scriptSyntax": "passed",
+  "diffWhitespace": "passed",
+  "localLinks": "passed",
+  "overwriteRefusal": "passed",
+  "ui": {
+    "screenshots": 10,
+    "browserErrors": 0,
+    "sampleUnchanged": true
+  },
+  "productionCodeChanged": false,
+  "lockFileChanged": false,
+  "newDependenciesInstalled": false,
+  "coreMigrated": false
+}
