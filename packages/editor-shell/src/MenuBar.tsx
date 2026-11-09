@@ -100,7 +100,7 @@ export function MenuBar({ onHome }: { onHome: () => void }) {
           {
             id: 'export-pdf',
             label: '导出为 PDF',
-            disabled: !hasDocument,
+            disabled: !hasDocument || !!activeSession?.wordCore,
             onSelect: () => fire('mo:export-pdf'),
           },
           {
@@ -108,7 +108,7 @@ export function MenuBar({ onHome }: { onHome: () => void }) {
             label: '打印',
             icon: <Printer size={13} />,
             shortcut: `${MOD_KEY}P`,
-            disabled: !hasDocument,
+            disabled: !hasDocument || !!activeSession?.wordCore,
             onSelect: () => fire('mo:print'),
           },
           { type: 'separator' },
@@ -129,7 +129,7 @@ export function MenuBar({ onHome }: { onHome: () => void }) {
             label: '查找与替换',
             icon: <Search size={13} />,
             shortcut: `${MOD_KEY}F`,
-            disabled: !hasDocument,
+            disabled: !hasDocument || !!activeSession?.wordCore,
             onSelect: () => fire('mo:find'),
           },
           {
@@ -137,7 +137,7 @@ export function MenuBar({ onHome }: { onHome: () => void }) {
             id: 'styles',
             label: '样式库…',
             icon: <Sparkles size={13} />,
-            disabled: !hasDocument,
+            disabled: !hasDocument || !!activeSession?.wordCore,
             onSelect: () => fire('mo:styles'),
           },
           { type: 'separator' },

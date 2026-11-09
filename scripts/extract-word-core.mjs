@@ -46,6 +46,10 @@ const seeds = [
   'apps/docs/src/renderer/editor/paste-text.ts', 'apps/docs/src/renderer/editor/paste-web-html.ts',
   'apps/docs/src/renderer/editor/paste-options.ts', 'apps/docs/src/renderer/editor/trailing-table-exit.ts',
   'apps/docs/src/renderer/document-settings.ts',
+  // 功能：M2 完整分页接入页底注释的同源 DOM 渲染，不复制上游产品界面；时间：2026-11-09；作者：lq。
+  'apps/docs/src/renderer/editor/note-dom.ts',
+  // 功能：M2 继承页眉页脚变体真实度量与页面底色的额外段落规则；时间：2026-11-09；作者：lq。
+  'apps/docs/src/renderer/hf-heights.ts', 'apps/docs/src/renderer/hf-phantom.ts',
   'apps/docs/src/renderer/parse-off-thread.ts', 'apps/docs/src/renderer/parse-worker.ts',
 ];
 
@@ -150,6 +154,14 @@ export function disposeParseWorker(): void {
 }\n`;
       changes.push('解析 Worker 创建改为显式平台端口，保留 transferable、失败处理和实际运行计数；增加释放函数');
     }
+    // 功能：同一注释渲染器支持脚注与尾注各自的编号格式，不把尾注误画成脚注；时间：2026-11-09；作者：lq。
+    if (path === 'apps/docs/src/renderer/editor/note-dom.ts') {
+      const signature = '  onEdit: (id: string) => void,\n): HTMLElement {';
+      if (!text.includes(signature)) throw new Error('上游注释 DOM 接口已变化');
+      text = text.replace(signature, "  onEdit: (id: string) => void,\n  // 功能：尾注使用自己的编号格式；时间：2026-11-09；作者：lq。\n  kind: NoteKind = 'footnote',\n): HTMLElement {")
+        .replace("appendNoteRuns(row, it, 'footnote')", 'appendNoteRuns(row, it, kind)');
+      changes.push('注释区增加可选 NoteKind，默认保持脚注，尾注按自身编号格式显示');
+    }
     // 功能：同格式的表格纯文字修改保留原段落外壳和书签，避免原 rich-cell 重建丢失未知节点；时间：2026-11-08；作者：lq。
     if (path === 'packages/docx-engine/src/generate.ts') {
       text = "import { patchParagraphTexts } from './text-patch';\n" + text;
@@ -197,7 +209,9 @@ export function disposeParseWorker(): void {
       if (value.startsWith('@genoffice/') || value.includes('shared/ipc')) changes.push(`导入 ${value} → ${replacement}`);
     }
     for (const edit of edits.sort((a, b) => b.start - a.start)) text = text.slice(0, edit.start) + edit.replacement + text.slice(edit.end);
-    bytes = Buffer.from(banner + text);
+    // 功能：M2 新增来源文件标注实际集成日期，既有 M1 来源保持原始哈希；时间：2026-11-09；作者：lq。
+    const m2Source = ['apps/docs/src/renderer/editor/note-dom.ts', 'apps/docs/src/renderer/hf-heights.ts', 'apps/docs/src/renderer/hf-phantom.ts'].includes(path);
+    bytes = Buffer.from((m2Source ? banner.replace('2026-11-08', '2026-11-09') : banner) + text);
     changes.unshift('增加本地集成功能、日期与作者注释；保留原作者及源码注释');
   }
   save(path, bytes, sourcePath, changes);

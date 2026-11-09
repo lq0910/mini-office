@@ -12,6 +12,8 @@ import { collectShortcutBindings, matchShortcutFromEvent } from './shortcuts';
 export function canRunMacro(session: DocumentSession | undefined, macro: PluginMacroCommand): boolean {
   if (!session) return false;
   if (session.readonly) return false;
+  // 功能：旧模型宏尚未迁移时不能修改新核心的工作区标识或误报执行成功；时间：2026-11-09；作者：lq。
+  if (session.wordCore) return false;
   return session.kind === macro.kind;
 }
 

@@ -67,8 +67,12 @@ const sourceBuffers = new Map<string, Uint8Array>();
 const fileHandles = new Map<string, FileSystemFileHandle>();
 const snapshotTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const snapshotInFlight = new Set<string>();
+/** 功能：保存等待已启动的自动快照完成，避免争抢同一 Word 核心的序列化器；时间：2026-11-09；作者：lq。 */
+const snapshotTasks = new Map<string, Promise<void>>();
 // 功能：独立记录写盘任务，避免编辑状态改变后重复发起保存；时间：2026-10-18；作者：lq。
 const saveInFlight = new Set<string>();
+/** 功能：工作区持有新 Word 会话监听，标签隐藏后仍跟踪编辑版本，关闭时释放；时间：2026-11-09；作者：lq。 */
+const wordCoreSubscriptions = new Map<string, () => void>();
 
 export function registerFormatHandler(handler: AnyFormatHandler): void {
   handlers[handler.kind] = handler;
@@ -233,12 +237,18 @@ function isCsvSession(session: DocumentSession): boolean {
 
 function saveNameFor(session: DocumentSession): string {
   const base = stripExtension(session.displayName || defaultDocumentBase(session.kind));
+  // 功能：完整新核心保留宏与模板包类型，文件扩展名随原始包保留，不把 DOCM/DOTX 字节误标 DOCX；时间：2026-11-09；作者：lq。
+  const wordExtension = extensionOf(session.displayName);
+  if (session.wordCore && ['.docm', '.dotx'].includes(wordExtension)) return `${base}${wordExtension}`;
   const extension = isCsvSession(session) ? '.csv' : OFFICE_META[session.kind].extension;
   return ensureExtension(base, extension);
 }
 
 function mimeForName(kind: OfficeKind, name: string): string {
   if (extensionOf(name) === '.csv') return 'text/csv;charset=utf-8';
+  // 功能：新核心保留容器类型时提供一致的下载 MIME；时间：2026-11-09；作者：lq。
+  if (extensionOf(name) === '.docm') return 'application/vnd.ms-word.document.macroEnabled.12';
+  if (extensionOf(name) === '.dotx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.template';
   return OFFICE_META[kind].mime;
 }
 
@@ -305,21 +315,23 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
     }
   };
 
-  const persistSnapshot = async (
+  const writeSnapshot = async (
     id: string,
     options: { dirty?: boolean; bytes?: Uint8Array } = {},
   ): Promise<void> => {
     if (snapshotInFlight.has(id)) return;
+    if (saveInFlight.has(id) && !options.bytes) return;
     const session = get().sessions[id];
     if (!session) return;
     const handler = handlers[session.kind];
     snapshotInFlight.add(id);
     try {
-      const dirty = options.dirty ?? session.dirty;
+      // 功能：排队期间出现的新编辑优先于旧请求的 clean 标记，不能用旧保存字节覆盖最新恢复快照；时间：2026-11-09；作者：lq。
+      const dirty = session.dirty || options.dirty === true;
       let bytes = options.bytes ?? sourceBuffers.get(id);
       if (!bytes || dirty) {
         if (!handler) return;
-        bytes = await handler.serialize(session.data, {
+        bytes = session.wordCore ? (await session.wordCore.prepareSave()).bytes : await handler.serialize(session.data, {
           sourceBytes: bytes,
           name: session.displayName,
         });
@@ -345,6 +357,16 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
     }
   };
 
+  /** 功能：合并同一标签的快照任务，保留可等待的完成结果；时间：2026-11-09；作者：lq。 */
+  const persistSnapshot = (id: string, options: { dirty?: boolean; bytes?: Uint8Array } = {}): Promise<void> => {
+    const pending = snapshotTasks.get(id);
+    // 功能：任务进行中又有新编辑时必须补存最新版本，不能把旧快照的完成冒充新请求已保存；时间：2026-11-09；作者：lq。
+    if (pending) return pending.then(() => persistSnapshot(id, options));
+    const task = writeSnapshot(id, options).finally(() => { if (snapshotTasks.get(id) === task) snapshotTasks.delete(id); });
+    snapshotTasks.set(id, task);
+    return task;
+  };
+
   const scheduleSnapshot = (id: string) => {
     const { settings } = get();
     if (!settings.autoSave) return;
@@ -358,6 +380,21 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
         void persistSnapshot(id, { dirty: true });
       }, delay),
     );
+  };
+
+  /** 功能：dirty 与事务版本同源，保存中继续编辑不能被写盘完成误清；时间：2026-11-09；作者：lq。 */
+  const watchWordCore = (session: DocumentSession) => {
+    if (!session.wordCore) return;
+    wordCoreSubscriptions.get(session.id)?.();
+    let previous = session.wordCore.state();
+    wordCoreSubscriptions.set(session.id, session.wordCore.subscribe(state => {
+      if (state.revision === previous.revision && state.savedRevision === previous.savedRevision) return;
+      previous = state;
+      if (!get().sessions[session.id]) return;
+      const dirty = state.dirty || (get().sessions[session.id]?.restoredFromSnapshot && !get().sessions[session.id]?.lastSavedAt);
+      patchSession(session.id, { dirty, state: saveInFlight.has(session.id) ? 'SAVING' : dirty ? 'DIRTY' : 'EDIT_READY' });
+      if (dirty) scheduleSnapshot(session.id);
+    }));
   };
 
   const removeSnapshotFor = (id: string) => {
@@ -529,6 +566,8 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           knownFonts: fonts.flatMap((font) => [font.family, ...(font.aliases ?? [])]),
         };
         const result: FormatOpenResult = await handler.open(openInput);
+        // 功能：解析期间已关闭的标签不能被迟到结果复活，释放刚创建的会话；时间：2026-11-09；作者：lq。
+        if (!get().sessions[id]) { result.wordCore?.dispose(); return null; }
         // 功能：旧版格式转换产物只用于解析，标签仍显示用户原始文件名，且不绑定原路径，避免把 DOCX 写回 .doc；时间：2026-11-02；作者：lq。
         const legacySource = input.sourceName && /\.(doc|xls|ppt)$/i.test(input.sourceName) ? input.sourceName : undefined;
         const readonly = result.readonly === true || result.capability.level <= 1;
@@ -556,6 +595,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
         const session: DocumentSession = {
           ...placeholder,
           data: result.data,
+          wordCore: result.wordCore,
           capability,
           readonly,
           state: nextState,
@@ -582,6 +622,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           sessions: { ...state.sessions, [id]: session },
           busy: null,
         }));
+        watchWordCore(session);
         void persistSnapshot(id, {
           dirty: restoredDirty,
           bytes: input.bytes,
@@ -699,14 +740,19 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
       }
       const id = uid('doc');
       const now = Date.now();
+      // 功能：新建与打开使用同一种完整核心会话，异步创建失败不留下空标签；时间：2026-11-09；作者：lq。
+      let created: FormatOpenResult | undefined;
+      try { created = await handler.createNew?.(); }
+      catch (error) { get().notify('error', '新建失败', error instanceof Error ? error.message : String(error)); return null; }
       const session: DocumentSession = {
         id,
         kind,
         displayName: uniqueDisplayName(kind, get().sessions),
         readonly: false,
-        capability: emptyCapability(),
+        capability: created?.capability ?? emptyCapability(),
         state: 'EDIT_READY',
-        data: handler.createBlank(),
+        data: created?.data ?? handler.createBlank(),
+        wordCore: created?.wordCore,
         dirty: false,
         isNew: true,
         restoredFromSnapshot: false,
@@ -723,6 +769,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
         activeId: id,
         dialog: null,
       }));
+      watchWordCore(session);
       void persistSnapshot(id, { dirty: false });
       return id;
     },
@@ -748,6 +795,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
       const session = get().sessions[id];
       if (!session) return true;
       if (session.dirty && !force) return false;
+      if (saveInFlight.has(id)) return false;
       const timer = snapshotTimers.get(id);
       if (timer) clearTimeout(timer);
       snapshotTimers.delete(id);
@@ -764,6 +812,10 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
         return { sessions, tabOrder, activeId };
       });
       sourceBuffers.delete(id);
+      // 功能：仅真正关闭释放新核心；切换标签和 React 卸载保留正文与历史；时间：2026-11-09；作者：lq。
+      wordCoreSubscriptions.get(id)?.();
+      wordCoreSubscriptions.delete(id);
+      session.wordCore?.dispose();
       fileHandles.delete(id);
       if (cleanNew) removeSnapshotFor(id);
       return true;
@@ -779,7 +831,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
 
     updateData(id, data, options) {
       const session = get().sessions[id];
-      if (!session || session.readonly) return;
+      if (!session || session.readonly || session.wordCore) return;
       const next = typeof data === 'function' ? data(session.data) : data;
       // 功能：默认不置脏，只有用户编辑动作才显式传入 dirty；避免统计刷新、重排等内部写入把文档标成已修改；时间：2026-11-02；作者：lq。
       const dirty = session.dirty || options?.dirty === true;
@@ -795,7 +847,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
     // 功能：只更新文档 meta，不触碰正文；邮件合并面板状态/Word 兼容信息写入这里；时间：2026-10-29；作者：lq。
     updateDocMeta(id, metaPatch, options) {
       const session = get().sessions[id];
-      if (!session || session.readonly) return;
+      if (!session || session.readonly || session.wordCore) return;
       const wordData = session.data as DocModel;
       const next = typeof metaPatch === 'function' ? metaPatch(wordData.meta) : { ...wordData.meta, ...metaPatch };
       // 功能：面板状态等非正文写入默认不置脏，只有正文语义变化才由调用方显式声明；时间：2026-11-02；作者：lq。
@@ -861,7 +913,10 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
       saveInFlight.add(id);
       patchSession(id, { state: 'SAVING', saveError: undefined, updatedAt: Date.now() });
       try {
-        const bytes = await handler.serialize(session.data, {
+        // 功能：正文快照只由当前新会话生成，写盘成功后才确认同一修订号；时间：2026-11-09；作者：lq。
+        if (session.wordCore) await snapshotTasks.get(id);
+        const prepared = await session.wordCore?.prepareSave();
+        const bytes = prepared?.bytes ?? await handler.serialize(session.data, {
           sourceBytes: sourceBuffers.get(id),
           name: session.displayName,
         });
@@ -872,7 +927,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           session.saveAsCopyRequired ||
           (!session.path && !handle);
         const outcome = await getPlatformAdapter().saveBytes(
-          bytes,
+          prepared ? bytes.slice() : bytes,
           {
             suggestedName,
             path: session.path,
@@ -882,11 +937,17 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           mimeForName(session.kind, suggestedName),
         );
         const nextHandle = outcome.handle ?? handle;
+        if (prepared) session.wordCore!.acknowledgeSave(prepared);
         if (nextHandle) fileHandles.set(id, nextHandle);
         sourceBuffers.set(id, bytes.slice());
         const displayName = outcome.displayName || suggestedName;
         // 功能：保存期间继续编辑时保留脏标记，防止关闭窗口丢失新内容；时间：2026-10-18；作者：lq。
-        const changedDuringSave = get().sessions[id]?.data !== session.data;
+        const changedDuringSave = session.wordCore ? session.wordCore.state().dirty : get().sessions[id]?.data !== session.data;
+        if (!changedDuringSave) {
+          const timer = snapshotTimers.get(id);
+          if (timer) clearTimeout(timer);
+          snapshotTimers.delete(id);
+        }
         patchSession(id, {
           displayName,
           path: outcome.path ?? (outcome.location === 'in-place' ? session.path : undefined),

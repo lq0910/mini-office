@@ -33,6 +33,7 @@ const inputs = Object.keys(metadata.inputs);
 const forbidden = inputs.filter(path => /(?:output\/|private\/tmp|node_modules\/(?:react|react-dom|electron)\/|editor-word\/|document-model\/|ai-provider|ai-search)/.test(path));
 errors.push(...forbidden.map(path => `构建边界违规：${path}`));
 if (!Object.keys(metadata.outputs).some(path => path.endsWith('parse-worker.js'))) errors.push('没有实际构建解析 Worker');
-const result = { status: errors.length ? 'failed' : 'passed', upstreamCommit: manifest.upstreamCommit, sourceFiles: manifest.extractedFiles.length, modules: inputs.length, dependencyVersions: versions, productEditorSwitched: false, reactUpgradeRequired: false, errors };
+// 功能：来源检查只报告独立核心构建边界，不用静态标记冒充产品入口验收；时间：2026-11-09；作者：lq。
+const result = { status: errors.length ? 'failed' : 'passed', scope: 'independent-core-build', upstreamCommit: manifest.upstreamCommit, sourceFiles: manifest.extractedFiles.length, modules: inputs.length, dependencyVersions: versions, reactUpgradeRequired: false, errors };
 console.log(JSON.stringify(result, null, 2));
 if (errors.length) process.exitCode = 1;

@@ -2,7 +2,7 @@
 
 功能：固定 GenOffice Word 源码起点、来源与提取边界；时间：2026-11-08；作者：lq。
 
-当前状态为 **M0 基线整理及 M1 核心提取完成，M2 产品页面接入尚未实施**。本目录已有可独立构建的 `@mini-office/word-core`；产品路由和现有工具栏没有切换。实际交付与检查见 [M1 执行记录](../../docs/word-core-m1/README.md)。
+当前状态为 **M0、M1 已完成；2026-11-09 M2 产品开发入口及同会话编辑保存已接通并验收**。本目录为我们持续维护的 GenOffice 衍生定制内核；Mini Office 保留 React 18 和自己的外壳/工具栏。默认产品切换仍按 M5 执行。实际交付与检查见 [M1 执行记录](../../docs/word-core-m1/README.md)及 [M2 执行记录](../../docs/word-core-m2/README.md)。
 
 功能：同步 M1 提取范围、定制与构建状态；时间：2026-11-08；作者：lq。
 
@@ -33,6 +33,8 @@
 `upstream.json` 中有 2,495 条文件记录；它是来源范围，不是最终产品引入名单。`imports.json` 记录 1,543 个 TS/TSX 模块的导入，`dependencies.json` 记录原始包声明和锁文件中的 1,210 条记录。原始依赖清单包含上游开发工具与其他应用耦合，不能直接复制进我们的生产依赖。
 
 M1 已按实际闭包形成 [SOURCE-MANIFEST.json](SOURCE-MANIFEST.json)，共 326 项源码/资源及逐项修改。新增发现的 Word 形状几何底层引用从同一固定归档逐字核对，未加入其他应用的产品界面。正常构建和运行仅使用本目录源码、资源及锁定依赖，不访问 M0 审计副本。
+
+功能：M2 补充同源分页附属区域的提取记录；时间：2026-11-09；作者：lq。新增 `editor/note-dom.ts`、`hf-heights.ts`、`hf-phantom.ts`，当前映射共 329 项；保持同一固定提交、哈希核验及许可。产品宿主对上游 App 中显示协调逻辑的提取和改造见 `packages/editor-word/src/core-layout*.ts`，不引入上游 React App。
 
 ## 锁定版本与后续安装
 

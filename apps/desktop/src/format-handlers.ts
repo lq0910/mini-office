@@ -14,6 +14,7 @@ function registerDeferredHandler(
   extensions: string[],
   createBlank: AnyFormatHandler['createBlank'],
   loader: () => Promise<AnyFormatHandler>,
+  asyncNew = false,
 ): void {
   let pending: Promise<AnyFormatHandler> | undefined;
   const load = () => pending ??= loader().catch((error) => {
@@ -24,6 +25,11 @@ function registerDeferredHandler(
     kind,
     extensions,
     createBlank,
+    // 功能：保持异步核心初始化按需加载；旧处理器仍沿用同步空白模型；时间：2026-11-09；作者：lq。
+    createNew: asyncNew ? async () => {
+      const handler = await load();
+      return handler.createNew ? handler.createNew() : { data: handler.createBlank(), capability: { level: 3, warnings: [], features: [], missingFonts: [], scannedAt: Date.now() } };
+    } : undefined,
     open: async (input) => (await load()).open(input),
     serialize: async (data, context) => (await load()).serialize(data, context),
   });
@@ -31,8 +37,12 @@ function registerDeferredHandler(
 
 /** 功能：保留新建文档的即时响应，同时将三种格式解析代码移出首页启动路径；时间：2026-10-24；作者：lq。 */
 export function registerDeferredFormats(): void {
-  registerDeferredHandler('docx', ['.docx', '.docm', '.dotx'], createBlankDoc,
-    () => import('../../../packages/editor-word/src/handler').then((module) => module.wordFormatHandler));
+  // 功能：通过构建配置显式启用 M2 新内核，注册时固定引擎；默认切换仍由 M5 验收决定；时间：2026-11-09；作者：lq。
+  const coreWord = import.meta.env.VITE_WORD_CORE_M2 === 'true';
+  registerDeferredHandler('docx', ['.docx', '.docm', '.dotx'], coreWord ? () => ({ engine: 'word-core' as const }) : createBlankDoc,
+    coreWord
+      ? () => import('../../../packages/editor-word/src/core-handler').then(module => module.coreWordFormatHandler)
+      : () => import('../../../packages/editor-word/src/handler').then((module) => module.wordFormatHandler), coreWord);
   registerDeferredHandler('xlsx', ['.xlsx', '.xlsm', '.xltx', '.csv'], createBlankWorkbook,
     () => import('../../../packages/editor-sheet/src/handler').then((module) => module.sheetFormatHandler));
   registerDeferredHandler('pptx', ['.pptx', '.pptm', '.potx'], createBlankDeck,

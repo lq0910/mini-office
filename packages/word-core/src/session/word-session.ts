@@ -52,7 +52,8 @@ export class WordCoreSession {
   }
   private constructor(parsed: ParsedDocFull, options: WordSessionOptions) {
     this.parsed = parsed;
-    this.viewOnly = options.readonly === true;
+    // 功能：受保护文档在事务层保持只读，未经解锁不能由开发入口绕过保护；时间：2026-11-09；作者：lq。
+    this.viewOnly = options.readonly === true || parsed.protection?.enforced === true;
     if (options.onChange) this.listeners.add(options.onChange);
     // 功能：只读在事务层生效，防止外部命令绕过 UI 的禁用状态；时间：2026-11-08；作者：lq。
     const readonly = this.viewOnly;

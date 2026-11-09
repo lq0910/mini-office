@@ -154,7 +154,7 @@ export function CommandPalette({
         section: '文件',
         icon: <Download size={15} />,
         keywords: 'pdf export',
-        disabled: !activeSession,
+        disabled: !activeSession || !!activeSession.wordCore,
         run: () => fire('mo:export-pdf'),
       },
       {
@@ -164,7 +164,7 @@ export function CommandPalette({
         icon: <Printer size={15} />,
         shortcut: `${MOD_KEY}P`,
         keywords: 'print',
-        disabled: !activeSession,
+        disabled: !activeSession || !!activeSession.wordCore,
         run: () => fire('mo:print'),
       },
       {
@@ -184,7 +184,7 @@ export function CommandPalette({
         section: '编辑',
         icon: <Search size={15} />,
         shortcut: `${MOD_KEY}F`,
-        disabled: !activeSession,
+        disabled: !activeSession || !!activeSession.wordCore,
         run: () => fire('mo:find'),
       },
       {
@@ -194,7 +194,7 @@ export function CommandPalette({
         section: '编辑',
         icon: <Sparkles size={15} />,
         keywords: 'style 样式 标题 正文 排版',
-        disabled: activeSession?.kind !== 'docx',
+        disabled: activeSession?.kind !== 'docx' || !!activeSession.wordCore,
         run: () => fire('mo:styles'),
       },
       {
@@ -219,7 +219,7 @@ export function CommandPalette({
         label: settings.wordRuler === true ? '隐藏标尺' : '显示标尺',
         section: '视图',
         icon: <Ruler size={15} />,
-        disabled: activeSession?.kind !== 'docx',
+        disabled: activeSession?.kind !== 'docx' || !!activeSession.wordCore,
         run: () => updateSettings({ wordRuler: settings.wordRuler !== true }),
       },
       {

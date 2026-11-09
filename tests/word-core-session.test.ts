@@ -134,6 +134,18 @@ describe('定制 Word 核心的会话和来源保留', () => {
 });
 
 describe('Word 排版协调边界', () => {
+  // 功能：排版失败恢复自然流和列测量状态，不能遗留隐藏装饰的 CSS 类；时间：2026-11-09；作者：lq。
+  it('异常后恢复测量状态，并保留调用方原有的测量类', () => {
+    const root = document.createElement('div');
+    const input = { root, origin: 0, zoomFactor: 1, sections: [{ contentHeight: -1, forceBreak: false, cols: 2 }] };
+    expect(() => measureWordLayout(input)).toThrow('无效');
+    expect(root.classList.contains('measuring-natural')).toBe(false);
+    expect(root.classList.contains('measuring-columns')).toBe(false);
+    root.classList.add('measuring-natural', 'measuring-columns');
+    expect(() => measureWordLayout(input)).toThrow('无效');
+    expect(root.classList.contains('measuring-natural')).toBe(true);
+    expect(root.classList.contains('measuring-columns')).toBe(true);
+  });
   it('缺少页面几何时明确失败，组合输入期间不测量，释放后不会迟到重排', () => {
     const root = document.createElement('div');
     expect(() => measureWordLayout({ root, origin: 0, zoomFactor: 1, sections: [] })).toThrow('几何');

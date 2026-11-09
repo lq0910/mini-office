@@ -1,8 +1,9 @@
 /** 功能：把原 App 的测量/重排调度抽成非 React 会话能力，继续使用上游分页算法；时间：2026-11-08；作者：lq。 */
-import { measureBlocks } from '../upstream/apps/docs/src/renderer/pagination-measure';
+import { measureBlocks, appendEndnotesBlock, appendFloatSpillBlock } from '../upstream/apps/docs/src/renderer/pagination-measure';
 import { sliceWithLineSplit } from '../upstream/apps/docs/src/renderer/pagination-lines';
 import { FollowUpChain } from '../upstream/apps/docs/src/renderer/pagination-loop';
-import type { SectionGeom, SliceOutputs } from '../upstream/apps/docs/src/renderer/pagination-types';
+import type { SectionGeom, SliceOutputs, PageNoteItem } from '../upstream/apps/docs/src/renderer/pagination-types';
+import { FOOTNOTE_SEPARATOR_H } from '../upstream/apps/docs/src/renderer/line-metrics';
 import { assignSections, liveSections, sectionGeoms, sectionVertical } from '../upstream/apps/docs/src/renderer/pagination-sections';
 import type { SectionInfo } from '../upstream/packages/docx-engine/src/index';
 
@@ -21,6 +22,8 @@ export interface WordLayoutInput {
   carryOf?: Parameters<typeof measureBlocks>[5];
   blockMetaOf?: Parameters<typeof sliceWithLineSplit>[4];
   composing?: boolean;
+  /** 功能：尾注区参与同源分页，不在排版结束后盖到正文上；时间：2026-11-09；作者：lq。 */
+  endnotes?: PageNoteItem[];
 }
 
 /** 功能：执行同源 DOM 测量、行盒补采样与分节切片，结果供我们的页面 UI 应用；时间：2026-11-08；作者：lq。 */
@@ -29,18 +32,27 @@ export function measureWordLayout(input: WordLayoutInput) {
   if (input.sections.length > 1 && !input.sectionInfos?.length) throw new Error('多节 Word 排版缺少来源范围映射');
   // 功能：承接上游 App 的单流测量状态，暂时去掉显示层列平移，完成后恢复；时间：2026-11-08；作者：lq。
   const hadMeasuring = input.root.classList.contains('measuring-columns');
+  // 功能：测量自然行流，避免上一轮页间装饰强制的换行反过来锁死分页；时间：2026-11-09；作者：lq。
+  const hadNatural = input.root.classList.contains('measuring-natural');
+  input.root.classList.add('measuring-natural');
   const neutralize = input.mirrorMargins || input.sections.some(section => (section.cols ?? 1) > 1) || input.sectionInfos?.some(section => section.settings.vAlign === 'center' || section.settings.vAlign === 'bottom' || !!sectionVertical(section.settings));
   if (neutralize) input.root.classList.add('measuring-columns');
   try {
     const measured = measureBlocks(input.root, input.origin, input.zoomFactor, input.planOf, false, input.carryOf);
     const effectiveSections = input.sectionInfos?.length ? liveSections(input.sectionInfos, measured.blocks, measured.sectBreaks, input.deletedSectionBreaks) : undefined;
     if (effectiveSections) assignSections(measured.blocks, effectiveSections);
+    // 功能：继承尾注和浮动对象末尾溢出的容量计算，让对应纸张真实存在；时间：2026-11-09；作者：lq。
+    const endnotes = appendEndnotesBlock(measured.blocks, measured.totalHeight, input.endnotes ?? [], FOOTNOTE_SEPARATOR_H);
+    const lastSection = effectiveSections?.[effectiveSections.length - 1]?.settings;
+    const totalHeight = appendFloatSpillBlock(measured.blocks, endnotes?.totalHeight ?? measured.totalHeight, measured.floats, (lastSection?.marginBottom ?? 0) / 15) ?? endnotes?.totalHeight ?? measured.totalHeight;
     const geometries = effectiveSections ? sectionGeoms(effectiveSections, input.headerFooterHeights, input.evenOddHeaders) : input.sections;
     if (geometries.some(section => !(section.contentHeight > 0))) throw new Error('Word 排版包含无效的分节几何');
-    const outputs: SliceOutputs = {};
-    const slices = sliceWithLineSplit(measured.blocks, geometries, measured.totalHeight, input.zoomFactor, input.blockMetaOf, outputs);
-    return { ...measured, slices, outputs, effectiveSections };
+    // 功能：开启上游表格行高、分行和浮动对象输出，供正文宿主统一应用；时间：2026-11-09；作者：lq。
+    const outputs: SliceOutputs = { rowFills: [], rowSplits: [], floatVShifts: [], floatFlows: [], floatSplits: [], oversizeClips: [] };
+    const slices = sliceWithLineSplit(measured.blocks, geometries, totalHeight, input.zoomFactor, input.blockMetaOf, outputs);
+    return { ...measured, totalHeight, slices, outputs, effectiveSections, geometries, endnotesTop: endnotes?.top };
   } finally {
+    if (!hadNatural) input.root.classList.remove('measuring-natural');
     if (!hadMeasuring) input.root.classList.remove('measuring-columns');
   }
 }

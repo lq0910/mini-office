@@ -503,6 +503,17 @@
       ]
     },
     {
+      "upstreamPath": "apps/docs/src/renderer/editor/note-dom.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/note-dom.ts",
+      "upstreamSha256": "dce00dac758e53f51ccc7124cd8add06b0f1c6cf9cc9e3a8768c879e51dae026",
+      "localSha256": "b161369232cbdc6d5989b2c5e1fc457f1bc1e12336948644fd5320a00e847906",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "注释区增加可选 NoteKind，默认保持脚注，尾注按自身编号格式显示",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
       "upstreamPath": "apps/docs/src/renderer/editor/numbering.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/numbering.ts",
       "upstreamSha256": "3373e3cf401ac922e8603b69b0bb9209069efe70e202365efc8fc65b496e41e6",
@@ -1315,6 +1326,26 @@
       "upstreamSha256": "ac236e66e030d486b7ea883cd10ebf8c7095b42d30d82ebf7d48f4af302189ae",
       "localSha256": "ac236e66e030d486b7ea883cd10ebf8c7095b42d30d82ebf7d48f4af302189ae",
       "modifications": []
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/hf-heights.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/hf-heights.ts",
+      "upstreamSha256": "cdd0b8653e7cc81384c237b17dcdd8ef68411ebbbca076dfb02e4f33eda98f72",
+      "localSha256": "7cb01f18bf0ba258cacf401c50d405bb5690218a2cbf385eb0182980f48ab899",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/hf-phantom.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/hf-phantom.ts",
+      "upstreamSha256": "ad29ef4e7b9955cf728d46dbbb6905129487f53b6b52c92172dec1d813bf1d6c",
+      "localSha256": "d4834da0a79afc4c2133c065fbc77ff0fe47c0a3b5b8f2622714f5c84499fd2a",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
+      ]
     },
     {
       "upstreamPath": "apps/docs/src/renderer/hf-sections.ts",

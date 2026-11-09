@@ -6,6 +6,10 @@ import type {
 import type { DocModel } from './word';
 import type { WorkbookModel } from './sheet';
 import type { SlideDeck } from './slides';
+import type { WordCoreSession } from '../../word-core/src/session/word-session';
+
+/** 功能：工作区只保留新 Word 文档标识，正文与 DOM 均归独立会话管理；时间：2026-11-09；作者：lq。 */
+export interface CoreWordDocument { readonly engine: 'word-core'; }
 
 // 功能：保存 PDF、Markdown、HTML 的只读预览内容，避免引入重量级编辑模型；时间：2026-10-31；作者：lq。
 export interface PreviewDocumentData {
@@ -14,7 +18,7 @@ export interface PreviewDocumentData {
   text?: string;
 }
 
-export type AnyDocumentData = DocModel | WorkbookModel | SlideDeck | PreviewDocumentData;
+export type AnyDocumentData = DocModel | WorkbookModel | SlideDeck | PreviewDocumentData | CoreWordDocument;
 export type AnyDocumentDataWithPreview = AnyDocumentData;
 
 export type LifecycleState =
@@ -99,6 +103,8 @@ export interface DocumentSession<T extends AnyDocumentDataWithPreview = AnyDocum
   capability: CapabilityReport;
   state: LifecycleState;
   data: T;
+  /** 功能：新 Word 会话只在内存运行，恢复快照始终保存 DOCX 字节；时间：2026-11-09；作者：lq。 */
+  wordCore?: WordCoreSession;
   dirty: boolean;
   isNew: boolean;
   restoredFromSnapshot: boolean;
@@ -122,6 +128,8 @@ export interface OpenDocumentInput {
 
 export interface FormatOpenResult<T extends AnyDocumentDataWithPreview = AnyDocumentDataWithPreview> {
   data: T;
+  /** 功能：完整新核心会话直接交给工作区，不降级转换成旧 DocModel；时间：2026-11-09；作者：lq。 */
+  wordCore?: WordCoreSession;
   capability: CapabilityReport;
   readonly?: boolean;
   displayName?: string;
@@ -136,6 +144,8 @@ export interface FormatHandler<T extends AnyDocumentDataWithPreview = AnyDocumen
   readonly kind: OfficeKind;
   readonly extensions: string[];
   createBlank(): T;
+  /** 功能：允许新核心异步创建原始 DOCX 包和真实编辑会话；时间：2026-11-09；作者：lq。 */
+  createNew?(): Promise<FormatOpenResult<T>>;
   open(input: OpenDocumentInput): Promise<FormatOpenResult<T>>;
   serialize(data: T, context: SerializeContext): Promise<Uint8Array>;
   getStats?(data: T): DocumentStats;
