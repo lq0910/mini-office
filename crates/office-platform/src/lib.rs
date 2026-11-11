@@ -6,6 +6,9 @@ use std::path::PathBuf;
 pub mod default_app;
 
 pub fn app_data_dir() -> PathBuf {
+    // 功能：调试验收使用独立恢复/最近文件目录，避免测试触碰用户工作区；时间：2026-11-11；作者：lq。
+    #[cfg(debug_assertions)]
+    if let Some(directory) = std::env::var_os("MINI_OFFICE_WORD_SMOKE_DATA") { return PathBuf::from(directory); }
     if let Some(directory) = dirs::data_dir() {
         directory.join("MiniOffice")
     } else {

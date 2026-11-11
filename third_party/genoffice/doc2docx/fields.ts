@@ -36,6 +36,8 @@ export interface FieldParseResult {
   hyperlinks: HyperlinkField[]
   simpleFields: SimpleField[]
   warnings: string[]
+  /** 功能：保留跨段 TOC 域的缓存范围，交给正文写入器恢复原生目录边界；时间：2026-11-11；作者：lq。 */
+  tocFields?: SimpleField[]
 }
 
 const LIVE_FIELD_TYPES = new Set(['PAGE', 'NUMPAGES', 'SECTIONPAGES'])
@@ -131,6 +133,8 @@ function parseHyperlinkInstruction(instruction: string): HyperlinkInstruction | 
 export function parseFields(rawText: string): FieldParseResult {
   const hyperlinks: HyperlinkField[] = []
   const simpleFields: SimpleField[] = []
+  // 功能：目录不是单个文字 run，单独登记跨段范围而不套入 PAGE 的单行写入规则；时间：2026-11-11；作者：lq。
+  const tocFields: SimpleField[] = []
   const warnings: string[] = []
   const unsupportedTypes = new Set<string>()
   const stack: FieldFrame[] = []
@@ -140,6 +144,10 @@ export function parseFields(rawText: string): FieldParseResult {
     if (frame.separatorCp === undefined) {
       if (type !== '')
         warnings.push('a ' + type + ' field has no result separator and was imported as plain text')
+      return
+    }
+    if (type === 'TOC') {
+      tocFields.push({ startCp: frame.separatorCp + 1, endCp, instruction })
       return
     }
     if (LIVE_FIELD_TYPES.has(type)) {
@@ -186,7 +194,7 @@ export function parseFields(rawText: string): FieldParseResult {
   }
   if (stack.length > 0)
     warnings.push('the document ends inside a field; its text was imported as plain text')
-  return { hyperlinks, simpleFields, warnings: [...new Set(warnings)] }
+  return { hyperlinks, simpleFields, warnings: [...new Set(warnings)], ...(tocFields.length ? { tocFields } : {}) }
 }
 
 /** true when the CP lies inside a field range (instruction or result) */

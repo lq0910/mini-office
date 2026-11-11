@@ -672,6 +672,8 @@ export function makeGapEl(m: GapMetrics, kind: GapKind, cols?: number): HTMLElem
 
 /** Page gap anchor: el = top-level page-leading block (inserted before it); pos = document position at a mid-paragraph/mid-table break */
 export type PageGapSpec = {
+  /** 功能：装饰行可用的连续列段，避免合并格旁边新增幽灵列；时间：2026-11-11；作者：lq。 */
+  tableCellSpans?: number[]
   metrics: GapMetrics
   /** Previous page's bottom footnote area (a ready-made positioned/sized element) and its content signature (change triggers rebuild) */
   notes?: HTMLElement
@@ -804,9 +806,20 @@ export function setPageGaps(
     }
     // boundaryY in the key: a reused widget must not keep a stale boundary
     // (cols too: a table-structure edit must rebuild the spanning cell)
-    const mKey = `${metrics.marginTop},${metrics.marginBottom},${metrics.marginLeft},${metrics.marginRight},${Math.round(gap.pullUp ?? 0)},${Math.round(gap.boundaryY ?? -1)},${gap.cols ?? 0},${Math.round(metrics.pageLeft ?? -1)}`
+    const mKey = `${metrics.marginTop},${metrics.marginBottom},${metrics.marginLeft},${metrics.marginRight},${Math.round(gap.pullUp ?? 0)},${Math.round(gap.boundaryY ?? -1)},${gap.cols ?? 0},${gap.tableCellSpans?.join(':') ?? ''},${Math.round(metrics.pageLeft ?? -1)}`
     const build = (as: GapKind) => {
       const el = makeGapEl(metrics, as, gap.cols)
+      // 功能：跨页合并格已经占据部分网格列，填充格仅覆盖空闲连续列段；时间：2026-11-11；作者：lq。
+      if (as === 'table' && gap.tableCellSpans?.length) {
+        const first = el.firstElementChild as HTMLTableCellElement
+        first.colSpan = gap.tableCellSpans[0]
+        for (const span of gap.tableCellSpans.slice(1)) {
+          const cell = document.createElement('td')
+          cell.colSpan = span
+          cell.contentEditable = 'false'
+          el.appendChild(cell)
+        }
+      }
       // margins don't apply to table-rows and cuts are zero-height markers;
       // tables inside mixed-column regions are out of scope anyway (v1)
       if (gap.pullUp && as !== 'cut' && as !== 'table') el.style.marginTop = `-${gap.pullUp}px`
@@ -1446,6 +1459,11 @@ export function syncPageSheets(
  * restore from it). Idempotent; with no phantom rows left it restores all cells.
  */
 export function syncPhantomRowspans(root: HTMLElement): void {
+  // 功能：自然流隐藏装饰行后必须同步恢复源跨度，否则被隐藏行仍导致后续真实行列错位；时间：2026-11-11；作者：lq。
+  if (root.classList.contains('measuring-natural')) {
+    for (const cell of root.querySelectorAll<HTMLTableCellElement>('[data-base-rowspan]')) cell.rowSpan = Number(cell.dataset.baseRowspan) || 1
+    return
+  }
   const isPhantom = (tr: HTMLTableRowElement) =>
     tr.classList.contains('page-gap') || tr.classList.contains('page-repeat-header')
   const grown = new Set<HTMLTableCellElement>()

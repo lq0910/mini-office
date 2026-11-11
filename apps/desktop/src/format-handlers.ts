@@ -37,8 +37,8 @@ function registerDeferredHandler(
 
 /** 功能：保留新建文档的即时响应，同时将三种格式解析代码移出首页启动路径；时间：2026-10-24；作者：lq。 */
 export function registerDeferredFormats(): void {
-  // 功能：通过构建配置显式启用 M2 新内核，注册时固定引擎；默认切换仍由 M5 验收决定；时间：2026-11-09；作者：lq。
-  const coreWord = import.meta.env.VITE_WORD_CORE_M2 === 'true';
+  // 功能：正式默认启用新核心；仅开发构建允许显式回退，整份会话固定引擎且保存失败不回退；时间：2026-11-11；作者：lq。
+  const coreWord = !(import.meta.env.DEV && import.meta.env.VITE_WORD_LEGACY === 'true');
   registerDeferredHandler('docx', ['.docx', '.docm', '.dotx'], coreWord ? () => ({ engine: 'word-core' as const }) : createBlankDoc,
     coreWord
       ? () => import('../../../packages/editor-word/src/core-handler').then(module => module.coreWordFormatHandler)

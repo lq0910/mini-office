@@ -210,6 +210,8 @@ export interface LegacyDocBody {
   notes?: LegacyDocNotes
   /** comments anchored in the body (their marks sit in the paragraph runs) */
   comments?: LegacyComment[]
+  /** 功能：跨段目录域随正文进入写入计划，不能降级为普通超链接；时间：2026-11-11；作者：lq。 */
+  tocFields?: SimpleField[]
 }
 
 /** One raw unit of the body text; markers keep their CP so formatting can be sliced. */

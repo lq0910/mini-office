@@ -6,6 +6,9 @@ use serde::Serialize;
 use std::path::Path;
 use std::sync::{atomic::{AtomicBool, Ordering}, Mutex};
 use tauri::{Emitter, Manager, State};
+// 功能：本地 WebView 验收桥严格排除在发布二进制外；时间：2026-11-11；作者：lq。
+#[cfg(debug_assertions)]
+mod word_smoke;
 
 struct AppState {
     recent: RecentStore,
@@ -17,6 +20,32 @@ struct AppState {
 
 /// 功能：托管状态尚未建立时（macOS 冷启动的 odoc 事件早于 setup）先落到全局队列，setup 时并入；时间：2026-10-29；作者：lq。
 static EARLY_PENDING_FILES: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// 功能：后台读取实际系统字体度量，字体文件访问限制在原生扫描索引内；时间：2026-11-11；作者：lq。
+#[tauri::command]
+async fn word_font_metrics(family: String) -> Result<Option<office_font::FaceVerticalMetrics>, String> {
+    tauri::async_runtime::spawn_blocking(move || office_font::font_metrics(&family)).await.map_err(|error| error.to_string())
+}
+
+/// 功能：macOS 复制图片同时写入 PNG 和携带尺寸/环绕的 HTML；失败返回错误，不删除剪切源图；时间：2026-11-11；作者：lq。
+#[tauri::command]
+fn word_copy_image(png: Vec<u8>, html: String) -> Result<bool, String> {
+    if png.len() > 32 * 1024 * 1024 || !png.starts_with(b"\x89PNG\r\n\x1a\n") || html.len() > 48 * 1024 * 1024 {
+        return Err("剪贴板图片无效或过大".into());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use objc2_app_kit::NSPasteboard;
+        use objc2_foundation::{NSData, NSString};
+        let board = NSPasteboard::generalPasteboard();
+        board.clearContents();
+        let image_ok = board.setData_forType(Some(&NSData::with_bytes(&png)), &NSString::from_str("public.png"));
+        let html_ok = board.setString_forType(&NSString::from_str(&html), &NSString::from_str("public.html"));
+        Ok(image_ok && html_ok)
+    }
+    #[cfg(not(target_os = "macos"))]
+    Err("当前平台使用浏览器剪贴板".into())
+}
 
 /// 功能：原子领取待打开文件，避免冷启动时系统事件先于页面监听而丢失；时间：2026-10-18；作者：lq。
 #[tauri::command]
@@ -118,7 +147,8 @@ fn allowed_output(path: &str) -> bool {
         .to_ascii_lowercase();
     matches!(
         extension.as_str(),
-        "docx" | "xlsx" | "pptx" | "csv" | "pdf" | "zip" | "png" | "jpg" | "jpeg"
+        // 功能：允许新核心按原类型安全保存无宏模板与宏扩展包，真实宏仍由能力层保护；时间：2026-11-11；作者：lq。
+        "docx" | "dotx" | "docm" | "xlsx" | "pptx" | "csv" | "pdf" | "zip" | "png" | "jpg" | "jpeg"
     )
 }
 
@@ -453,6 +483,9 @@ fn export_pdf(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
+    // 功能：仅显式调试验收配置启用脚本桥；时间：2026-11-11；作者：lq。
+    #[cfg(debug_assertions)]
+    let builder = if std::env::var_os("MINI_OFFICE_WORD_SMOKE_SCRIPT").is_some() { builder.plugin(word_smoke::plugin()) } else { builder };
     // 功能：Windows/Linux 拖拽文件到图标或双击关联文件会启动第二个进程，由单实例插件转发参数到已运行窗口；时间：2026-10-29；作者：lq。
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
@@ -491,12 +524,15 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler({
+          let normal: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
             read_file,
             write_file,
             rename_file,
             list_fonts,
             refresh_fonts,
+            word_font_metrics,
+            word_copy_image,
             inspect_document,
             convert_legacy_document,
             convert_legacy_bytes,
@@ -516,7 +552,17 @@ pub fn run() {
             print_window,
             take_pending_files,
             confirm_app_close
-        ])
+          ];
+          move |invoke: tauri::ipc::Invoke<tauri::Wry>| {
+            // 功能：应用命令权限下的调试报告桥；发布构建不包含该命令及实现；时间：2026-11-11；作者：lq。
+            #[cfg(debug_assertions)]
+            if invoke.message.command() == "word_smoke_report" {
+              let smoke: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![word_smoke::word_smoke_report];
+              return smoke(invoke);
+            }
+            normal(invoke)
+          }
+        })
         .build(tauri::generate_context!())
         .expect("Mini Office failed to start")
         .run(|app, event| {

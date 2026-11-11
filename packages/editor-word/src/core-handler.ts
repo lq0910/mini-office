@@ -5,6 +5,8 @@ import { WordCoreSession } from '../../word-core/src/session/word-session';
 import { detectKind, loadOoxmlPackage } from '@mini-office/ooxml';
 import { ErrorCodes, OfficeError, type CapabilityReport } from '@mini-office/shared';
 import { analyzeCoreWordCapabilities } from './core-capabilities';
+// 功能：首次打开/新建前完成桌面字体与剪贴板接线，输出会话复用相同能力；时间：2026-11-11；作者：lq。
+import './core-platform';
 
 /** 功能：能力来自新核心实际会话，保留原始未知 XML 不沿用旧解析器的功能降级判断；时间：2026-11-09；作者：lq。 */
 function opened(wordCore: WordCoreSession, capability: CapabilityReport): FormatOpenResult<CoreWordDocument> {

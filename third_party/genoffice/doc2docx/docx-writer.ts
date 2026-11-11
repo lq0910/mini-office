@@ -1004,8 +1004,16 @@ export function generateBodyBlocksXml(
   pictures: PictureRefs = NO_PICTURES,
   context: GenerateContext = GENERATE_CONTEXT,
   sectionBreaks: SectionBreaks = new Map(),
+  // 功能：跨段 TOC 以原范围围住已有目录缓存，不重新生成正文或改写页码；时间：2026-11-11；作者：lq。
+  tocFields: Array<{ startCp: number; endCp: number; instruction: string }> = [],
 ): string {
   const ends = new SectionEndWriter(sectionBreaks)
+  // 功能：只对落在真实 TOC 缓存范围的独立正文段落恢复域边界，普通书签链接不受影响；时间：2026-11-11；作者：lq。
+  const tocParagraphs = new Map<FormattedParagraph, { first: boolean; last: boolean; instruction: string }>()
+  for (const field of tocFields) {
+    const entries = blocks.filter((block): block is Extract<BodyBlock, { type: 'paragraph' }> => block.type === 'paragraph' && block.paragraph.endCp >= field.startCp && block.paragraph.startCp < field.endCp && !!block.paragraph.text.trim())
+    entries.forEach((block, index) => tocParagraphs.set(block.paragraph, { first: index === 0, last: index === entries.length - 1, instruction: field.instruction }))
+  }
   let out = ''
   for (const block of blocks) {
     const range = blockCpRange(block)
@@ -1023,7 +1031,18 @@ export function generateBodyBlocksXml(
       out += ends.paragraph(xml, range?.end)
     } else {
       const runs = pictureRunsOf(block.pictures, pictures)
-      const xml = withPictureRuns(paragraphXml(block, context), runs.leading, runs.trailing)
+      let xml = withPictureRuns(paragraphXml(block, context), runs.leading, runs.trailing)
+      const toc = tocParagraphs.get(block.paragraph)
+      if (toc) {
+        // 功能：DOC 丢失 TOC 段落样式时恢复一级目录识别，直接段落格式仍优先保留；时间：2026-11-11；作者：lq。
+        if (!/<w:pStyle\b/.test(xml) && /<w:tab\s*\/>/.test(xml)) xml = xml.includes('<w:pPr>') ? xml.replace('<w:pPr>', '<w:pPr><w:pStyle w:val="TOC1"/>') : xml.replace('<w:p>', '<w:p><w:pPr><w:pStyle w:val="TOC1"/></w:pPr>')
+        if (toc.first) {
+          const at = xml.includes('</w:pPr>') ? xml.indexOf('</w:pPr>') + 8 : xml.indexOf('>') + 1
+          const begin = '<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> ' + escapeXmlText(toc.instruction) + ' </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>'
+          xml = xml.slice(0, at) + begin + xml.slice(at)
+        }
+        if (toc.last) xml = xml.replace(/<\/w:p>$/, '<w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>')
+      }
       out += ends.paragraph(xml, block.paragraph.endCp)
     }
     if (range) out += ends.flush(range.end)
@@ -1434,7 +1453,7 @@ export async function writeLegacyDocx(
   const comments = body?.comments ?? []
   const commentsRelId = comments.length > 0 ? `rId${nextRelId++}` : undefined
   const bodyXml = usesBodyBlocks
-    ? generateBodyBlocksXml(body!.blocks, bodyPictures, generateContext, sectionBreaks)
+    ? generateBodyBlocksXml(body!.blocks, bodyPictures, generateContext, sectionBreaks, body!.tocFields)
     : generateBodyParagraphsXml(model.paragraphs, sectionBreaks)
   // header/footer parts are generated now so their media relationships exist before the rels are written
   const partRels = new Map<HeaderFooterPart, Map<MediaPart, string>>()

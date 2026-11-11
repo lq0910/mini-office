@@ -76,21 +76,56 @@ export function wordTocSnapshot(document: PmNode, headings: ReturnType<typeof co
   }) };
 }
 
-/** 功能：按级别及同名标题出现顺序定位目录目标，普通单击不改变选区；时间：2026-11-11；作者：lq。 */
+/** 功能：导入目录优先跳到原书签，新目录按级别及同名标题顺序定位；导航只改变选区和视图；时间：2026-11-11；作者：lq。 */
 export function followWordToc(editor: Editor, parsed: ParsedDocFull, lineIndex: number): boolean {
   if (editor.view.composing) return false;
-  let index = 0; let target: { text: string; level: number; nth: number } | undefined;
+  let index = 0; let target: { text: string; level: number; nth: number; anchor?: string } | undefined;
   const seen = new Map<string, number>();
   editor.state.doc.forEach(node => {
     const field = node.attrs.fieldDisplay as FieldDisplay | undefined;
     if (field?.kind !== 'tocLine') return;
     const text = String(field.left ?? '').trim(); const level = Number(field.level ?? 1);
     const key = `${level}:${text}`; const nth = seen.get(key) ?? 0; seen.set(key, nth+1);
-    if (index++ === lineIndex) target = { text, level, nth };
+    if (index++ === lineIndex) target = { text, level, nth, anchor: field.anchor };
   });
   if (!target) return false;
-  const heading = collectHeadings(editor.state.doc, parsed.styles).filter(item => item.text.trim() === target!.text && item.level === target!.level)[target.nth];
-  if (!heading) return false;
-  editor.view.dispatch(editor.state.tr.setSelection(TextSelection.near(editor.state.doc.resolve(heading.pos+1))).scrollIntoView());
+  // 功能：Word 的 TOC 链接常指向普通段落的隐藏 _Toc 书签，不能要求所有目标都有标题样式；时间：2026-11-11；作者：lq。
+  let position: number | undefined;
+  if (target.anchor) editor.state.doc.descendants((node, pos) => {
+    if (position !== undefined || node.attrs.fieldDisplay?.kind === 'tocLine') return false;
+    if ([...(node.attrs.bookmarks ?? []), ...(node.attrs.hiddenBookmarks ?? [])].includes(target!.anchor)) position = pos;
+  });
+  if (position === undefined) {
+    const normalize = (text: string) => text.replace(/\s+/gu, '').normalize('NFKC');
+    const heading = collectHeadings(editor.state.doc, parsed.styles).filter(item => normalize(item.text) === normalize(target!.text) && item.level === target!.level)[target.nth];
+    position = heading?.pos;
+    if (position === undefined) {
+      // 功能：旧 DOC 转换可能缺失书签/标题样式，先匹配独立正文标题；不拿来源缓存页码猜测位置；时间：2026-11-11；作者：lq。
+      const paragraphs: Array<{ text: string; raw: string; pos: number }> = [];
+      editor.state.doc.forEach((node, pos) => { if (node.isTextblock && !node.attrs.fieldDisplay) paragraphs.push({ text: normalize(node.textContent), raw: node.textContent, pos }); });
+      const title = normalize(target.text);
+      const exact = paragraphs.filter(item => item.text === title);
+      position = exact[target.nth]?.pos;
+      if (position === undefined && /^第[一二三四五六七八九十百零〇两\d]+[章节篇部]/u.test(title)) {
+        // 功能：旧 DOC 将章标题接在上一句末尾时，仅接受完整章名、句末边界和唯一目标，并定位标题字符；时间：2026-11-11；作者：lq。
+        const attached = paragraphs.filter(item => item.text.endsWith(title) && /[。！？；]$/u.test(item.text.slice(0, -title.length)));
+        if (attached.length === 1) {
+          const item = attached[0], prefixLength = item.text.length - title.length;
+          let offset = 0;
+          while (offset < item.raw.length && normalize(item.raw.slice(0, offset)).length < prefixLength) offset++;
+          while (offset < item.raw.length && /\s/u.test(item.raw[offset])) offset++;
+          position = item.pos + offset;
+        }
+      }
+      if (position === undefined) {
+        // 功能：列表生成的章节号可能不在文字中；仅接受唯一的短标题后缀，拒绝模糊匹配正文句子；时间：2026-11-11；作者：lq。
+        const plain = title.replace(/^第[一二三四五六七八九十百零〇两\d]+[章节篇部][、.．:：\-—]*/u, '');
+        const candidates = plain.length >= 4 ? paragraphs.filter(item => item.text.length <= Math.max(80, plain.length * 3) && !/[。！？；]/u.test(item.text) && item.text.endsWith(plain)) : [];
+        if (candidates.length === 1) position = candidates[0].pos;
+      }
+    }
+  }
+  if (position === undefined) return false;
+  editor.view.dispatch(editor.state.tr.setSelection(TextSelection.near(editor.state.doc.resolve(position+1))).scrollIntoView());
   editor.view.focus(); return true;
 }

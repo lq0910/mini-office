@@ -32,6 +32,11 @@ office-slides.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 
+# 功能：macOS 原生位图及富文本剪贴板桥，不引入 Electron；时间：2026-11-11；作者：lq。
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSPasteboard"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSData", "NSString"] }
+
 # 功能：Windows/Linux 双击文件或拖拽到图标可能启动第二个进程，用单实例插件转发文件参数；时间：2026-10-29；作者：lq。
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"

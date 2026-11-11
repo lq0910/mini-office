@@ -7787,6 +7787,8 @@ const TEXTBOX_INSETS_PX = [9.6, 4.8, 9.6, 4.8]
 /** placement of a header/footer textbox from its wp:anchor */
 function hfTextBoxOfAnchor(anchor: XNode): HfTextBox {
   const box: HfTextBox = { id: ++hfTextBoxSeq }
+  const shapeId = attrsOf(findChild(anchor, 'wp:docPr') ?? {})['id']
+  if (shapeId) box.miniOfficeShapeId = 'drawing:' + shapeId
   const attrs = attrsOf(anchor)
   if (attrs['behindDoc'] === '1' || attrs['behindDoc'] === 'true') box.behind = true
   const ext = attrsOf(findChild(anchor, 'wp:extent') ?? {})
@@ -7835,6 +7837,8 @@ function vmlLengthPx(raw: string | undefined): number | undefined {
 
 function hfTextBoxOfVml(shape: XNode): HfTextBox {
   const box: HfTextBox = { id: ++hfTextBoxSeq }
+  const shapeId = attrsOf(shape)['id']
+  if (shapeId) box.miniOfficeShapeId = 'vml:' + shapeId
   const style = attrsOf(shape)['style'] ?? ''
   const px = (prop: string): number | undefined => {
     const v = vmlLengthPx(new RegExp(`(?:^|;)\\s*${prop}:([^;]+)`).exec(style)?.[1])

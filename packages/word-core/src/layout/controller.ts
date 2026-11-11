@@ -62,14 +62,19 @@ export type WordLayoutResult = ReturnType<typeof measureWordLayout>;
 export class WordLayoutController {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private disposed = false;
+  // 功能：沿用 GenOffice 的编辑占空比和后续轮次间隔，给输入及滚动保留主线程；时间：2026-11-11；作者：lq。
+  private lastPassMs = 0;
+  private measured = false;
   private readonly chain = new FollowUpChain();
-  constructor(private readonly read: () => WordLayoutInput, private readonly apply: (result: WordLayoutResult) => void, private readonly onError: (error: unknown) => void) {}
+  constructor(private readonly read: () => WordLayoutInput, private readonly apply: (result: WordLayoutResult) => void, private readonly onError: (error: unknown) => void,
+    // 功能：宿主在同一未缩放自然流窗口内完成测量与锚点解析，最后恢复显示；时间：2026-11-11；作者：lq。
+    private readonly inMeasure: (run: () => WordLayoutResult | undefined) => WordLayoutResult | undefined = run => run()) {}
   /** 功能：文档、字体或页面设置变化开启新排版链；时间：2026-11-08；作者：lq。 */
-  request(): void { this.chain.reset(); this.enqueue(); }
+  request(): void { this.chain.reset(); this.enqueue(this.measured ? Math.min(2000, Math.max(300, this.lastPassMs * 3)) : 0, true); }
   /** 功能：装饰或尺寸补偿请求有界的后续测量，拒绝同因循环；时间：2026-11-08；作者：lq。 */
   followUp(reason: string, dirtyIndex: number | null = null): boolean {
     if (this.disposed || this.chain.request(reason, dirtyIndex) !== 'run') return false;
-    this.enqueue();
+    this.enqueue(100);
     return true;
   }
   /** 功能：重排前读取最新状态，中文组合期间保留输入法拥有的 DOM；时间：2026-11-08；作者：lq。 */
@@ -77,18 +82,24 @@ export class WordLayoutController {
     if (this.disposed) return;
     if (this.timer !== undefined) clearTimeout(this.timer);
     this.timer = undefined;
-    const input = this.read();
-    if (input.composing) return;
-    this.chain.beginPass();
-    const result = measureWordLayout(input);
-    this.apply(result);
-    return result;
+    const started = performance.now();
+    try { return this.inMeasure(() => {
+      const input = this.read();
+      if (input.composing) return;
+      this.chain.beginPass();
+      // 功能：保持自然流到宿主解析完所有页界，避免两次恢复/隐藏装饰使表格几何漂移；时间：2026-11-11；作者：lq。
+      const natural = input.root.classList.contains('measuring-natural');
+      input.root.classList.add('measuring-natural');
+      try { const result = measureWordLayout(input); this.apply(result); this.measured = true; return result; }
+      finally { if (!natural) input.root.classList.remove('measuring-natural'); }
+    }); } finally { this.lastPassMs = performance.now() - started; }
   }
   /** 功能：会话隐藏/关闭时清理迟到的回调；时间：2026-11-08；作者：lq。 */
   dispose(): void { this.disposed = true; if (this.timer !== undefined) clearTimeout(this.timer); this.timer = undefined; }
   /** 功能：同一轮事务只安排一次测量，并把异常交给宿主明确处理；时间：2026-11-08；作者：lq。 */
-  private enqueue(): void {
-    if (this.disposed || this.timer !== undefined) return;
-    this.timer = setTimeout(() => { this.timer = undefined; try { this.flush(); } catch (error) { this.onError(error); } }, 0);
+  private enqueue(delay: number, restart = false): void {
+    if (this.disposed) return;
+    if (this.timer !== undefined) { if (!restart) return; clearTimeout(this.timer); }
+    this.timer = setTimeout(() => { this.timer = undefined; try { this.flush(); } catch (error) { this.onError(error); } }, delay);
   }
 }

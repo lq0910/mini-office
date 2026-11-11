@@ -10,10 +10,12 @@ import type { PmNode } from '../upstream/apps/docs/src/renderer/editor/convert';
 import { wordPaste } from './paste';
 // 功能：区域样式目录由主文档投影，创建和套用在同一事务中回写；时间：2026-11-11；作者：lq。
 import { wordStyleCatalog, wordStyleCatalogOf } from './styles';
+// 功能：浮动页码框仅投影自身段落，提交仍进入同一个主历史；时间：2026-11-11；作者：lq。
+import { wordHfBoxProjection, mergeWordHfBox } from './header-footer-boxes';
 
 let nextHistoryGroup = -1000;
 /** 功能：区域标识按分节/类型/变体绑定，不随分页 DOM 的重绘丢失；时间：2026-11-11；作者：lq。 */
-export interface WordHeaderFooterTarget { section: number; kind: HfKind; variant: HfView; }
+export interface WordHeaderFooterTarget { section: number; kind: HfKind; variant: HfView; boxId?: number; }
 /** 功能：实时回写后的序列化无需提交事件或依赖失焦，取消输入法及只读在事务层保护；时间：2026-11-11；作者：lq。 */
 export class WordHeaderFooterEditor {
   readonly editor: Editor;
@@ -32,7 +34,7 @@ export class WordHeaderFooterEditor {
   constructor(private readonly core: WordCoreSession, host: HTMLElement, readonly target: WordHeaderFooterTarget, private readonly onError: (error: unknown) => void = () => {}) {
     if (!core.editor.isEditable) throw new Error('只读文档不能编辑页眉页脚');
     this.base = resolveHf(core.headerFooterState(), target.section, target.kind, target.variant).value ?? { text: '' };
-    this.initial = { ...hfDocJson(this.base), attrs: { miniOfficeStyles: wordStyleCatalogOf(core.editor.state.doc) } };
+    this.initial = { ...hfDocJson(wordHfBoxProjection(this.base, target.boxId)), attrs: { miniOfficeStyles: wordStyleCatalogOf(core.editor.state.doc) } };
     this.lastStyles = JSON.stringify(wordStyleCatalogOf(core.editor.state.doc));
     this.lastValue = JSON.stringify(this.base);
     // 功能：区域快捷键和工具栏历史均转入主文档，禁止建立第二个撤销栈；时间：2026-11-11；作者：lq。
@@ -64,7 +66,7 @@ export class WordHeaderFooterEditor {
           this.lastTime = now;
           // 功能：仅改名/导入目录时保留原部件字节，真正内容变化才重写区域；时间：2026-11-11；作者：lq。
           const contentChanged = !transaction.before.content.eq(transaction.doc.content);
-          const value = contentChanged ? hfValueFromDoc(editor.getJSON() as PmNode, this.base, this.initial) : undefined;
+          const value = contentChanged ? mergeWordHfBox(this.base, target.boxId, hfValueFromDoc(editor.getJSON() as PmNode, wordHfBoxProjection(this.base, target.boxId), this.initial)) : undefined;
           const next = value ? withHfEdit(core.headerFooterState(), target.section, target.kind, target.variant, value) : {};
           const styles = wordStyleCatalogOf(editor.state.doc);
           try {
@@ -73,12 +75,14 @@ export class WordHeaderFooterEditor {
             core.commitPageLayout({ ...core.pageLayout(), ...next }, this.group, styles, previousGroup !== this.group);
             this.lastStyles = JSON.stringify(styles);
             this.lastValue = JSON.stringify(resolveHf(core.headerFooterState(), target.section, target.kind, target.variant).value);
+            // 功能：连续输入以最新整个部件为基底，保留其他框和普通页脚的新内容；时间：2026-11-11；作者：lq。
+            this.base = resolveHf(core.headerFooterState(), target.section, target.kind, target.variant).value ?? { text: '' };
           } catch (error) {
             this.onError(error);
             queueMicrotask(() => this.syncFromCore(true));
           } finally { this.syncing = false; }
         } else if (transaction.selectionSet) this.lastTime = 0;
-        notifySubEditorState(false);
+        if (transaction.docChanged || transaction.selectionSet || transaction.storedMarksSet) notifySubEditorState(false);
       },
     });
     this.initial = this.editor.getJSON() as PmNode;
@@ -97,7 +101,7 @@ export class WordHeaderFooterEditor {
     try {
       const selection = this.editor.state.selection;
       this.base = value;
-      if (force || signature !== this.lastValue) this.editor.commands.setContent({ ...hfDocJson(value), attrs: { miniOfficeStyles: styles } }, { emitUpdate: false });
+      if (force || signature !== this.lastValue) this.editor.commands.setContent({ ...hfDocJson(wordHfBoxProjection(value, this.target.boxId)), attrs: { miniOfficeStyles: styles } }, { emitUpdate: false });
       else this.editor.view.dispatch(this.editor.state.tr.setDocAttribute('miniOfficeStyles', styles));
       this.initial = this.editor.getJSON() as PmNode;
       const limit = this.editor.state.doc.content.size;

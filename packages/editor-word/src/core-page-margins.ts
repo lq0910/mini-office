@@ -14,6 +14,8 @@ export class WordPageMarginGuides {
   }
   /** 功能：按实际分页位置及分节纸张绘制四侧手柄，镜像和竖排保留设置面板入口；时间：2026-11-11；作者：lq。 */
   refresh(frames: readonly WordPageFrame[]): void {
+    // 功能：销毁宿主时取消拖动只清理监听，不对已关闭会话重新绘制；时间：2026-11-11；作者：lq。
+    if (this.core.editor.isDestroyed) return;
     this.frames = frames;
     if (this.cancel) return;
     const sections = this.core.sections(), signature = JSON.stringify([frames, sections.map(section => section.settings)]);
@@ -22,12 +24,14 @@ export class WordPageMarginGuides {
     if (!this.core.editor.isEditable || this.core.parsed.mirrorMargins) { this.layer.replaceChildren(); this.guides.length = 0; return; }
     // 功能：复用每页手柄，异步重排/滚动更新位置不会销毁正在定位的元素；时间：2026-11-11；作者：lq。
     while (this.guides.length > frames.length) this.guides.pop()!.element.remove();
+    // 功能：新页及其四个手柄在离线片段中完成构建，避免长文档每插入一个按钮都更新 WebKit 的整篇辅助功能树；时间：2026-11-11；作者：lq。
+    const fragment = document.createDocumentFragment();
     frames.forEach((frame, index) => {
       const settings = sections[frame.section].settings;
       let record = this.guides[index];
       if (!record) {
         const element = document.createElement('div'); element.className = 'mo-core-margin-guide';
-        record = { element, frame }; this.guides.push(record); this.layer.append(element);
+        record = { element, frame }; this.guides.push(record); fragment.append(element);
         for (const edge of ['left','right','top','bottom'] as const) {
           const button = document.createElement('button'); button.type = 'button'; button.className = 'mo-core-margin-handle'; button.dataset.edge = edge;
           const name = { left: '左', right: '右', top: '上', bottom: '下' }[edge];
@@ -40,6 +44,7 @@ export class WordPageMarginGuides {
       guide.hidden = !!settings.textDirection && settings.textDirection !== 'lrTb';
       guide.style.cssText = `left:${frame.left + settings.marginLeft / 15}px;top:${frame.top + settings.marginTop / 15}px;width:${(settings.pageWidth-settings.marginLeft-settings.marginRight)/15}px;height:${(settings.pageHeight-settings.marginTop-settings.marginBottom)/15}px`;
     });
+    this.layer.append(fragment);
   }
   /** 功能：以真实缩放换算 twips，预览过程不排版、不增加 dirty，Esc/取消恢复；时间：2026-11-11；作者：lq。 */
   private start(event: PointerEvent, edge: Edge, frame: WordPageFrame, guide: HTMLElement): void {

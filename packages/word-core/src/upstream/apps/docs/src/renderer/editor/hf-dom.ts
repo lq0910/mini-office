@@ -957,7 +957,10 @@ function hfProbeHost(): HTMLElement | null {
       // floating-box content draws at its anchor, not in the strip flow
       '#hf-strip-probe .page-hf-box-anchored { display: none; }'
     document.head.appendChild(neutralize)
-    document.body.appendChild(host)
+    const scope = document.createElement('div')
+    scope.className = 'mo-word-core'
+    scope.appendChild(host)
+    document.body.appendChild(scope)
   }
   return host
 }
@@ -1757,6 +1760,7 @@ export function makeGapHfEl(opts: {
       if (css) {
         boxHost = document.createElement('div')
         boxHost.className = hfTextBoxClass(para.box!)
+        boxHost.dataset.hfBox = String(para.box!.id)
         Object.assign(boxHost.style, css)
         wrap.classList.add('page-hf-has-boxes')
         // a box sharing its paragraph with text hangs off that paragraph

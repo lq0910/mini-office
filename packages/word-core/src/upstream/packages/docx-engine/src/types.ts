@@ -916,6 +916,8 @@ export interface HfTextBox extends Pick<
   | 'posVRel'
   | 'wrap'
 > {
+  /** 功能：页眉页脚框的来源形状标识，保留 DrawingML/VML 原定位；时间：2026-11-11；作者：lq。 */
+  miniOfficeShapeId?: string
   id: number
   /** wps:bodyPr / v:textbox text insets (px): left, top, right, bottom; absent = Word's 0.1in / 0.05in */
   insets?: [number, number, number, number]

@@ -19,9 +19,21 @@ import type { ColumnBlockPlacement } from '../../word-core/src/upstream/apps/doc
 import type { LineAnchor } from '../../word-core/src/upstream/apps/docs/src/renderer/pagination';
 import { planByElement, planPropsOf } from '../../word-core/src/upstream/apps/docs/src/renderer/pagination-plan';
 import { buildPageCuts, applyGapLedger, pagePaperEdges, type PageCut } from '../../word-core/src/upstream/apps/docs/src/renderer/pagination-cuts';
-import { lineStartAnchor, nextLineAnchor, outerTableRows, singleCutCell, anchorElement } from '../../word-core/src/upstream/apps/docs/src/renderer/pagination-lines';
+import { createLineRectsCache, outerTableRows, singleCutCell, anchorElement, nextLineAnchor } from '../../word-core/src/upstream/apps/docs/src/renderer/pagination-lines';
+// 功能：同一表格行的多个续行同步推到下一张纸，取代穿过内容的零高度虚线；时间：2026-11-11；作者：lq。
+import { setWordCellGaps, alignWordTableCellText } from '../../word-core/src/layout/cell-gaps';
+// 功能：无文字尾部以真实块末位置承接页缝，逐轮缓存行框避免重复测量长表格；时间：2026-11-11；作者：lq。
+import { TopLevelPositions } from '../../word-core/src/upstream/apps/docs/src/renderer/editor/top-level-pos';
+import { resolveWordPageAnchor, wordTableRowRects } from './core-page-anchor';
+// 功能：页缝与重复表头按实际合并网格生成，不额外扩出列；时间：2026-11-11；作者：lq。
+import { wordTableGapSpans, wordRepeatedTableHeaders } from './core-table-gaps';
 import { LayoutBatch, setPageGaps, setRowFills, rowFillsSig, gapLedgerOf, stampGapFlowTops, floatShiftsOf, floatCarriesOf, syncPhantomRowspans, alignTableGapFills, syncCutOverlays, setFloatVShifts, syncFloatShifts, setOversizeClips, clampCellBoxTops, clampCellImageTops, pinCellBoxesToPage, pinPageRelXPictures, pinParagraphRelVPictures, syncPageSheets, pageBorderStyleOf, syncPageBorders, canvasZoomOf, type PageGapSpec } from '../../word-core/src/upstream/apps/docs/src/renderer/editor/pagination-gaps';
 import { pageMargins } from '../../word-core/src/upstream/apps/docs/src/renderer/page-margins';
+// 功能：字体和两端对齐的装饰会改变真实换行，分页订阅同源信号并按有界后续轮次合并；时间：2026-11-11；作者：lq。
+import { bumpLineSampleFontEpoch } from '../../word-core/src/upstream/apps/docs/src/renderer/pagination-lines';
+import { bumpHfProbeFontEpoch } from '../../word-core/src/upstream/apps/docs/src/renderer/editor/hf-dom';
+import { cjkPunctShrinkPluginKey } from '../../word-core/src/upstream/apps/docs/src/renderer/editor/cjk-punct-shrink';
+import { justifyShrinkPluginKey } from '../../word-core/src/upstream/apps/docs/src/renderer/editor/justify-shrink';
 
 /** 功能：分页摘要只暴露真实测量的页数与切点，不把无几何的测试环境伪装为完成排版；时间：2026-11-09；作者：lq。 */
 /** 功能：显示、打印与 PDF 使用同一实际纸张原点及分节尺寸；时间：2026-11-11；作者：lq。 */
@@ -35,6 +47,8 @@ export interface WordSurfaceLayoutOptions {
 
 /** 功能：承接上游自然流测量及页间装饰，首轮落实单栏正文和普通表格分页；时间：2026-11-09；作者：lq。 */
 export class WordSurfaceLayout {
+  // 功能：宿主清理可能晚于会话销毁，保留监听节点供无 view 清理；时间：2026-11-11；作者：lq。
+  private readonly editorDom: HTMLElement;
   private readonly controller: WordLayoutController;
   private readonly observer?: ResizeObserver;
   private readonly unsubscribe: () => void;
@@ -44,22 +58,36 @@ export class WordSurfaceLayout {
   private rowFillSignature = '';
   private widthSignature = '';
   private context!: WordLayoutContext;
+  private contextRevision = -1;
+  private readonly fontRefresh = () => {
+    // 功能：字体加载后同时清除行框与页眉高度缓存，防止固定行高下沿用替代字体的旧换行；时间：2026-11-11；作者：lq。
+    bumpLineSampleFontEpoch(); bumpHfProbeFontEpoch(); this.contextRevision = -1; this.refresh();
+  };
+  private readonly shrinkRefresh = ({ transaction }: { transaction: WordCoreSession['editor']['state']['tr'] }) => {
+    if (transaction.getMeta(cjkPunctShrinkPluginKey) || transaction.getMeta(justifyShrinkPluginKey)) this.controller.followUp('text-wrap');
+  };
+  // 功能：相同版面不重建整篇页眉页脚，避免每轮字体/宽度补偿重复创建 116 个区域；时间：2026-11-11；作者：lq。
+  private regionsSignature = '';
   private readonly widthPass = newWidthPassState();
   private readonly refresh = () => {
     // 功能：隐藏容器没有可测行盒，等尺寸恢复再排版，不捏造页数或反复轮询；时间：2026-11-09；作者：lq。
-    if (!this.disposed && this.session.editor.view.dom.getBoundingClientRect().width > 0) this.controller.request();
+    if (!this.disposed && !this.session.editor.isDestroyed && this.editorDom.getBoundingClientRect().width > 0) this.controller.request();
   };
 
   constructor(private readonly session: WordCoreSession, private readonly options: WordSurfaceLayoutOptions = {}) {
+    this.editorDom = session.editor.view.dom;
     this.lastRevision = session.state().revision;
     this.controller = new WordLayoutController(() => {
+      // 功能：会话销毁与 React 清理之间已排队的重排也必须安全结束；时间：2026-11-11；作者：lq。
+      if (session.editor.isDestroyed) return { root: this.editorDom, origin: 0, zoomFactor: 1, sections: [], composing: true };
       const root = session.editor.view.dom;
       // 功能：组合输入期间连字体探测及页面样式写入也跳过，DOM 继续归输入法管理；时间：2026-11-09；作者：lq。
       if (session.editor.view.composing) return { root, origin: 0, zoomFactor: this.factor(), sections: [], composing: true };
       const sections = session.sections();
       const settings = sections[0]?.settings;
       if (!settings) throw new Error('Word 文档缺少页面设置');
-      this.context = wordLayoutContext(session, sections);
+      // 功能：宽度补偿等后续轮次复用本版本区域度量；正文/页脚/字体改变后才重建；时间：2026-11-11；作者：lq。
+      if (this.contextRevision !== this.lastRevision) { this.context = wordLayoutContext(session, sections); this.contextRevision = this.lastRevision; }
       const factor = this.factor();
       // 功能：装饰层与居中纸张使用同一坐标原点，横纵切换后页眉和页脚不偏到容器左侧；时间：2026-11-10；作者：lq。
       const wrap = root.closest<HTMLElement>('.page-wrap');
@@ -82,7 +110,22 @@ export class WordSurfaceLayout {
         planOf,
         carryOf: floatCarriesOf(session.editor.state),
       };
-    }, result => this.apply(result), error => options.onLayoutError?.(error));
+    }, result => this.apply(result), error => options.onLayoutError?.(error), run => {
+      // 功能：同 GenOffice 在 100% 下度量，消除缩放取整导致的页数/文字锚点漂移；时间：2026-11-11；作者：lq。
+      const zoom = this.editorDom.closest<HTMLElement>('.doc-zoom');
+      const previous = zoom?.style.zoom;
+      if (zoom && previous !== '1') zoom.style.zoom = '1';
+      // 功能：测量隐藏页缝时同步还原源 rowspan；显示桥接只修改 DOM，不能被编辑器回读成正文；时间：2026-11-11；作者：lq。
+      const observer = (session.editor.view as unknown as { domObserver?: { stop(): void; start(): void } }).domObserver;
+      observer?.stop();
+      this.editorDom.classList.add('measuring-natural');
+      syncPhantomRowspans(this.editorDom);
+      try { return run(); } finally {
+        this.editorDom.classList.remove('measuring-natural');
+        observer?.stop(); syncPhantomRowspans(this.editorDom); observer?.start();
+        if (zoom && previous !== undefined && zoom.style.zoom !== previous) zoom.style.zoom = previous;
+      }
+    });
     this.unsubscribe = session.subscribe(state => {
       if (state.revision === this.lastRevision) return;
       this.lastRevision = state.revision;
@@ -92,12 +135,14 @@ export class WordSurfaceLayout {
     session.editor.view.dom.addEventListener('compositionend', this.refresh);
     session.editor.view.dom.addEventListener('load', this.refresh, true);
     window.addEventListener('resize', this.refresh);
-    document.fonts?.addEventListener('loadingdone', this.refresh);
+    document.fonts?.addEventListener('loadingdone', this.fontRefresh);
+    session.editor.on('transaction', this.shrinkRefresh);
     if (typeof ResizeObserver !== 'undefined') {
       // 功能：只把可用宽度变化视为外部尺寸变化，避免装饰拉高页面后反复重排；时间：2026-11-09；作者：lq。
       let width = session.editor.view.dom.getBoundingClientRect().width;
       this.observer = new ResizeObserver(() => {
-        const nextWidth = session.editor.view.dom.getBoundingClientRect().width;
+        if (session.editor.isDestroyed || this.disposed) return;
+        const nextWidth = this.editorDom.getBoundingClientRect().width;
         if (Math.abs(nextWidth - width) < 0.1) return;
         width = nextWidth;
         this.refresh();
@@ -111,7 +156,7 @@ export class WordSurfaceLayout {
   current(): WordSurfaceLayoutState | undefined { return this.state; }
   /** 功能：同步重排使用实际浏览器几何，组合输入期间不修改输入法管理的 DOM；时间：2026-11-09；作者：lq。 */
   flush(): WordLayoutResult | undefined {
-    if (this.disposed || this.session.editor.view.dom.getBoundingClientRect().width <= 0) return;
+    if (this.disposed || this.session.editor.isDestroyed || this.editorDom.getBoundingClientRect().width <= 0) return;
     return this.controller.flush();
   }
   /** 功能：关闭宿主清理尺寸、字体和组合输入监听，防止迟到重排访问已销毁编辑器；时间：2026-11-09；作者：lq。 */
@@ -121,16 +166,18 @@ export class WordSurfaceLayout {
     this.controller.dispose();
     this.unsubscribe();
     this.observer?.disconnect();
-    this.session.editor.view.dom.removeEventListener('compositionend', this.refresh);
-    this.session.editor.view.dom.removeEventListener('load', this.refresh, true);
+    this.editorDom.removeEventListener('compositionend', this.refresh);
+    this.editorDom.removeEventListener('load', this.refresh, true);
     window.removeEventListener('resize', this.refresh);
-    document.fonts?.removeEventListener('loadingdone', this.refresh);
+    document.fonts?.removeEventListener('loadingdone', this.fontRefresh);
+    this.session.editor.off('transaction', this.shrinkRefresh);
   }
 
   /** 功能：沿用上游切点与 ProseMirror 装饰，页间空白不进入序列化和撤销历史；时间：2026-11-09；作者：lq。 */
   private apply(result: WordLayoutResult): void {
     const sections = result.effectiveSections ?? this.session.sections();
-    const context = wordLayoutContext(this.session, sections);
+    // 功能：复用本轮页眉/脚注度量，分节变体由同一来源列表解析；时间：2026-11-11；作者：lq。
+    const context = this.context;
     const cuts = buildPageCuts(result.blocks, result.slices, result.geometries, context.heights, {
       titlePgOf: index => sections[index]?.titlePg,
       pageNumberFmtOf: index => sections[index]?.pageNumberFmt,
@@ -144,12 +191,16 @@ export class WordSurfaceLayout {
     const paperWidth = paperWidthPx(sections);
     const pagesOfNotes = context.pageNotes(result.blocks, result.slices);
     const gaps: PageGapSpec[] = [];
+    const cellGaps: Array<{ pos: number; height: number; page: number }> = [];
     const overlays: LineAnchor[] = [];
     const overlayPages: number[] = [];
     // 功能：切点的文本锚点也必须在自然流中解析，避免旧页间换行锁住下一轮位置；时间：2026-11-09；作者：lq。
     const hadNatural = root.classList.contains('measuring-natural');
     root.classList.add('measuring-natural');
     try {
+      // 功能：同一轮自然流几何保持稳定，所有页缝共享行框与顶层事务位置；时间：2026-11-11；作者：lq。
+      const rectsOf = createLineRectsCache();
+      const positions = new TopLevelPositions(view);
       for (let index = 1; index < cuts.length; index++) {
         const cut = cuts[index];
         const previous = cuts[index - 1];
@@ -184,29 +235,72 @@ export class WordSurfaceLayout {
           if (!depth) throw new Error(`第 ${index + 1} 页的表格行不属于当前事务`);
           const cols = Math.max(1, ...outerTableRows(block.el).map(element => Array.from((element as HTMLTableRowElement).cells).reduce((sum, cell) => sum + cell.colSpan, 0)));
           // 功能：重复表头由装饰复制，不向真实文档插入行；时间：2026-11-09；作者：lq。
-          const headers: HTMLElement[] = [];
-          let headerHeight = 0;
-          for (const source of outerTableRows(block.el)) {
-            if (!cut.repeatHeader || headerHeight >= cut.repeatHeader.height - 1.5) break;
-            const clone = source.cloneNode(true) as HTMLElement;
-            clone.classList.add('page-gap-inline', 'page-repeat-header');
-            clone.contentEditable = 'false';
-            headers.push(clone);
-          headerHeight += source.getBoundingClientRect().height / factor;
-          }
+          const repeated = wordRepeatedTableHeaders(block.el, cut.repeatHeader?.height ?? 0, factor);
+          const headers = repeated.rows, headerHeight = repeated.height;
           gaps.push({ ...base, pos: position.before(depth), kind: 'table', cols,
+            tableCellSpans: wordTableGapSpans(block.el, cut.lead.row ?? 0),
             repeatHeaderEls: headers, repeatHeaderPx: headerHeight, repeatHeaderKey: headers.map(header => header.innerHTML).join('|') });
         } else if (block?.el) {
           // 功能：用 DOM 文本锚点定位跨页行，滚出视口后仍不依赖屏幕坐标命中；时间：2026-11-09；作者：lq。
-          const anchor = lineStartAnchor(block.el, cut.lead.lineOffset ?? 0, factor) ?? nextLineAnchor(block.el, cut.lead.lineOffset ?? 0, factor);
+          // 功能：跨页单元格按计划行选择主锚点，主/伴随页缝必须属于同一真实表格行；时间：2026-11-11；作者：lq。
+          const rowRects = cut.lead.kind === 'cell' ? wordTableRowRects(block.el, cut.lead.row ?? -1, rectsOf) : rectsOf;
+          const anchor = resolveWordPageAnchor(block.el, cut.lead.lineOffset ?? 0, block.height, factor, rowRects);
+          // 功能：切点落在表格尾部边框/留白时，用块末真实事务边界；补偿已消耗高度，避免终止整份文档分页；时间：2026-11-11；作者：lq。
+          if (anchor === 'after-block') {
+            // 功能：计划行尾留白后还有真实表格行时，分页应落在下一行前，不能跳到整张表格末尾；时间：2026-11-11；作者：lq。
+            const rows = cut.lead.kind === 'cell' ? outerTableRows(block.el) : [];
+            const nextRow = rows[(cut.lead.row ?? -1) + 1];
+            if (nextRow) {
+              const position = view.state.doc.resolve(view.posAtDOM(nextRow, 0));
+              let depth = position.depth;
+              while (depth > 0 && position.node(depth).type.name !== 'docTableRow') depth--;
+              if (!depth) throw new Error(`第 ${index + 1} 页的表格续行定位失败`);
+              const cols = Math.max(1, ...rows.map(row => Array.from((row as HTMLTableRowElement).cells).reduce((sum, cell) => sum + cell.colSpan, 0)));
+              gaps.push({ ...base, pos: position.before(depth), kind: 'table', cols, tableCellSpans: wordTableGapSpans(block.el, (cut.lead.row ?? -1) + 1) });
+              continue;
+            }
+            const range = positions.of(block.el);
+            if (!range) throw new Error(`第 ${index + 1} 页的正文块末定位失败`);
+            const consumed = Math.max(0, block.height - (cut.lead.lineOffset ?? 0));
+            // 功能：尾部行高只抵扣正文补白，不能吃掉物理页脚边距，否则末行会被下一页纸边截断；时间：2026-11-11；作者：lq。
+            const footerMargin = effectiveBottomPx(previousSettings, previousReserved.footerPx);
+            gaps.push({ ...base, pos: range.to, kind: 'inline', metrics: { ...metrics, marginBottom: Math.max(footerMargin, metrics.marginBottom - consumed) } });
+            continue;
+          }
           if (!anchor) throw new Error(`第 ${index + 1} 页缺少真实行锚点`);
+          // 功能：末行整体移页时补足前页剩余正文高度，纸张高度与页脚位置保持完整；时间：2026-11-11；作者：lq。
+          if (anchor.layoutOffset !== undefined) {
+            const remainder = Math.max(0, (cut.lead.lineOffset ?? 0) - anchor.layoutOffset);
+            metrics.marginBottom += remainder; metrics.bodyPad += remainder;
+          }
           if (anchorElement(anchor)?.closest('.doc-nested-table')) { overlays.push(anchor); overlayPages.push(index); continue; }
           const pos = anchor.node instanceof Element
             ? view.posAtDOM(anchor.node.parentNode!, Array.prototype.indexOf.call(anchor.node.parentNode!.childNodes, anchor.node))
             : view.posAtDOM(anchor.node, anchor.charOffset);
           const box = block.el.getBoundingClientRect();
           // 功能：单格行插入真实页间装饰，多格或嵌套行沿用同源覆盖层，选区仍属于原事务；时间：2026-11-09；作者：lq。
-          const cell = cut.lead.kind === 'cell' ? singleCutCell(outerTableRows(block.el)[cut.lead.row ?? -1], anchor) : undefined;
+          let cell = cut.lead.kind === 'cell' ? singleCutCell(outerTableRows(block.el)[cut.lead.row ?? -1], anchor) : undefined;
+          if (cut.lead.kind === 'cell' && !cell) {
+            const rows = outerTableRows(block.el) as HTMLTableRowElement[];
+            const rowIndex = cut.lead.row ?? -1;
+            const host = anchorElement(anchor)?.closest<HTMLTableCellElement>('td,th');
+            const table = host?.closest('table');
+            // 功能：只有映射到可编辑表格的真实单元格才建立同步续行，合并格也按实际覆盖行参与；时间：2026-11-11；作者：lq。
+            if (host && table && !host.closest('.doc-nested-table')) {
+              const cutTop = block.el.getBoundingClientRect().top + (cut.lead.lineOffset ?? 0) * factor;
+              for (let ri = 0; ri <= rowIndex; ri++) for (const other of Array.from(rows[ri]?.cells ?? [])) {
+                const span = Number(other.dataset.baseRowspan) || other.rowSpan;
+                if (other === host || ri + span <= rowIndex) continue;
+                const next = nextLineAnchor(other, (cutTop - other.getBoundingClientRect().top) / factor, factor, rectsOf);
+                if (!next || anchorElement(next)?.closest('.doc-nested-table')) continue;
+                const companionPos = next.node instanceof Element
+                  ? view.posAtDOM(next.node.parentNode!, Array.prototype.indexOf.call(next.node.parentNode!.childNodes, next.node))
+                  : view.posAtDOM(next.node, next.charOffset);
+                cellGaps.push({ pos: companionPos, height: metrics.marginBottom + 28 + metrics.marginTop, page: index });
+              }
+              cell = host;
+            }
+          }
           const cellBox = cell ? (anchorElement(anchor)?.closest('td > *, th > *') ?? cell).getBoundingClientRect() : box;
           gaps.push({ ...base, pos, kind: cut.lead.kind === 'cell' ? cell ? 'cell' : 'cut' : 'inline', metrics: { ...metrics, marginLeft: (cellBox.left - rect.left) / factor, marginRight: (rect.right - cellBox.right) / factor } });
         } else if (block?.isEndnotes || block?.isFloatSpill) {
@@ -214,9 +308,11 @@ export class WordSurfaceLayout {
         } else throw new Error(`第 ${index + 1} 页缺少可定位的正文`);
       }
     } finally {
-      if (!hadNatural) root.classList.remove('measuring-natural');
+      // 功能：所有锚点解析结束后才恢复显示几何，提交装饰及纸面坐标读取使用最终 DOM；时间：2026-11-11；作者：lq。
+      root.classList.remove('measuring-natural');
     }
     const batch = new LayoutBatch(view);
+    setWordCellGaps(view, cellGaps, batch);
     // 功能：行高补偿按上游块索引和真实表格行关联，不能把算法记录直接当 DOM；时间：2026-11-09；作者：lq。
     const rowFills = (result.outputs.rowFills ?? []).flatMap(fill => {
       const block = result.blocks.find(block => block.tableRows && Math.abs(block.top - fill.blockTop) < 0.5);
@@ -245,8 +341,15 @@ export class WordSurfaceLayout {
     setFloatVShifts(view, floatShifts, batch);
     setPageGaps(view, gaps, undefined, batch);
     batch.commit();
-    syncPhantomRowspans(root);
     alignTableGapFills(root, factor);
+    // 功能：只修正背景覆盖范围，不改段落缩进和可编辑行盒；先集中读取再写入，避免每个页缝强制重排；时间：2026-11-11；作者：lq。
+    const paperRect = root.getBoundingClientRect();
+    const bands = Array.from(root.querySelectorAll<HTMLElement>('.page-gap:not(.page-gap-table)'));
+    const bandBoxes = bands.map(band => band.getBoundingClientRect());
+    bands.forEach((band, index) => {
+      band.style.setProperty('--mo-gap-left', `${(paperRect.left - bandBoxes[index].left) / factor}px`);
+      band.style.setProperty('--mo-gap-width', `${paperRect.width / factor}px`);
+    });
     applyGapLedger(cuts, gapLedgerOf(gaps, overlayPages));
     // 功能：装饰提交后回填真实页界流坐标，吸收页首段落边距折叠的显示差异；时间：2026-11-09；作者：lq。
     stampGapFlowTops(root, cuts, root.getBoundingClientRect().top + context.top * factor, factor);
@@ -286,6 +389,13 @@ export class WordSurfaceLayout {
       const settings = sections[cut.section].settings;
       frames.push({ section: cut.section, widthPx: settings.pageWidth / 15, heightPx: settings.pageHeight / 15, left: pageLeftPx(settings, paperWidth), top: paperTops.get(index) ?? (index ? frames[index - 1].top + frames[index - 1].heightPx + 28 : 0) });
     });
+    // 功能：浏览器的跨页合并格会把页缝也计入垂直居中；仅校正短文字的显示位置，保留源格式；时间：2026-11-11；作者：lq。
+    const alignment = new LayoutBatch(view);
+    alignWordTableCellText(view, frames.map((frame, index) => {
+      const settings = sections[frame.section].settings, reserved = hfVariantReservedPx(context.heights[frame.section], cuts[index].hf.variant);
+      return { top: frame.top + effectiveTopPx(settings, reserved.headerPx), bottom: frame.top + frame.heightPx - effectiveBottomPx(settings, reserved.footerPx) };
+    }), factor, alignment);
+    alignment.commit();
     this.paintPageRegions(wrap, cuts, context, pagesOfNotes, result, frames);
     const widthSignature = wrapWidthSig([...specs.values()]);
     if (widthSignature !== this.widthSignature || widthsChanged) {
@@ -316,13 +426,15 @@ export class WordSurfaceLayout {
     const snapshot = wordTocSnapshot({ type: 'doc', content }, headings, pages);
     let contentIndex = 0;
     let tocPagesChanged = false;
+    // 功能：文档 dirty 在本轮固定，不对数千个顶层段落重复执行撤销/重做能力检查；时间：2026-11-11；作者：lq。
+    const dirty = this.session.state().dirty;
     this.session.editor.state.doc.forEach((node, pos) => {
       const display = snapshot.content?.[contentIndex++]?.attrs?.fieldDisplay as FieldDisplay | undefined;
       if (display?.kind !== 'tocLine' || !display.right) return;
       const element = view.nodeDOM(pos) as HTMLElement | null;
       const page = element?.querySelector('.doc-toc-page');
       // 功能：打开未修改文档时保留已存页码；空缓存与新目录继续跟随布局；时间：2026-11-11；作者：lq。
-      if (page && (this.session.state().dirty || !String(node.attrs.fieldDisplay?.right ?? '').trim()) && page.textContent !== String(display.right)) { page.textContent = String(display.right); tocPagesChanged = true; }
+      if (page && (dirty || !String(node.attrs.fieldDisplay?.right ?? '').trim()) && page.textContent !== String(display.right)) { page.textContent = String(display.right); tocPagesChanged = true; }
     });
     // 功能：页码从空缓存变为文字后重新度量引导点，避免尾部宽度按旧值把页码挤到下一行；时间：2026-11-11；作者：lq。
     if (tocPagesChanged) {
@@ -337,36 +449,43 @@ export class WordSurfaceLayout {
 
   /** 功能：页眉页脚与注释按实际页界显示，页面设置变化与撤销时同步重绘；时间：2026-11-10；作者：lq。 */
   private paintPageRegions(wrap: HTMLElement, cuts: PageCut[], context: WordLayoutContext, notes: ReturnType<WordLayoutContext['pageNotes']>, result: WordLayoutResult, frames: readonly WordPageFrame[]): void {
+    const signature = JSON.stringify([this.lastRevision, frames, cuts.map(cut => [cut.hf, cut.display]), notes.map(items => items.map(item => [item.id, item.height])), result.endnotesTop]);
+    if (signature === this.regionsSignature && wrap.querySelector(':scope > .mo-core-page-regions')) return;
+    this.regionsSignature = signature;
+    const sectionPages = new Map<number, number>();
+    for (const cut of cuts) sectionPages.set(cut.section, (sectionPages.get(cut.section) ?? 0) + 1);
     let layer = wrap.querySelector<HTMLElement>(':scope > .mo-core-page-regions');
     if (!layer) { layer = document.createElement('div'); layer.className = 'mo-core-page-regions'; layer.contentEditable = 'false'; layer.style.cssText = 'position:absolute;inset:0;pointer-events:none'; wrap.append(layer); }
-    layer.replaceChildren();
+    // 功能：在离线片段中构建整批区域后一次挂载；WebKit 逐页插入会重复更新整篇布局和辅助功能树；时间：2026-11-11；作者：lq。
+    const fragment = document.createDocumentFragment();
     cuts.forEach((cut, index) => {
       const settings = context.sections[cut.section].settings;
       const { top, left } = frames[index];
       const margins = pageMargins(settings, cut.pageNo, !!this.session.parsed.mirrorMargins);
       const reserved = hfVariantReservedPx(context.heights[cut.section], cut.hf.variant);
       for (const kind of ['header', 'footer'] as const) {
-        const strip = context.strip(cut.section, kind, cut.hf.variant, cut.display, cuts.length, cuts.filter(page => page.section === cut.section).length);
+        const strip = context.strip(cut.section, kind, cut.hf.variant, cut.display, cuts.length, sectionPages.get(cut.section) ?? 0);
         // 功能：空白区域也提供双击入口；只读报告仍保留原生显示层；时间：2026-11-11；作者：lq。
         const region = strip ?? (this.session.editor.isEditable ? document.createElement('div') : undefined);
         if (!region) continue;
         region.classList.add(strip ? `mo-core-${kind}` : `mo-core-empty-${kind}`);
         region.dataset.hfSection = String(cut.section); region.dataset.hfKind = kind; region.dataset.hfVariant = cut.hf.variant;
         region.dataset.hfPage = String(index); region.dataset.hfNumber = cut.display;
-        region.dataset.hfTotal = String(cuts.length); region.dataset.hfSectionPages = String(cuts.filter(page => page.section === cut.section).length);
+        region.dataset.hfTotal = String(cuts.length); region.dataset.hfSectionPages = String(sectionPages.get(cut.section) ?? 0);
         // 功能：宿主已经按纸张左上角定位，清除同源居中条带的半宽位移；时间：2026-11-11；作者：lq。
-        region.style.position = 'absolute'; region.style.bottom = 'auto'; region.style.transform = 'none';
+        // 功能：同 GenOffice 以页脚条带自身下沿锚定距纸底的距离，不能减去正文预留高度代替真实条带高度；时间：2026-11-11；作者：lq。
+        region.style.position = 'absolute'; region.style.bottom = 'auto'; region.style.transform = kind === 'footer' ? 'translateY(-100%)' : 'none';
         region.style.left = `${left + margins.left / 15}px`;
         region.style.width = `${(settings.pageWidth - margins.left - margins.right) / 15}px`;
-        region.style.top = `${top + (kind === 'header' ? (settings.headerDist ?? 720) / 15 : settings.pageHeight / 15 - (settings.footerDist ?? 720) / 15 - reserved.footerPx)}px`;
+        region.style.top = `${top + (kind === 'header' ? (settings.headerDist ?? 720) / 15 : settings.pageHeight / 15 - (settings.footerDist ?? 720) / 15)}px`;
         if (this.session.editor.isEditable) { region.style.pointerEvents = 'auto'; region.style.minHeight = '20px'; region.title = `双击编辑${kind === 'header' ? '页眉' : '页脚'}`; }
-        layer!.append(region);
+        fragment.append(region);
       }
       const footnotes = context.notesElement(notes[index] ?? [], cut.section);
       if (footnotes) {
         footnotes.element.style.top = `${top + settings.pageHeight / 15 - effectiveBottomPx(settings, reserved.footerPx) - footnotes.height}px`;
         footnotes.element.style.left = `${left + margins.left / 15}px`;
-        layer!.append(footnotes.element);
+        fragment.append(footnotes.element);
       }
     });
     if (context.endnotes.length && result.endnotesTop !== undefined) {
@@ -374,7 +493,8 @@ export class WordSurfaceLayout {
       notes.element.classList.add('mo-core-endnotes');
       const cut = [...cuts].reverse().find(cut => cut.start <= result.endnotesTop!) ?? cuts[0];
       notes.element.style.top = `${context.top + result.endnotesTop + cut.flowOffsetPx}px`;
-      layer.append(notes.element);
+      fragment.append(notes.element);
     }
+    layer.replaceChildren(fragment);
   }
 }

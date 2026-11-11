@@ -417,6 +417,8 @@ function bodyOf(
     ...(body.lists ? { lists: body.lists } : {}),
     ...(notes.footnotes.length + notes.endnotes.length > 0 ? { notes } : {}),
     ...(body.comments ? { comments: body.comments } : {}),
+    // 功能：恢复 DOC 的跨段目录域，保留原缓存和原指令；时间：2026-11-11；作者：lq。
+    ...(fields.tocFields?.length ? { tocFields: fields.tocFields } : {}),
   }
 }
 

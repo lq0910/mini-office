@@ -80,12 +80,15 @@ export function HomePage() {
     if (busy) return;
     setBusy(true);
     try {
-      const id = await createDocument('docx');
+      // 功能：使用用户选定的 contract.docx 原字节创建未保存副本，完整新核心解析正文及样式；时间：2026-11-11；作者：lq。
+      const { default: url } = await import('./assets/contract.docx?url');
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('合同模板读取失败');
+      const id = await openBytes({ name: '合同模板.docx', bytes: new Uint8Array(await response.arrayBuffer()), generated: true });
       if (!id) return;
-      // 功能：选择模板后再加载模板与计算逻辑，首页启动不加载报销表公式引擎；时间：2026-10-24；作者：lq。
-      const { contractTemplate } = await import('./templates');
-      updateData(id, contractTemplate(), { dirty: true });
       notify('success', '已创建合同模板', '可按需修改条款并另存为正式合同。');
+    } catch (error) {
+      notify('error', '创建合同模板失败', error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }
@@ -270,8 +273,8 @@ export function HomePage() {
               <TemplateRow
                 icon={<FileIcon kind="docx" size={25} />}
                 tint="#2B579A"
-                title="房屋租赁合同"
-                description="标准条款、首行缩进与签章区"
+                title="合同模板"
+                description="采用 contract.docx，保留原文排版与样式"
                 onClick={() => void createContract()}
               />
               <TemplateRow

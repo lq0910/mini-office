@@ -38,7 +38,8 @@ export function useWordCoreOutput(session: DocumentSession) {
   useEffect(() => {
     if (!mode) return;
     let active = true, current: CoreWordReport | undefined; setLoading(true); setReport(undefined); setError('');
-    void coreWordOutputBytes(core).then(bytes => { if (!active) throw new Error('已取消输出。'); return mountCoreWordReport(bytes, () => !active); }).then(result => {
+    // 功能：预览直接捕获当前核心宿主，避免序列化后重新打开全文和重复准备字体；时间：2026-11-11；作者：lq。
+    void mountCoreWordReport(core, () => !active).then(result => {
       current = result; if (!active) { result.dispose(); return; } setReport(result); setLoading(false); setPage(page => Math.min(page, result.pages.length - 1));
     }).catch(error => { if (active) { setError(error instanceof Error ? error.message : String(error)); setLoading(false); } });
     return () => { active = false; current?.dispose(); };
@@ -71,10 +72,12 @@ export function useWordCoreOutput(session: DocumentSession) {
     if (!report || busy) return; cancel.current = false; setBusy(true); setError(''); setProgress(undefined);
     try {
       // 功能：预览页移动到了屏幕容器，输出前复位其比例并放回有真实尺寸的离屏捕获容器；时间：2026-11-11；作者：lq。
-      const capture = report.surface.root.querySelector<HTMLElement>('[data-core-output-captures]')!;
+      const capture = report.captures;
       if (mode === 'pdf') validateCorePageRange(range, report.pages.length);
       report.pages.forEach(element => { element.style.transform = 'none'; capture.append(element); });
       if (mode === 'print') {
+        // 功能：系统打印根节点接管共享样式，关闭预览后仍保留完整打印格式；时间：2026-11-11；作者：lq。
+        report.pages[0].prepend(report.style);
         const ok = await printPages({ pages: report.pages, pageSizes: [...report.frames], widthPx: report.frames[0].widthPx, heightPx: report.frames[0].heightPx, title: session.displayName, fullPaper: true });
         if (!ok) throw new Error('当前平台不能打开打印，请改用导出 PDF。');
         if (mounted.current) setMode(undefined);

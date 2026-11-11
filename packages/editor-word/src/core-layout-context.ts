@@ -17,7 +17,9 @@ export function wordLayoutContext(session: WordCoreSession, sections: SectionInf
   const parsed = session.parsed;
   // 功能：读取事务中的页眉页脚草稿，撤销及重做与正文分页同步；时间：2026-11-10；作者：lq。
   const hfState = { ...session.headerFooterState(), sections };
-  const hf = (section: number, kind: HfKind, variant: HfVariant) => hfLayoutResolved(kind, resolveHf(hfState, section, kind, variant), readPageColor(parsed) ? hfPhantomSpec(parsed) : null);
+  // 功能：背景判定扫描原 XML，只在上下文创建时读取一次，禁止每页每个变体重复扫描长文档；时间：2026-11-11；作者：lq。
+  const phantom = readPageColor(parsed) ? hfPhantomSpec(parsed) : null;
+  const hf = (section: number, kind: HfKind, variant: HfVariant) => hfLayoutResolved(kind, resolveHf(hfState, section, kind, variant), phantom);
   const heights = sectionHfHeights(sections, hf, { titlePg: !!sections[0]?.titlePg, evenOddHf: !!session.evenAndOddHeaders() });
   const firstVariant = hfVariantOf(sections[0]?.titlePg, true, !!session.evenAndOddHeaders(), sections[0]?.pageNumberStart ?? 1);
   const firstReserved = hfVariantReservedPx(heights[0], firstVariant);
@@ -36,6 +38,9 @@ export function wordLayoutContext(session: WordCoreSession, sections: SectionInf
     if (typeof node.attrs.docxIndex === 'number') references.set(node.attrs.docxIndex, refs);
   });
   const noteCache = new Map<string, PageNoteItem>();
+  // 功能：分页元数据按块索引一次建表并缓存，避免每个切片反复全篇查找和解析 XML；时间：2026-11-11；作者：lq。
+  const blocksByIndex = new Map(parsed.blocks.map(block => [block.docxIndex, block]));
+  const metaCache = new Map<number, BlockMeta>();
   /** 功能：复用上游样式解析和真实 DOM 高度探测，测量与页底内容保持一致；时间：2026-11-09；作者：lq。 */
   const note = (kind: 'footnote' | 'endnote', id: string, no: number, section: number): PageNoteItem => {
     const key = `${kind}:${id}:${no}:${section}`;
@@ -55,11 +60,13 @@ export function wordLayoutContext(session: WordCoreSession, sections: SectionInf
   };
   /** 功能：把段落约束和脚注预留交给同源切片器，而不是显示后覆盖正文；时间：2026-11-09；作者：lq。 */
   const blockMetaOf = (docxIndex: number): BlockMeta | undefined => {
-    const block = parsed.blocks.find(block => block.docxIndex === docxIndex);
+    const cached = metaCache.get(docxIndex); if (cached) return cached;
+    const block = blocksByIndex.get(docxIndex);
     const section = Math.max(0, sections.findIndex(section => docxIndex <= section.lastBlockIndex));
     const flags = block?.format ? paraPaginationMeta(block.format) : imageParaPaginationMeta(block?.originalXml, id => parsed.styles.get(id ?? '')?.display, parsed.docDefaults);
     const bands = (references.get(docxIndex) ?? []).filter(ref => ref.kind === 'footnote').map(ref => ({ heightPx: note('footnote', ref.id, ref.no, section).height }));
-    return { ...flags, ...(bands.length ? { footnoteBands: bands, footnoteExtraPx: bands.reduce((sum, band) => sum + band.heightPx, 0) } : {}) };
+    const meta = { ...flags, ...(bands.length ? { footnoteBands: bands, footnoteExtraPx: bands.reduce((sum, band) => sum + band.heightPx, 0) } : {}) };
+    metaCache.set(docxIndex, meta); return meta;
   };
   /** 功能：脚注跟随实际引用行所在页，跨段编辑后页底重新归属；时间：2026-11-09；作者：lq。 */
   const pageNotes = (blocks: BlockBox[], slices: PageSlice[]): PageNoteItem[][] => {

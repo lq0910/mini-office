@@ -108,6 +108,43 @@ describe('M3 标尺和目录', () => {
 
 /** 功能：验证目录缓存按标题级别区分同名项，以及区域安全保护与导航不改历史；时间：2026-11-11；作者：lq。 */
 describe('M3 目录边界与导航', () => {
+  // 功能：旧 DOC 章标题与前句粘连时定位标题字符，重复或仅正文引用不误跳；时间：2026-11-11；作者：lq。
+  it('粘连章标题按句末完整章名定位，歧义目标拒绝猜测', async () => {
+    const title = '第五章 供应商资格证明及相关文件要求';
+    const core = await open(false, generateTocFieldXml([{ text: title, level: 1, pageNo: 99 }]).join(''));
+    const paragraph = { type: 'docParagraph', content: [{ type: 'text', text: '前文必须满足。' + title }] };
+    core.editor.commands.insertContentAt(core.editor.state.doc.content.size, paragraph);
+    const revision = core.state().revision;
+    expect(followWordToc(core.editor, core.parsed, 0)).toBe(true);
+    expect(core.editor.state.selection.$from.parent.textBetween(core.editor.state.selection.$from.parentOffset, core.editor.state.selection.$from.parent.content.size)).toBe(title);
+    expect(core.state().revision).toBe(revision);
+    core.editor.commands.insertContentAt(core.editor.state.doc.content.size, paragraph);
+    expect(followWordToc(core.editor, core.parsed, 0)).toBe(false);
+  });
+  // 功能：旧 DOC 转换后标题未携带样式或书签时按独立标题文字导航；时间：2026-11-11；作者：lq。
+  it('旧文档缺失书签时匹配正文标题，列表章节号与项目前缀可以不同', async () => {
+    const prefix = generateTocFieldXml([{ text: '第一章 竞争性磋商公告', level: 1, pageNo: 99 }]).join('');
+    const core = await open(false, prefix);
+    const pos = core.editor.state.doc.content.size;
+    core.editor.commands.insertContentAt(pos, { type: 'docParagraph', content: [{ type: 'text', text: '项目名称竞争性磋商公告' }] });
+    const revision = core.state().revision;
+    expect(followWordToc(core.editor, core.parsed, 0)).toBe(true);
+    expect(core.editor.state.selection.$from.parent.textContent).toBe('项目名称竞争性磋商公告');
+    expect(core.state().revision).toBe(revision);
+  });
+  // 功能：导入 TOC 书签可以指向无标题样式的段落，必须优先于同名标题并保持正文原样；时间：2026-11-11；作者：lq。
+  it('导入目录优先定位隐藏书签，目标无需标题样式或相同标题文字', async () => {
+    const core = await open(); insertWordToc(core.editor, core.parsed);
+    const tr = core.editor.state.tr;
+    tr.setNodeMarkup(0, undefined, { ...tr.doc.child(0).attrs, fieldDisplay: { ...tr.doc.child(0).attrs.fieldDisplay, anchor: '_Toc2026' } });
+    const last = tr.doc.content.size - tr.doc.lastChild!.nodeSize;
+    tr.setNodeMarkup(last, undefined, { ...tr.doc.lastChild!.attrs, hiddenBookmarks: ['_Toc2026'] });
+    core.editor.view.dispatch(tr);
+    const revision = core.state().revision;
+    expect(followWordToc(core.editor, core.parsed, 0)).toBe(true);
+    expect(core.editor.state.selection.$from.before(1)).toBe(last);
+    expect(core.state().revision).toBe(revision);
+  });
   it('同名四级标题不会错配三级目录的页码，修饰键导航保持文档版本', async () => {
     const core = await open(); insertWordToc(core.editor, core.parsed);
     const headings = wordHeadings(core.editor.state.doc, core.parsed.styles);

@@ -23,10 +23,17 @@ export const wordPageLayout = Extension.create({
 });
 /** 功能：只读取当前不可变文档快照的页面目录；时间：2026-11-10；作者：lq。 */
 export function wordPageLayoutOf(doc: Node): WordPageLayout { return doc.attrs.miniOfficePageLayout ?? EMPTY; }
+/** 功能：解析分节只依赖不可变原包，按来源缓存，选区与装饰事务不重复扫描所有段落 XML；时间：2026-11-11；作者：lq。 */
+const sectionSources = new WeakMap<ParsedDocFull, ReturnType<typeof readSections>>();
+function sourceSections(parsed: ParsedDocFull) {
+  let sections = sectionSources.get(parsed);
+  if (!sections) { sections = readSections(parsed); sectionSources.set(parsed, sections); }
+  return sections;
+}
 /** 功能：分节标识沿用源段落索引，设置不会覆盖其他节；时间：2026-11-10；作者：lq。 */
 export function wordSections(doc: Node, parsed: ParsedDocFull): SectionInfo[] {
   const catalog = wordPageLayoutOf(doc);
-  return readSections(parsed).map(section => {
+  return sourceSections(parsed).map(section => {
     const patch = catalog.sections[section.lastBlockIndex];
     return patch ? { ...section, settings: { ...section.settings, ...patch }, titlePg: patch.titlePg ?? section.titlePg, pageNumberStart: patch.pageNumberStart ?? section.pageNumberStart } : section;
   });

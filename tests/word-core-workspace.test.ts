@@ -51,6 +51,73 @@ it('新建和打开持有真实完整核心，工作区保存不会调用旧模�
   expect(useWorkspaceStore.getState().sessions[id!].dirty).toBe(false);
 });
 
+/** 功能：改名 DOCX 的 DOC 入口不显示转换损失提示，首次保存仍选择副本保护来源；时间：2026-11-11；作者：lq。 */
+it('改名 DOCX 直接打开后的元数据与副本保存保持一致', async () => {
+  const bytes = new Uint8Array(readFileSync('tests/fixtures/docx/contract.docx'));
+  const id = (await useWorkspaceStore.getState().openBytes({ name: '改名合同.doc', path: '/tmp/改名合同.doc', bytes }))!;
+  await vi.waitFor(() => expect(adapter.saveSnapshot).toHaveBeenCalled());
+  const session = useWorkspaceStore.getState().sessions[id];
+  expect(session.displayName).toBe('改名合同.doc'); expect(session.path).toBeUndefined();
+  expect(session.capability.warnings.some(warning => warning.code === 'file.extension')).toBe(true);
+  expect(session.capability.warnings.some(warning => warning.code === 'file.converted')).toBe(false);
+  expect(useWorkspaceStore.getState().notifications.some(item => /已转换/.test(item.title + item.message))).toBe(false);
+  session.wordCore!.editor.commands.insertContent('改名来源副本');
+  expect(await useWorkspaceStore.getState().saveSession(id)).toBe(true);
+  expect(adapter.saveBytes.mock.calls[0][1]).toMatchObject({ forcePicker: true, suggestedName: '改名合同.docx' });
+});
+
+// 功能：真实新核心另存为下载后不得复用旧 Web 文件句柄；时间：2026-11-11；作者：lq。
+it('另存下载副本后下一次保存重新选择位置，不会覆盖原句柄', async () => {
+  const handle = { name: '原合同.docx' } as FileSystemFileHandle;
+  const id = (await useWorkspaceStore.getState().openBytes({ name: handle.name, handle, bytes: readFileSync('tests/fixtures/docx/contract.docx') }))!;
+  await vi.waitFor(() => expect(adapter.saveSnapshot).toHaveBeenCalled());
+  adapter.saveBytes.mockResolvedValue({ displayName: '下载副本.docx', location: 'download' } as never);
+  expect(await useWorkspaceStore.getState().saveSession(id, { asNew: true })).toBe(true);
+  expect(await useWorkspaceStore.getState().saveSession(id)).toBe(true);
+  expect(adapter.saveBytes.mock.calls[1][1]).toMatchObject({ forcePicker: true, handle: undefined });
+});
+
+// 功能：关闭等待快照时的新输入必须重新触发退出保护，不释放仍有修改的核心；时间：2026-11-11；作者：lq。
+it('关闭等待慢快照时继续输入，重新检查 dirty 后保留标签', async () => {
+  let release!: () => void;
+  adapter.saveSnapshot.mockImplementationOnce(async () => { await new Promise<void>(resolve => { release = resolve; }); });
+  const id = (await useWorkspaceStore.getState().createDocument('docx'))!;
+  await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+  const core = useWorkspaceStore.getState().sessions[id].wordCore!;
+  const closing = useWorkspaceStore.getState().closeTab(id);
+  core.editor.commands.insertContent('关闭期间新增正文');
+  release();
+  expect(await closing).toBe(false);
+  expect(core.editor.isDestroyed).toBe(false);
+  expect(useWorkspaceStore.getState().sessions[id].dirty).toBe(true);
+});
+
+// 功能：重现工作区先销毁核心、React 稍后卸载宿主的真实关闭顺序；时间：2026-11-11；作者：lq。
+it('关闭活动标签后异步清理正文宿主，不再访问已销毁的 view', async () => {
+  const id = await open(), core = useWorkspaceStore.getState().sessions[id].wordCore!;
+  const root = document.createElement('div'); document.body.append(root);
+  const surface = await WordCoreSurface.attach(root, core);
+  expect(await useWorkspaceStore.getState().closeTab(id, true)).toBe(true);
+  expect(core.editor.isDestroyed).toBe(true);
+  expect(() => surface.dispose()).not.toThrow();
+  expect(surface.layout.flush()).toBeUndefined();
+});
+
+// 功能：多文档原生退出确认以真实新核心修订号跟踪放弃的版本；时间：2026-11-11；作者：lq。
+it('选择不保存后在另一文档确认期间再编辑，必须重新确认同一 Word 会话', async () => {
+  const { confirmWorkspaceClose } = await import('../packages/editor-shell/src/close-workspace');
+  const first = (await useWorkspaceStore.getState().createDocument('docx'))!;
+  const second = (await useWorkspaceStore.getState().createDocument('docx'))!;
+  const core = useWorkspaceStore.getState().sessions[first].wordCore!;
+  core.editor.commands.insertContent('第一版');
+  useWorkspaceStore.getState().sessions[second].wordCore!.editor.commands.insertContent('第二文档');
+  const ask = vi.fn().mockResolvedValueOnce('discard').mockImplementationOnce(async () => {
+    core.editor.commands.insertContent('确认期间新版本'); return 'discard';
+  }).mockResolvedValueOnce('cancel');
+  expect(await confirmWorkspaceClose(() => Object.values(useWorkspaceStore.getState().sessions), ask, vi.fn())).toBe(false);
+  expect(ask).toHaveBeenCalledTimes(3);
+});
+
 // 功能：合并等内存生成文档在首次保存前保持新建/未保存，撤销正文不能冒充磁盘版本；时间：2026-11-11；作者：lq。
 it('原生生成文档从未保存状态开始，首次实际保存成功后才转为干净文档', async () => {
   const { buildBlankDocx } = await import('../packages/word-core/src/index');

@@ -127,6 +127,67 @@ while (queue.length) {
   const changes = derived.has(path) ? ['从 file-actions.ts 提取 applyDocLayoutSettings 原函数体，显式列出依赖，不复制 UI 和 Electron I/O'] : [];
   if (/\.(?:ts|tsx|mts|mjs)$/.test(path)) {
     let text = bytes.toString('utf8');
+    // 功能：压缩扩展共享一次自然流窗口，避免逐段隐藏/恢复页缝导致长文档数十次强制重排；时间：2026-11-11；作者：lq。
+    if (path === 'apps/docs/src/renderer/editor/settled-measure.ts') {
+      text = text.replace('  const gaps = el.querySelectorAll<HTMLElement>', "  if (el.closest('.measuring-natural')) return fn()\n  const gaps = el.querySelectorAll<HTMLElement>");
+      text = text.replace('    return map\n', `    // 功能：长表格内的段落也一次建立节点索引，避免逐段 posAtDOM 在整表中重复遍历；时间：2026-11-11；作者：lq。
+    for (const element of view.dom.querySelectorAll<HTMLElement>('p, div.doc-textbox-para')) {
+      const desc = (element as { pmViewDesc?: { node?: ProseMirrorNode } }).pmViewDesc
+      if (desc?.node?.isTextblock) map.set(desc.node, element)
+    }
+    return map
+`);
+      changes.push('已进入全篇自然流时不逐段改写页缝 DOM，避免布局抖动');
+    }
+    if (/editor\/(?:cjk-punct-shrink|justify-shrink)\.ts$/.test(path)) {
+      // 功能：字符测量保留完整正文，按帧预算处理；失效、编辑和销毁取消旧任务，完成后一次提交装饰；时间：2026-11-11；作者：lq。
+      text = text.replace('  private lastSig =', `  private workRaf = 0
+  private destroyed = false
+  private work: { doc: ProseMirrorNode; paras: Array<{ node: ProseMirrorNode; pos: number }>; shrinks: MeasuredShrink[]; next: number; measurable: boolean; topLevel: Map<ProseMirrorNode, HTMLElement> } | null = null
+  private lastSig =`);
+      text = text.replaceAll('this.measure()', 'this.queueMeasure()');
+      text = text.replace('  private restartConvergence() {', '  private restartConvergence() {\n    this.work = null');
+      text = text.replace('  destroy() {', '  destroy() {\n    this.destroyed = true\n    this.work = null\n    if (this.workRaf) cancelAnimationFrame(this.workRaf)');
+      text = text.replace('  private measure() {', `  /** 功能：同一帧的字体、样式和文档变更仅触发一次测量；时间：2026-11-11；作者：lq。 */
+  private queueMeasure() {
+    if (this.destroyed || this.workRaf) return
+    this.workRaf = requestAnimationFrame(() => { this.workRaf = 0; if (!this.destroyed) this.measure() })
+  }
+
+  private measure() {`);
+      const start = text.indexOf('    const paras: Array<{ node: ProseMirrorNode; pos: number }> = []\n', text.indexOf('  private measure() {'));
+      const end = text.indexOf('    if (!measurable) {', start);
+      if (start < 0 || end < 0) throw new Error(`字符分帧提取位置失效：${path}`);
+      const candidate = path.includes('cjk-punct') ? 'isCandidate' : 'isShrinkCandidate';
+      text = text.slice(0, start) + `    // 功能：一轮中共享自然流几何；所有文档超过 8ms 让出帧，缓存已测段落且不提交不完整结果；时间：2026-11-11；作者：lq。
+    let shrinks: MeasuredShrink[] = []
+    let measurable = false
+    const natural = view.dom.classList.contains('measuring-natural')
+    view.dom.classList.add('measuring-natural')
+    try {
+      let work = this.work
+      if (!work || work.doc !== view.state.doc) {
+        const paras: Array<{ node: ProseMirrorNode; pos: number }> = []
+        view.state.doc.descendants((node, pos) => {
+          if (!node.isTextblock) return true
+          if (${candidate}(node)) paras.push({ node, pos })
+          return false
+        })
+        this.results.beginPass(view)
+        work = this.work = { doc: view.state.doc, paras, shrinks: [], next: 0, measurable: paras.length === 0, topLevel: SettledParagraphCache.topLevelDom(view) }
+      }
+      const started = performance.now()
+      while (work.next < work.paras.length) {
+        const para = work.paras[work.next++]
+        const measured = this.results.measure(view, para.node, para.pos, el => this.measureParagraph(para.node, para.pos, el), work.topLevel.get(para.node))
+        if (measured) { work.measurable = true; work.shrinks.push(...measured) }
+        if (work.next < work.paras.length && performance.now() - started >= 8) { this.queueMeasure(); return }
+      }
+      shrinks = work.shrinks; measurable = work.measurable; this.work = null
+    } finally { if (!natural) view.dom.classList.remove('measuring-natural') }
+` + text.slice(end);
+      changes.push('字符压缩合并到帧调度并按 8ms 预算分批，原模型完整，原子提交装饰且失效可取消');
+    }
     // 功能：只保留表格原生命令，错误提示交给 Mini Office 现有界面；时间：2026-11-11；作者：lq。
     if (path === 'apps/docs/src/renderer/editor/table-ops.ts') {
       text = text.replace("import { showToast } from '../components/toast-bus'\n", '')
@@ -144,6 +205,8 @@ while (queue.length) {
     }
     // 功能：表格结构/属性改变时保留未修改段落的书签与未知 XML，来源随段落移动；时间：2026-11-11；作者：lq。
     if (path === 'packages/docx-engine/src/types.ts') {
+      // 功能：页脚框的原形状身份用于局部保存，不能按显示序号重建文本框；时间：2026-11-11；作者：lq。
+      text = text.replace('  id: number\n  /** wps:bodyPr', '  /** 功能：页眉页脚框的来源形状标识，保留 DrawingML/VML 原定位；时间：2026-11-11；作者：lq。 */\n  miniOfficeShapeId?: string\n  id: number\n  /** wps:bodyPr');
       text = text.replace("  | 'align'\n  | 'indentLeft'", "  | 'listMarker'\n  | 'align'\n  | 'indentLeft'");
       text = text.replace('export interface ParaFormat {', 'export interface ParaFormat {\n  /** 功能：区域原生样式引用参与保存；时间：2026-11-11；作者：lq。 */\n  styleId?: string\n  listMarker?: TextboxListMarker\n');
 
@@ -182,7 +245,41 @@ while (queue.length) {
   const copy = { ...inherited, ...(sourceRid ? { miniOfficeSourceRid: sourceRid } : {}), ...(!Object.values(state.edits).includes(inherited) ? { keepContent: true as const } : {}) }`);
       changes.push('解除继承记录原部件来源，克隆图片关系及未知 XML；未编辑的副本按原字节保存');
     }
+    // 功能：页缝填充只占未被纵向合并格占据的列段，测量时恢复源 rowspan；时间：2026-11-11；作者：lq。
+    if (path === 'apps/docs/src/renderer/editor/pagination-gaps.ts') {
+      text = text.replace('export type PageGapSpec = {', `export type PageGapSpec = {
+  /** 功能：装饰行可用的连续列段，避免合并格旁边新增幽灵列；时间：2026-11-11；作者：lq。 */
+  tableCellSpans?: number[]`);
+      text = text.replace('${gap.cols ?? 0},${Math.round(metrics.pageLeft ?? -1)}', '${gap.cols ?? 0},${gap.tableCellSpans?.join(\':\') ?? \'\'},${Math.round(metrics.pageLeft ?? -1)}');
+      text = text.replace('      const el = makeGapEl(metrics, as, gap.cols)', `      const el = makeGapEl(metrics, as, gap.cols)
+      // 功能：跨页合并格已经占据部分网格列，填充格仅覆盖空闲连续列段；时间：2026-11-11；作者：lq。
+      if (as === 'table' && gap.tableCellSpans?.length) {
+        const first = el.firstElementChild as HTMLTableCellElement
+        first.colSpan = gap.tableCellSpans[0]
+        for (const span of gap.tableCellSpans.slice(1)) {
+          const cell = document.createElement('td')
+          cell.colSpan = span
+          cell.contentEditable = 'false'
+          el.appendChild(cell)
+        }
+      }`);
+      text = text.replace('export function syncPhantomRowspans(root: HTMLElement): void {', `export function syncPhantomRowspans(root: HTMLElement): void {
+  // 功能：自然流隐藏装饰行后必须同步恢复源跨度，否则被隐藏行仍导致后续真实行列错位；时间：2026-11-11；作者：lq。
+  if (root.classList.contains('measuring-natural')) {
+    for (const cell of root.querySelectorAll<HTMLTableCellElement>('[data-base-rowspan]')) cell.rowSpan = Number(cell.dataset.baseRowspan) || 1
+    return
+  }`);
+      changes.push('页缝仅占空闲列段；自然流度量恢复源 rowspan，显示后桥接装饰行');
+    }
     if (path === 'apps/docs/src/renderer/editor/hf-dom.ts') {
+      // 功能：探针继承产品隔离后的文档排版 CSS，浮动页码框不再退化为 192px 的普通流块；时间：2026-11-11；作者：lq。
+      text = text.replace('    document.body.appendChild(host)', `    const scope = document.createElement('div')
+    scope.className = 'mo-word-core'
+    scope.appendChild(host)
+    document.body.appendChild(scope)`);
+      changes.push('页眉页脚探针置于文档 CSS 隔离作用域，正确排除浮动文本框的流高度');
+      // 功能：双击浮动页码时定位真实框，不能退回外层空段落；时间：2026-11-11；作者：lq。
+      text = text.replace('        boxHost.className = hfTextBoxClass(para.box!)', "        boxHost.className = hfTextBoxClass(para.box!)\n        boxHost.dataset.hfBox = String(para.box!.id)");
       // 功能：页眉页脚格内纸面与直接编辑区共同显示右缩进、自动段距、底纹及段落边框；时间：2026-11-11；作者：lq。
       const cellBoxStart = text.indexOf('export function hfCellParaBox('), cellBoxEnd = text.indexOf('export function hfCellParaStyle', cellBoxStart);
       let cellBox = text.slice(cellBoxStart, cellBoxEnd);
@@ -230,12 +327,20 @@ while (queue.length) {
       text += `
 /** 功能：受控区域复用动态页码装饰，更新不产生内容或历史；时间：2026-11-11；作者：lq。 */
 export function setHfFieldNumbers(editor: Editor, page: string, total: string, section: string): void {
+  // 功能：相同域值不再派发装饰事务，避免每轮重排触发工具栏和区域重绘；时间：2026-11-11；作者：lq。
+  const previous = hfFieldNumbersKey.getState(editor.state)
+  if (previous?.page === page && previous.total === total && previous.section === section) return
   editor.view.dispatch(editor.state.tr.setMeta(hfFieldNumbersKey, { page, total, section }).setMeta('addToHistory', false))
 }
 `;
       changes.push('导出动态页码装饰更新函数，供单一主历史的受控编辑区使用');
     }
     if (path === 'packages/docx-engine/src/patch.ts') {
+      // 功能：富页脚只在原框内部写回，框内文本不能再作为普通段落重复输出；时间：2026-11-11；作者：lq。
+      text = "import { patchWordHfTextboxes } from '../../../../serialization/header-footer-boxes';\n" + text;
+      text = text.replace('    return headerFooterPartXml(kind, hf, undefined, base, options.pageCount)', '    return headerFooterPartXml(kind, hf, undefined, base ? patchWordHfTextboxes(base, hf, options.pageCount) : base, options.pageCount)');
+      text = text.replace('.filter((para) => !(para.lineOnly && originalXml && para.runs.length === 0))', '.filter((para) => !(originalXml && (para.boxAnchored || para.box || (para.lineOnly && para.runs.length === 0))))');
+      changes.push('页眉页脚文本框原位保存及备用分支同步，保留框几何，去掉重复的普通页码段落');
       const anchor = '  const planHeaderFooter = async (';
       if (!text.includes(anchor)) throw new Error('页眉页脚部件入口已变化');
       text = text.replace(anchor, `  /** 功能：副本使用独立部件和独立关系，内部目标转包内绝对路径以兼容子目录；时间：2026-11-11；作者：lq。 */
@@ -285,6 +390,9 @@ export function setHfFieldNumbers(editor: Editor, page: string, total: string, s
       changes.push('页眉页脚独立副本克隆来源 XML 和关系，替换节引用而不污染继承所有者');
     }
     if (path === 'packages/docx-engine/src/parse.ts') {
+      // 功能：记录原形状身份供页眉页脚框局部写回，避免空框/多框导致序号错配；时间：2026-11-11；作者：lq。
+      text = text.replace('  const attrs = attrsOf(anchor)\n  if (attrs[\'behindDoc\']', "  const shapeId = attrsOf(findChild(anchor, 'wp:docPr') ?? {})['id']\n  if (shapeId) box.miniOfficeShapeId = 'drawing:' + shapeId\n  const attrs = attrsOf(anchor)\n  if (attrs['behindDoc']");
+      text = text.replace("  const style = attrsOf(shape)['style'] ?? ''\n  const px", "  const shapeId = attrsOf(shape)['id']\n  if (shapeId) box.miniOfficeShapeId = 'vml:' + shapeId\n  const style = attrsOf(shape)['style'] ?? ''\n  const px");
       // 功能：区域布局表格采用完整段落格式解析，与正文/区域工具栏保存字段一致；时间：2026-11-11；作者：lq。
       text = text.replace("const props: NonNullable<HfTableCell['paraProps']>[number] = {", "const props: NonNullable<HfTableCell['paraProps']>[number] = {\n      ...hfStyledParaFormat(node, ctx),");
       // 功能：正文文本框的嵌套图片同表格一样预解析关系，重开后继续富文本编辑不丢图；时间：2026-11-11；作者：lq。
@@ -642,7 +750,7 @@ export function disposeParseWorker(): void {
       const value = imported.fileName;
       let resolved;
       if (value.startsWith('.')) {
-        if (value.includes('platform/ports') || value.includes('serialization/table-paragraph') || value.includes('serialization/run-effects') || value.includes('serialization/paragraph-structure') || value.includes('editing/region-history')) continue;
+        if (value.includes('platform/ports') || value.includes('serialization/table-paragraph') || value.includes('serialization/run-effects') || value.includes('serialization/paragraph-structure') || value.includes('serialization/header-footer-boxes') || value.includes('editing/region-history')) continue;
         resolved = resolveModule(posix.normalize(posix.join(posix.dirname(path), value)));
         if (resolved === 'apps/docs/src/shared/ipc.ts') resolved = 'packages/agent-core/src/types.ts';
       } else {
@@ -677,7 +785,8 @@ export function disposeParseWorker(): void {
 const cssPath = 'apps/docs/src/renderer/styles.css';
 const css = postcss.parse(original(cssPath).toString('utf8'));
 // 功能：图片八向尺寸手柄属于正文对象，基础定位规则必须随显示规则一起保留；时间：2026-11-11；作者：lq。
-const selectors = /\.(?:doc-|img-resize-handle|ProseMirror|page-gap|page-float|page-hf|editor-scroll|hf-|footnote|endnote|note-|float-|col-|textbox)/;
+// 功能：保留混合纸张的逐页纸面，避免不同宽度页面丢失底色；时间：2026-11-11；作者：lq。
+const selectors = /\.(?:doc-|img-resize-handle|ProseMirror|page-gap|page-float|page-hf|page-sheets?|editor-scroll|hf-|footnote|endnote|note-|float-|col-|textbox)/;
 /** 功能：递归裁剪非文档规则，保留相关媒体和 keyframes，避免外壳 CSS 污染；时间：2026-11-08；作者：lq。 */
 function prune(container) {
   for (const node of [...(container.nodes ?? [])]) {

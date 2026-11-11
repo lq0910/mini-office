@@ -718,5 +718,8 @@ export function mountHfEditor(
 
 /** 功能：受控区域复用动态页码装饰，更新不产生内容或历史；时间：2026-11-11；作者：lq。 */
 export function setHfFieldNumbers(editor: Editor, page: string, total: string, section: string): void {
+  // 功能：相同域值不再派发装饰事务，避免每轮重排触发工具栏和区域重绘；时间：2026-11-11；作者：lq。
+  const previous = hfFieldNumbersKey.getState(editor.state)
+  if (previous?.page === page && previous.total === total && previous.section === section) return
   editor.view.dispatch(editor.state.tr.setMeta(hfFieldNumbersKey, { page, total, section }).setMeta('addToHistory', false))
 }

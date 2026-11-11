@@ -73,6 +73,7 @@ function floatBandsOf(view: EditorView): number[][] {
  * the paginator itself measures it (its measuring-natural state).
  */
 export function measureNatural<T>(el: HTMLElement, fn: () => T): T {
+  if (el.closest('.measuring-natural')) return fn()
   const gaps = el.querySelectorAll<HTMLElement>('.page-gap-inline')
   if (gaps.length === 0) return fn()
   const prev = Array.from(gaps, (g) => g.style.display)
@@ -158,6 +159,11 @@ export class SettledParagraphCache<T> {
     for (const child of Array.from(view.dom.childNodes)) {
       const desc = (child as { pmViewDesc?: { node?: ProseMirrorNode } }).pmViewDesc
       if (desc?.node && child instanceof HTMLElement) map.set(desc.node, child)
+    }
+    // 功能：长表格内的段落也一次建立节点索引，避免逐段 posAtDOM 在整表中重复遍历；时间：2026-11-11；作者：lq。
+    for (const element of view.dom.querySelectorAll<HTMLElement>('p, div.doc-textbox-para')) {
+      const desc = (element as { pmViewDesc?: { node?: ProseMirrorNode } }).pmViewDesc
+      if (desc?.node?.isTextblock) map.set(desc.node, element)
     }
     return map
   }

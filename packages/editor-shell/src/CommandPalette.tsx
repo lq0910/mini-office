@@ -1,3 +1,4 @@
+// 功能：菜单命令使用新核心已有事件入口和能力，默认切换后不再错误禁用；时间：2026-11-11；作者：lq。
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -154,7 +155,7 @@ export function CommandPalette({
         section: '文件',
         icon: <Download size={15} />,
         keywords: 'pdf export',
-        disabled: !activeSession || !!activeSession.wordCore,
+        disabled: !activeSession,
         run: () => fire('mo:export-pdf'),
       },
       {
@@ -164,7 +165,7 @@ export function CommandPalette({
         icon: <Printer size={15} />,
         shortcut: `${MOD_KEY}P`,
         keywords: 'print',
-        disabled: !activeSession || !!activeSession.wordCore,
+        disabled: !activeSession,
         run: () => fire('mo:print'),
       },
       {
@@ -184,7 +185,7 @@ export function CommandPalette({
         section: '编辑',
         icon: <Search size={15} />,
         shortcut: `${MOD_KEY}F`,
-        disabled: !activeSession || !!activeSession.wordCore,
+        disabled: !activeSession,
         run: () => fire('mo:find'),
       },
       {
@@ -194,7 +195,7 @@ export function CommandPalette({
         section: '编辑',
         icon: <Sparkles size={15} />,
         keywords: 'style 样式 标题 正文 排版',
-        disabled: activeSession?.kind !== 'docx' || !!activeSession.wordCore,
+        disabled: activeSession?.kind !== 'docx',
         run: () => fire('mo:styles'),
       },
       {
@@ -219,7 +220,7 @@ export function CommandPalette({
         label: settings.wordRuler === true ? '隐藏标尺' : '显示标尺',
         section: '视图',
         icon: <Ruler size={15} />,
-        disabled: activeSession?.kind !== 'docx' || !!activeSession.wordCore,
+        disabled: activeSession?.kind !== 'docx',
         run: () => updateSettings({ wordRuler: settings.wordRuler !== true }),
       },
       {

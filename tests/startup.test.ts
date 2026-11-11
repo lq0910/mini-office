@@ -75,16 +75,21 @@ describe('工作区启动', () => {
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ knownFonts: ['宋体'] }));
   });
 
+  // 功能：默认 Word 使用真实会话快照，禁止以固定标识调用旧 serialize 旁路；时间：2026-11-11；作者：lq。
   it.each(['docx', 'xlsx', 'pptx'] as const)('延迟注册的 %s 格式支持新建、序列化和重新打开', async (kind) => {
     const { registerDeferredFormats } = await import('../apps/desktop/src/format-handlers');
     const { getFormatHandler } = await import('@mini-office/document-model');
     registerDeferredFormats();
     const handler = getFormatHandler(kind)!;
     const name = `启动验证.${kind}`;
-    const bytes = await handler.serialize(handler.createBlank(), { name });
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    const created = await handler.createNew?.();
+    const bytes = created?.wordCore ? (await created.wordCore.prepareSave()).bytes : await handler.serialize(handler.createBlank(), { name });
     expect(bytes.byteLength).toBeGreaterThan(0);
     const reopened = await handler.open({ name, bytes, knownFonts: [] });
     expect(reopened.data).toBeTruthy();
+    if (kind === 'docx') { expect(reopened.data).toEqual({ engine: 'word-core' }); expect(reopened.wordCore).toBeTruthy(); }
+    created?.wordCore?.dispose(); reopened.wordCore?.dispose();
   });
 });
 

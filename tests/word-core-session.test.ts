@@ -45,6 +45,18 @@ beforeEach(() => {
 afterEach(() => { for (const session of active.splice(0)) session.dispose(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe('定制 Word 核心的会话和来源保留', () => {
+  // 功能：滚动/选区复用统计，真实编辑及撤销刷新结果，避免以过期缓存换取速度；时间：2026-11-11；作者：lq。
+  it('统计按不可变正文缓存，文字编辑与撤销后结果保持正确', async () => {
+    const session = await open(await sample());
+    const original = session.statistics();
+    session.editor.commands.setTextSelection(3);
+    expect(session.statistics()).toBe(original);
+    replace(session, '测试');
+    expect(session.statistics()).not.toBe(original);
+    expect(session.statistics().characters).toBe(2);
+    session.editor.commands.undo();
+    expect(session.statistics()).toEqual(original);
+  });
   it('实际 schema 挂载后无操作保存返回完全相同的原包，不引入旧 DocModel', async () => {
     const bytes = await sample();
     const session = await open(bytes);
@@ -164,5 +176,23 @@ describe('Word 排版协调边界', () => {
     controller.dispose();
     vi.runAllTimers();
     expect(apply).not.toHaveBeenCalled();
+  });
+  /** 功能：编辑突发合并到最后一次输入，后续补偿保持 100ms；手动刷新及销毁都清理计时器；时间：2026-11-11；作者：lq。 */
+  it('首次即时排版，后续编辑防抖且显式 flush 不等待', () => {
+    vi.useFakeTimers();
+    const root = document.createElement('div'), apply = vi.fn(), error = vi.fn();
+    const controller = new WordLayoutController(() => ({ root, origin: 0, zoomFactor: 1, sections: [{ contentHeight: 100, forceBreak: false }] }), apply, error);
+    try {
+      controller.request(); vi.advanceTimersByTime(0); expect(apply).toHaveBeenCalledTimes(1);
+      controller.request(); vi.advanceTimersByTime(299); expect(apply).toHaveBeenCalledTimes(1);
+      controller.request(); vi.advanceTimersByTime(299); expect(apply).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(1); expect(apply).toHaveBeenCalledTimes(2);
+      controller.followUp('width'); vi.advanceTimersByTime(99); expect(apply).toHaveBeenCalledTimes(2);
+      vi.advanceTimersByTime(1); expect(apply).toHaveBeenCalledTimes(3);
+      controller.request(); controller.flush(); expect(apply).toHaveBeenCalledTimes(4);
+      vi.runAllTimers(); expect(apply).toHaveBeenCalledTimes(4);
+      controller.request(); controller.dispose(); vi.runAllTimers(); expect(apply).toHaveBeenCalledTimes(4);
+      expect(error).not.toHaveBeenCalled();
+    } finally { controller.dispose(); vi.useRealTimers(); }
   });
 });

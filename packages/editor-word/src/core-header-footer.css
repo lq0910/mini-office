@@ -1,6 +1,11 @@
 /* 功能：页眉页脚原位编辑保留顶部工具栏，区域工具随纸张定位且不进入打印；时间：2026-11-11；作者：lq。 */
 .mo-word-core .mo-core-hf-editing { position: absolute; z-index: 30; outline: 1px dashed var(--mo-accent, #5074df); background: white; color: black; min-height: 20px; }
 .mo-word-core .mo-core-hf-editing .page-hf-editor { min-height: 20px; outline: none; }
+/* 功能：普通页脚编辑不抹除浮动页码框；框内编辑沿用无折行和原字体，选择的是实际动态域；时间：2026-11-11；作者：lq。 */
+.mo-word-core .mo-core-hf-flow-editing > .page-hf-para { visibility: hidden; }
+.mo-word-core .mo-core-hf-flow-editing .page-hf-textbox { visibility: visible; }
+.mo-word-core .mo-core-hf-editing { box-sizing: border-box; }
+.mo-word-core .mo-core-hf-editing[data-hf-nowrap] .doc-textbox-para { white-space: pre; }
 .mo-word-core .mo-core-hf-controls { position: absolute; bottom: calc(100% + 4px); left: 0; display: flex; gap: 10px; align-items: center; white-space: nowrap; padding: 4px 8px; background: var(--mo-surface, white); color: var(--mo-text, #262626); border: 1px solid var(--mo-line, #ddd); border-radius: 5px; font: 12px/1.5 sans-serif; box-shadow: 0 2px 8px #0001; }
 .mo-word-core .mo-core-hf-controls button:hover { color: var(--mo-accent, #5074df); }
 @media print { .mo-word-core .mo-core-hf-controls { display: none !important; } .mo-word-core .mo-core-hf-editing { outline: none; } }

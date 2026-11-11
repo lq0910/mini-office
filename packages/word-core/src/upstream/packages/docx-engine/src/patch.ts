@@ -1,4 +1,5 @@
 /** 功能：融合 GenOffice Word 内核；时间：2026-11-08；集成作者：lq；上游作者、固定版本及本地修改见 packages/word-core/UPSTREAM.md 和 SOURCE-MANIFEST.json。 */
+import { patchWordHfTextboxes } from '../../../../serialization/header-footer-boxes';
 import JSZip from 'jszip'
 import {
   applyRevisionResolutions,
@@ -1219,7 +1220,7 @@ export async function saveDocx(
         ? patchHfPicturesXml(originalXml, hf.pictureEdits)
         : originalXml
     if (base && (hf.pictureOnly || hf.keepContent)) return base
-    return headerFooterPartXml(kind, hf, undefined, base, options.pageCount)
+    return headerFooterPartXml(kind, hf, undefined, base ? patchWordHfTextboxes(base, hf, options.pageCount) : base, options.pageCount)
   }
   /** 功能：副本使用独立部件和独立关系，内部目标转包内绝对路径以兼容子目录；时间：2026-11-11；作者：lq。 */
   const cloneHfSource = async (hf: HeaderFooter, destination: string): Promise<string | null> => {
@@ -2661,7 +2662,7 @@ function headerFooterPartXml(
       // still-empty drawing-only lines are display-only: the part's original
       // drawing paragraph bytes are kept below. Text typed into such a line, or
       // a rebuild without the original part, is written out like any paragraph.
-      .filter((para) => !(para.lineOnly && originalXml && para.runs.length === 0))
+      .filter((para) => !(originalXml && (para.boxAnchored || para.box || (para.lineOnly && para.runs.length === 0))))
       .map((para) => {
         if (para.cells) return originalXml ? '' : rowParas(para)
         // the parsed format, not just w:jc: hand-building it here dropped w:bidi and wrote

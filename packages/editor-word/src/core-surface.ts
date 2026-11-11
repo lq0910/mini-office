@@ -6,8 +6,12 @@ import { wordStyleCatalogOf } from '../../word-core/src/editing/styles';
 // 功能：富文本页眉页脚使用稳定投影宿主，保留会话统一历史；时间：2026-11-11；作者：lq。
 import { WordHeaderFooterRegions } from './core-header-footer';
 import './core-header-footer.css';
+// 功能：产品分页留出画布间隔，统一显示无灰框纸面；时间：2026-11-11；作者：lq。
+import './core-paper.css';
 // 功能：页边距拖动由当前分节和实际分页驱动；时间：2026-11-11；作者：lq。
 import { WordPageMarginGuides } from './core-page-margins';
+// 功能：预览复用当前已排版宿主，避免为打印再解析、加载字体和创建整篇编辑器；时间：2026-11-11；作者：lq。
+const mountedSurfaces = new WeakMap<WordCoreSession, WordCoreSurface>();
 
 /** 功能：宿主继续负责文件选择、写盘和现有 UI，正文保持完整核心模型；时间：2026-11-08；作者：lq。 */
 export interface WordCoreSurfaceOptions extends WordSurfaceLayoutOptions {
@@ -17,6 +21,8 @@ export interface WordCoreSurfaceOptions extends WordSurfaceLayoutOptions {
 
 /** 功能：按容器持有一个核心会话，失败或取消时清理 DOM，不销毁其他标签的会话；时间：2026-11-08；作者：lq。 */
 export class WordCoreSurface {
+  /** 功能：仅查找仍挂载的同一会话，隐藏/关闭后不返回过期版面；时间：2026-11-11；作者：lq。 */
+  static current(session: WordCoreSession): WordCoreSurface | undefined { return mountedSurfaces.get(session); }
   readonly session: WordCoreSession;
   /** 功能：正文宿主持有真实分页协调器，供页面状态和验收读取；时间：2026-11-09；作者：lq。 */
   readonly layout: WordSurfaceLayout;
@@ -26,6 +32,7 @@ export class WordCoreSurface {
   private readonly unsubscribe: () => void;
   private readonly regions?: WordHeaderFooterRegions;
   private readonly margins: WordPageMarginGuides;
+  private readonly themeObserver?: MutationObserver;
   private constructor(
     readonly root: HTMLElement,
     private readonly content: HTMLElement,
@@ -36,6 +43,19 @@ export class WordCoreSurface {
     private readonly ownsSession: boolean,
   ) {
     this.session = session;
+    mountedSurfaces.set(session, this);
+    // 功能：文档画布使用不透明的同一主题底色；毛玻璃 alpha 不能在白纸上再叠加，否则页缝会发白；时间：2026-11-11；作者：lq。
+    const canvas = root.closest<HTMLElement>('.mo-scroll');
+    if (canvas) {
+      canvas.classList.add('mo-word-canvas');
+      const syncCanvas = () => {
+        const probe = document.createElement('span'); probe.style.color = 'var(--mo-bg)'; canvas.append(probe);
+        const channels = getComputedStyle(probe).color.match(/[\d.]+/g)?.slice(0, 3); probe.remove();
+        if (channels?.length === 3) canvas.style.setProperty('--mo-word-canvas', `rgb(${channels.join(',')})`);
+      };
+      syncCanvas(); this.themeObserver = new MutationObserver(syncCanvas);
+      this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme','data-vibrancy','data-eyecare','style','class'] });
+    }
     this.margins = new WordPageMarginGuides(session, session.editor.view.dom.closest<HTMLElement>('.page-wrap')!, error => options.onLayoutError?.(error));
     if (session.editor.isEditable) this.regions = new WordHeaderFooterRegions(session, session.editor.view.dom.closest<HTMLElement>('.page-wrap')!, error => options.onLayoutError?.(error));
     this.layout = new WordSurfaceLayout(session, { ...options, onLayout: state => {
@@ -83,6 +103,8 @@ export class WordCoreSurface {
     page.style.position = 'relative';
     content.append(page);
     const style = document.createElement('style');
+    // 功能：让同源页眉页脚探针按当前文档样式签名失效，切换文档不复用旧度量；时间：2026-11-11；作者：lq。
+    style.dataset.docCss = '';
     root.append(style, content);
     let session: WordCoreSession | undefined;
     try {
@@ -126,6 +148,8 @@ export class WordCoreSurface {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.themeObserver?.disconnect();
+    if (mountedSurfaces.get(this.session) === this) mountedSurfaces.delete(this.session);
     this.layout.dispose();
     this.regions?.dispose();
     this.margins.dispose();

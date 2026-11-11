@@ -16,7 +16,7 @@ import { adoptEmbeddedFonts } from '../upstream/apps/docs/src/renderer/embedded-
 import { docStyleCss } from '../upstream/apps/docs/src/renderer/doc-style-css';
 import { setDocFontTable, loadBundledStandIns } from '../upstream/apps/docs/src/renderer/line-metrics';
 import { applyDocLayoutSettings } from '../upstream/apps/docs/src/renderer/document-settings';
-import { parseDocxOffThread } from '../upstream/apps/docs/src/renderer/parse-off-thread';
+import { parseDocxOffThread, disposeParseWorker } from '../upstream/apps/docs/src/renderer/parse-off-thread';
 import { serializeWordDocument } from '../serialization/document';
 // 功能：会话管理列表资源，正文及历史仍由原生事务唯一持有；时间：2026-11-10；作者：lq。
 import { WordListDefinitions } from '../editing/lists';
@@ -32,6 +32,8 @@ import { wordPaste, ensureWordPaste } from '../editing/paste';
 import { wordDocumentStats } from '../editing/statistics';
 // 功能：分节尺寸以原生装饰进入 DOM，不能触发段落重解析及选区丢失；时间：2026-11-11；作者：lq。
 import { wordSectionWidths } from '../editing/section-width';
+// 功能：跨页表格各列续行共享原生事务中的装饰，不复制可编辑正文；时间：2026-11-11；作者：lq。
+import { wordCellGaps } from '../layout/cell-gaps';
 // 功能：邮件面板配置只随保存快照输出，不制造正文 dirty 或第二套编辑模型；时间：2026-11-11；作者：lq。
 import { patchWordMergeSettings, type WordMergeSettings } from '../serialization/mail-merge-settings';
 
@@ -41,6 +43,12 @@ export interface WordSessionState { revision: number; savedRevision: number; dir
 export interface PreparedWordSave { readonly revision: number; readonly bytes: Uint8Array; }
 /** 功能：挂载和事件回调仅绑定我们自己的 UI；时间：2026-11-08；作者：lq。 */
 export interface WordSessionOptions { element?: HTMLElement; readonly?: boolean; onChange?: (state: WordSessionState) => void; }
+
+// 功能：打开中的任务和已持有会话共同引用共享 worker，最后关闭才释放，不打断其他文档；时间：2026-11-11；作者：lq。
+let runtimeUsers = 0;
+function releaseRuntime(): void {
+  if (--runtimeUsers === 0) { disposeParseWorker(); void adoptEmbeddedFonts(undefined); }
+}
 
 /** 功能：承接初始化、事务、活动子编辑器和保存快照生命周期，不自动写入文件；时间：2026-11-08；作者：lq。 */
 export class WordCoreSession {
@@ -54,6 +62,8 @@ export class WordCoreSession {
   private mergeSettings?: WordMergeSettings;
   private measuredPageCount?: number;
   private headingPages?: { doc: WordNode; pages: WordHeadingPages };
+  // 功能：滚动、选区及分页装饰复用不可变正文的统计，编辑/撤销后按新正文重新计算；时间：2026-11-11；作者：lq。
+  private statisticsCache?: { doc: WordNode; value: ReturnType<typeof wordDocumentStats> };
   private readonly initialDocument: WordNode;
   private disposed = false;
   private readonly issued = new WeakSet<PreparedWordSave>();
@@ -73,13 +83,16 @@ export class WordCoreSession {
 
   /** 功能：打开完整 OOXML 模型，复制输入字节避免调用者修改来源缓存；时间：2026-11-08；作者：lq。 */
   static async open(bytes: Uint8Array, options: WordSessionOptions = {}): Promise<WordCoreSession> {
-    const parsed = await parseDocxOffThread(bytes.slice(), { owned: true });
-    // 功能：模型转编辑 schema 前先采用本文档字体，避免上一会话的字体提示进入新 DOM；时间：2026-11-08；作者：lq。
-    setDocFontTable(parsed.fontTable);
-    if (!await adoptEmbeddedFonts(parsed.embeddedFonts)) throw new Error('Word 打开被较新的字体激活替代');
-    await prefetchFaces(collectDocFonts(parsed));
-    await loadBundledStandIns(collectDocFonts(parsed));
-    return new WordCoreSession(parsed, options);
+    runtimeUsers++;
+    try {
+      const parsed = await parseDocxOffThread(bytes.slice(), { owned: true });
+      // 功能：模型转编辑 schema 前先采用本文档字体，避免上一会话的字体提示进入新 DOM；时间：2026-11-08；作者：lq。
+      setDocFontTable(parsed.fontTable);
+      if (!await adoptEmbeddedFonts(parsed.embeddedFonts)) throw new Error('Word 打开被较新的字体激活替代');
+      await prefetchFaces(collectDocFonts(parsed));
+      await loadBundledStandIns(collectDocFonts(parsed));
+      return new WordCoreSession(parsed, options);
+    } catch (error) { releaseRuntime(); throw error; }
   }
   /** 功能：空白文档也使用上游的完整包与编号初始化；时间：2026-11-08；作者：lq。 */
   static async create(options: WordSessionOptions = {}, documentOptions?: BlankDocxOptions): Promise<WordCoreSession> {
@@ -96,7 +109,7 @@ export class WordCoreSession {
     const readonlyGuard = Extension.create({ name: 'miniOfficeReadonlyGuard', addProseMirrorPlugins: () => [new Plugin({ filterTransaction: transaction => !readonly || !transaction.docChanged })] });
     this.editor = new Editor({
       element: options.element ?? document.createElement('div'),
-      extensions: [...editorExtensions, readonlyGuard, wordStyleCatalog, wordPageLayout, wordTableSource, wordPaste, wordSectionWidths(parsed)],
+      extensions: [...editorExtensions, readonlyGuard, wordStyleCatalog, wordPageLayout, wordTableSource, wordPaste, wordSectionWidths(parsed), wordCellGaps],
       content: blocksToPmDoc(parsed.blocks, readSections(parsed), pmDocOptions(parsed)) as JSONContent,
       editable: !this.viewOnly,
       // 功能：首个 NodeView 绘制前采用原始编号与样式定义，不能等第一次编辑才修正列表；时间：2026-11-08；作者：lq。
@@ -110,7 +123,8 @@ export class WordCoreSession {
         // 功能：样式改名、撤销与重做即时更新渲染目录，不改原始样式定义；时间：2026-11-10；作者：lq。
         if (transaction.docChanged) { this.revision++; editor.storage.listNumbering.styles = wordStyles(editor.state.doc, parsed); syncWordRegionStyles(editor); }
         restoreWordRegionRefresh(editor);
-        this.emit();
+        // 功能：分页/字体压缩的纯装饰事务不改变工具栏摘要，避免长文档首次排版触发整套 React 工具栏反复渲染；时间：2026-11-11；作者：lq。
+        if (transaction.docChanged || transaction.selectionSet || transaction.storedMarksSet) this.emit();
       },
     });
     this.editor.on('beforeTransaction', ({ editor }) => captureWordRegionRefresh(editor));
@@ -141,7 +155,11 @@ export class WordCoreSession {
   /** 功能：样式变化时只重新生成文档 CSS，不重新打开正文或丢失历史；时间：2026-11-10；作者：lq。 */
   styleCss(): string { return docStyleCss(this.formattingSource()); }
   /** 功能：只读统计不创建编辑版本或历史；时间：2026-11-11；作者：lq。 */
-  statistics() { return wordDocumentStats(this.editor.state.doc); }
+  statistics() {
+    const doc = this.editor.state.doc;
+    if (this.statisticsCache?.doc !== doc) this.statisticsCache = { doc, value: wordDocumentStats(doc) };
+    return this.statisticsCache.value;
+  }
   /** 功能：状态随当前选区的可撤销/可重做能力返回；时间：2026-11-08；作者：lq。 */
   state(): WordSessionState {
     // 功能：历史按钮跟随当前活动编辑区，其他文档的全局子编辑器不能串入本会话；时间：2026-11-10；作者：lq。
@@ -245,6 +263,7 @@ export class WordCoreSession {
     if (active && this.editor.view.dom.contains(active.view.dom)) setActiveSubEditor(null);
     this.editor.destroy();
     this.listeners.clear();
+    releaseRuntime();
   }
   /** 功能：拒绝访问已释放的运行时；时间：2026-11-08；作者：lq。 */
   private assertOpen(): void { if (this.disposed) throw new Error('Word 会话已关闭'); }

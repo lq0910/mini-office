@@ -26,7 +26,7 @@ import { confirmWorkspaceClose, type CloseChoice } from './close-workspace';
 
 // 功能：仅在打开对应文档时加载编辑界面，首页不再执行三种编辑器；时间：2026-10-24；作者：lq。
 const WordEditor = lazy(() => import('../../editor-word/src/WordEditor').then((module) => ({ default: module.WordEditor })));
-/** 功能：M2 开发会话按自身引擎挂载正文；默认产品路径继续保留，直到 M5 验收；时间：2026-11-09；作者：lq。 */
+/** 功能：正式默认会话挂载新核心；开发回退会话按独立数据身份挂载旧实现；时间：2026-11-11；作者：lq。 */
 const WordCoreEditor = lazy(() => import('../../editor-word/src/WordCoreEditor').then(module => ({ default: module.WordCoreEditor })));
 const SheetEditor = lazy(() => import('../../editor-sheet/src/SheetEditor').then((module) => ({ default: module.SheetEditor })));
 const SlidesEditor = lazy(() => import('../../editor-slides/src/SlidesEditor').then((module) => ({ default: module.SlidesEditor })));

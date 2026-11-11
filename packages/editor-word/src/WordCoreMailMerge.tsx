@@ -1,5 +1,5 @@
 /** 功能：现有邮件合并 UI 直接操作原生字段与保存快照，预览/Word/ZIP/PDF/打印均不回退旧模型；时间：2026-11-11；作者：lq。 */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import JSZip from 'jszip';
 import { useWorkspaceStore, type DocumentSession } from '@mini-office/document-model';
 import { getPlatformAdapter, printPages } from '@mini-office/platform-adapter';
@@ -20,13 +20,15 @@ interface Props { session: DocumentSession; open: boolean; onClose(): void; onIn
 /** 功能：只在原包配置完成读取后创建控制器，避免异步初值被空白面板状态覆盖；时间：2026-11-11；作者：lq。 */
 export function WordCoreMailMerge(props: Props) {
   const [info, setInfo] = useState<WordMergePackageInfo>(); const [error, setError] = useState('');
+  // 功能：异步邮件配置只更新面板投影，正文始终处于同一 React 位置，避免打开后整篇卸载并再次分页；时间：2026-11-11；作者：lq。
+  const [view, setView] = useState<MergeView>(EMPTY);
   useEffect(() => {
     let active = true;
     void inspectWordMergePackage(props.session.wordCore!.parsed.internal.originalBytes).then(info => { if (active) setInfo(info); }).catch(error => { if (active) setError(String(error)); });
     return () => { active = false; };
   }, [props.session.wordCore]);
-  if (!info) return props.children({ ...EMPTY, panel: props.open ? <aside aria-label="邮件合并面板" className="w-[350px] shrink-0 border-l border-[var(--mo-line)] bg-[var(--mo-surface)] p-4 text-sm">{error || '正在读取模板字段…'}<button className="ml-3 underline" onClick={props.onClose}>收起</button></aside> : null });
-  return <NativeMailMergeContent {...props} info={info} />;
+  return <>{props.children(info ? view : { ...EMPTY, panel: props.open ? <aside aria-label="邮件合并面板" className="w-[350px] shrink-0 border-l border-[var(--mo-line)] bg-[var(--mo-surface)] p-4 text-sm">{error || '正在读取模板字段…'}<button className="ml-3 underline" onClick={props.onClose}>收起</button></aside> : null })}
+    {info ? <NativeMailMergeContent {...props} info={info} onView={setView} /> : null}</>;
 }
 /** 功能：所有输出先捕获一个确定版本，取消/读取/预览不写源模板，分文件命名沿用现有规则；时间：2026-11-11；作者：lq。 */
 async function generateNativeReports(session: DocumentSession, request: Parameters<NativeMailMergeTemplate['generate']>[0]): Promise<string> {
@@ -73,21 +75,26 @@ async function generateNativeReports(session: DocumentSession, request: Paramete
   } finally { reports.forEach(report => report.dispose()); }
 }
 /** 功能：正文只读取轻量字段摘要；数据源、筛选、命名和范围使用现有单一控制器；时间：2026-11-11；作者：lq。 */
-function NativeMailMergeContent({ info, ...props }: Props & { info: WordMergePackageInfo }) {
-  const core = props.session.wordCore!; const summary = wordMergeFields(core.editor.state.doc, core.parsed);
+const NativeMailMergeContent = memo(function NativeMailMergeContent({ info, ...props }: Props & { info: WordMergePackageInfo; onView(view: MergeView): void }) {
+  const core = props.session.wordCore!;
+  // 功能：滚动切页不重新扫描所有合并域；正文事务改变后才更新摘要；时间：2026-11-11；作者：lq。
+  const doc = core.editor.state.doc;
+  const summary = useMemo(() => wordMergeFields(doc, core.parsed), [core, doc]);
   const fields = useMemo(() => [...new Set([...info.staticAuxiliaryFields, ...summary.fields])], [info.staticAuxiliaryFields, summary.fields.join('\u0000')]);
   const native = useMemo<NativeMailMergeTemplate>(() => ({ fields, nextBlocks: summary.nextBlocks, panelState: info.panelState,
     persistPanel: (panelState, source) => core.updateMergeSettings({ panelState, source: source ? { xml: buildWordMailMergeXml(source), target: fileUriTarget(source.dataSourcePath) } : source }),
     generate: request => generateNativeReports(props.session, request),
   }), [core, fields, summary.nextBlocks, info, props.session.id, props.session.displayName]);
   const controller = useMailMergeController({ session: props.session, native });
-  return props.children({
+  // 功能：控制器独立持有面板状态，投影更新不会更换正文宿主类型；memo 阻止投影发布引起自身循环；时间：2026-11-11；作者：lq。
+  useLayoutEffect(() => props.onView({
     panel: <MailMergePanelView open={props.open && !props.session.readonly} controller={controller} onClose={props.onClose} onInsertField={props.onInsertField} />,
     bar: controller.previewOn ? <MergePreviewBar controller={controller} /> : null,
     canvas: controller.previewOn ? <NativeMergePreview core={core} controller={controller} /> : null,
     previewOn: controller.previewOn,
-  });
-}
+  }), [controller, props.open, props.session.readonly, props.onClose, props.onInsertField, props.onView, core]);
+  return null;
+});
 /** 功能：每条预览生成独立只读原生会话，切换记录/退出时清理；字段缓存和源模板完全隔离；时间：2026-11-11；作者：lq。 */
 function NativeMergePreview({ core, controller: c }: { core: NonNullable<DocumentSession['wordCore']>; controller: MailMergeController }) {
   const host = useRef<HTMLDivElement>(null); const [error, setError] = useState(''); const [loading, setLoading] = useState(true);

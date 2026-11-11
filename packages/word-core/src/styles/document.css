@@ -1152,6 +1152,19 @@
 .mo-word-core .page-wrap.paper-mixed .page-gap::before {
   box-shadow: none;
 }
+
+.mo-word-core .page-sheets {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.mo-word-core .page-sheet {
+  position: absolute;
+  background: var(--page-bg, var(--docs-paper));
+  box-shadow: var(--docs-page-shadow);
+}
 .mo-word-core .page-gap-notes {
   position: absolute;
   /* small offset keeps the separator off the last line's descenders when the break lands mid-paragraph */

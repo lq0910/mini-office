@@ -16,6 +16,9 @@ pub struct FontInfo {
     /// 功能：同一字体族的其他名称（中英文/不同平台记录），用于缺失字体判断；时间：2026-10-29；作者：lq。
     #[serde(default)]
     pub aliases: Vec<String>,
+    /// 功能：保留 TTC/OTC 中的实际字面索引，度量不可误读集合首字面；时间：2026-11-11；作者：lq。
+    #[serde(default)]
+    pub face_index: u32,
 }
 
 const CJK_FONT_HINTS: &[&str] = &[
@@ -159,6 +162,7 @@ fn parse_font_file(path: &Path, output: &mut Vec<FontInfo>, seen: &mut HashSet<S
                 style,
                 path: path.to_string_lossy().to_string(),
                 aliases,
+                face_index: index,
             });
         }
     }
@@ -261,6 +265,54 @@ pub fn require_font(family: &str) -> Result<FontInfo, OfficeError> {
         .ok_or_else(|| OfficeError::Other(format!("缺少字体：{family}")))
 }
 
+/// 功能：向 Word 分页提供实际系统字体的原始垂直度量，不以枚举名称代替字体数据；时间：2026-11-11；作者：lq。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FaceVerticalMetrics {
+    pub units_per_em: u16,
+    pub hhea_ascender: i16,
+    pub hhea_descender: i16,
+    pub hhea_line_gap: i16,
+    pub typo_ascender: Option<i16>,
+    pub typo_descender: Option<i16>,
+    pub typo_line_gap: Option<i16>,
+    pub win_ascent: Option<i16>,
+    pub win_descent: Option<i16>,
+    pub use_typo_metrics: bool,
+    pub x_avg_char_width: Option<i16>,
+    pub code_page_range1: Option<u32>,
+}
+
+/// 功能：仅按字体索引读系统字体，匹配中英文别名且优先常规字面，不接受任意文件路径；时间：2026-11-11；作者：lq。
+pub fn font_metrics(family: &str) -> Option<FaceVerticalMetrics> {
+    let fonts = cached_fonts();
+    let font = fonts.iter().filter(|font| font.family.eq_ignore_ascii_case(family)
+        || font.aliases.iter().any(|alias| alias.eq_ignore_ascii_case(family)))
+        .min_by_key(|font| !matches!(font.style.to_ascii_lowercase().as_str(), "regular" | "normal" | "常规" | "標準體" | "标准体"))?;
+    let data = fs::read(&font.path).ok()?;
+    metrics_from_face(&data, font.face_index)
+}
+
+/// 功能：读取 hhea 与 OS/2 原始值；版本零 OS/2 没有代码页字段时明确返回空；时间：2026-11-11；作者：lq。
+fn metrics_from_face(data: &[u8], index: u32) -> Option<FaceVerticalMetrics> {
+    let face = ttf_parser::Face::parse(data, index).ok()?;
+    let tables = face.tables();
+    let os2 = tables.os2;
+    let raw = face.raw_face().table(ttf_parser::Tag::from_bytes(b"OS/2"));
+    Some(FaceVerticalMetrics {
+        units_per_em: face.units_per_em(),
+        hhea_ascender: tables.hhea.ascender, hhea_descender: tables.hhea.descender, hhea_line_gap: tables.hhea.line_gap,
+        typo_ascender: os2.map(|table| table.typographic_ascender()),
+        typo_descender: os2.map(|table| table.typographic_descender()),
+        typo_line_gap: os2.map(|table| table.typographic_line_gap()),
+        win_ascent: os2.map(|table| table.windows_ascender()), win_descent: os2.map(|table| table.windows_descender()),
+        use_typo_metrics: os2.is_some_and(|table| table.use_typographic_metrics()),
+        x_avg_char_width: raw.and_then(|bytes| bytes.get(2..4)).map(|bytes| i16::from_be_bytes([bytes[0], bytes[1]])),
+        code_page_range1: raw.filter(|bytes| bytes.get(0..2) != Some(&[0, 0])).and_then(|bytes| bytes.get(78..82))
+            .map(|bytes| u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -326,5 +378,20 @@ mod tests {
     #[test]
     fn directories_are_platform_specific() {
         assert!(!font_directories().is_empty());
+    }
+
+    /// 功能：实读本机字体，核对别名/TTC 索引与原始 hhea 字面，未知族不伪造度量；时间：2026-11-11；作者：lq。
+    #[test]
+    fn word_metrics_match_real_face_and_aliases() {
+        let font = cached_fonts().into_iter().find(|font| !font.aliases.is_empty()).unwrap();
+        let data = fs::read(&font.path).unwrap();
+        let face = ttf_parser::Face::parse(&data, font.face_index).unwrap();
+        let metrics = font_metrics(&font.family).unwrap();
+        let alias = font_metrics(&font.aliases[0]).unwrap();
+        assert!(metrics.units_per_em > 0);
+        assert_eq!(metrics.hhea_ascender, alias.hhea_ascender);
+        // 查询会优先常规字面；逐字面解析还必须精确匹配源集合索引。
+        assert_eq!(metrics_from_face(&data, font.face_index).unwrap().hhea_ascender, face.tables().hhea.ascender);
+        assert!(font_metrics("MiniOffice-uninstalled-font-20261111").is_none());
     }
 }

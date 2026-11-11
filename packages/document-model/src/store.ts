@@ -96,6 +96,8 @@ export interface OpenBytesInput {
   sourceName?: string;
   /** 功能：携带旧格式转换器报告的兼容警告；时间：2026-11-03；作者：lq。 */
   conversionWarnings?: string[];
+  /** 功能：已是 OOXML 的 .doc 只规范保存后缀，不显示旧格式转换/损失提示；时间：2026-11-11；作者：lq。 */
+  conversionPerformed?: boolean;
 }
 
 export type NotificationLevel = 'info' | 'success' | 'warning' | 'error';
@@ -476,6 +478,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           handle: opened.handle,
           sourceName: opened.sourceName,
           conversionWarnings: opened.conversionWarnings,
+          conversionPerformed: opened.conversionPerformed,
         });
       } catch (error) {
         get().notify(
@@ -578,10 +581,10 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
               ...result.capability,
               warnings: [
                 {
-                  code: 'legacy.compat',
+                  code: input.conversionPerformed === false ? 'file.extension' : 'legacy.compat',
                   severity: 'info' as const,
-                  message: `${legacySource} 以兼容模式打开`,
-                  detail: '旧版格式经兼容通道转换，复杂版式可能与原文件不同；保存时会另存为 OOXML，不会覆盖原文件。',
+                  message: input.conversionPerformed === false ? `${legacySource} 按实际 Word 格式打开` : `${legacySource} 以兼容模式打开`,
+                  detail: input.conversionPerformed === false ? '文件内容已是 DOCX，无需转换；保存副本使用 .docx 扩展名。' : '二进制 DOC 经兼容通道转换，复杂版式可能与原文件不同；保存时另存为 DOCX。',
                 },
                 ...(input.conversionWarnings ?? []).map((detail) => ({ code: 'legacy.loss', severity: 'warning' as const, message: '旧格式转换存在兼容限制', detail })),
                 ...result.capability.warnings,
@@ -631,7 +634,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           bytes: input.bytes,
         });
         // 功能：一次性告知兼容模式与保存去向，避免用户以为原 .doc 会被直接改写；时间：2026-11-02；作者：lq。
-        if (legacySource) {
+        if (legacySource && input.conversionPerformed !== false) {
           get().notify(
             'info',
             '以兼容模式打开',
@@ -686,7 +689,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           get().notify('error', '无法打开文件', '当前平台不支持通过路径打开文件。');
           return null;
         }
-        return get().openBytes({ name: opened.name, bytes: opened.bytes, path: opened.path, sourceName: opened.sourceName, conversionWarnings: opened.conversionWarnings });
+        return get().openBytes({ name: opened.name, bytes: opened.bytes, path: opened.path, sourceName: opened.sourceName, conversionWarnings: opened.conversionWarnings, conversionPerformed: opened.conversionPerformed });
       } catch (error) {
         get().notify('error', '打开文件失败', error instanceof Error ? error.message : String(error));
         return null;
@@ -702,7 +705,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
               name: file.name,
               bytes: new Uint8Array(await file.arrayBuffer()),
             };
-        return get().openBytes({ name: opened.name, bytes: opened.bytes, path: opened.path, sourceName: opened.sourceName, conversionWarnings: opened.conversionWarnings });
+        return get().openBytes({ name: opened.name, bytes: opened.bytes, path: opened.path, sourceName: opened.sourceName, conversionWarnings: opened.conversionWarnings, conversionPerformed: opened.conversionPerformed });
       } catch (error) {
         get().notify('error', '打开文件失败', error instanceof Error ? error.message : String(error));
         return null;
@@ -795,10 +798,15 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
     },
 
     async closeTab(id, force = false) {
-      const session = get().sessions[id];
+      let session = get().sessions[id];
       if (!session) return true;
       if (session.dirty && !force) return false;
       if (saveInFlight.has(id)) return false;
+      // 功能：等待已发起快照落盘再释放/删除；等待期间的新输入或保存必须重新检查；时间：2026-11-11；作者：lq。
+      await snapshotTasks.get(id);
+      session = get().sessions[id];
+      if (!session) return true;
+      if ((session.dirty && !force) || saveInFlight.has(id)) return false;
       const timer = snapshotTimers.get(id);
       if (timer) clearTimeout(timer);
       snapshotTimers.delete(id);
@@ -939,9 +947,11 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           },
           mimeForName(session.kind, suggestedName),
         );
-        const nextHandle = outcome.handle ?? handle;
+        // 功能：另存为下载/新路径时丢弃旧句柄，防止下一次保存覆盖原文件；时间：2026-11-11；作者：lq。
+        const nextHandle = outcome.handle ?? (outcome.location === 'in-place' ? handle : undefined);
         if (prepared) session.wordCore!.acknowledgeSave(prepared);
         if (nextHandle) fileHandles.set(id, nextHandle);
+        else fileHandles.delete(id);
         sourceBuffers.set(id, bytes.slice());
         const displayName = outcome.displayName || suggestedName;
         // 功能：保存期间继续编辑时保留脏标记，防止关闭窗口丢失新内容；时间：2026-10-18；作者：lq。

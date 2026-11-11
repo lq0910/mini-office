@@ -1,0 +1,38 @@
+/* 功能：页间留白使用产品画布色，纸张去掉外沿及接缝阴影；保留真实文档边框和分页尺寸；时间：2026-11-11；作者：lq。 */
+.mo-word-core .editor-scroll {
+  --canvas: var(--mo-word-canvas, var(--mo-bg, #f6f8fc));
+  --docs-page-shadow: none;
+  --docs-gap-inset: none;
+}
+
+/* 功能：毛玻璃界面的正文区域使用同色不透明画布，与白纸之上的页缝保持一致；时间：2026-11-11；作者：lq。 */
+.mo-word-canvas { background-color: var(--mo-word-canvas, var(--mo-bg)) !important; }
+/* 功能：段首缩进、居中与单元格定位不会再把灰带向内推，背景按真实纸边绘制；时间：2026-11-11；作者：lq。 */
+.mo-word-core .page-gap:not(.page-gap-table)::before { left: var(--mo-gap-left, 0px); width: var(--mo-gap-width, auto); }
+
+/* 功能：混合宽度纸张的独立纸面在正文后方绘制，同时留在当前纸张容器内；时间：2026-11-11；作者：lq。 */
+.mo-word-core .page-wrap.paper-mixed {
+  isolation: isolate;
+}
+
+/* 功能：合并单元格边框在 WebKit 的折叠表格绘制中可能盖住页缝，独立提升填充层使整条页缝保持画布色；时间：2026-11-11；作者：lq。 */
+.mo-word-core .page-gap-table-fill {
+  z-index: 1;
+}
+
+/* 功能：跨列续行只增加一次共享页缝高度；自然流测量隐藏伴随占位，禁止表格逐轮膨胀；时间：2026-11-11；作者：lq。 */
+.mo-word-core .mo-word-cell-gap { display: inline-block; width: 100%; vertical-align: top; pointer-events: none; text-indent: 0; }
+.mo-word-core .measuring-natural .mo-word-cell-gap { display: none !important; }
+
+/* 功能：跨页合并格短文字的页面对齐只影响绘制；自然流/下一轮几何读取不带旧平移；时间：2026-11-11；作者：lq。 */
+.mo-word-core .mo-word-merged-cell-text { position: relative; top: var(--mo-cell-page-shift, 0px); }
+.mo-word-core :is(.measuring-natural, .mo-measuring-cell-alignment) .mo-word-merged-cell-text { top: 0 !important; }
+
+/* 功能：重复表头保持原表行高和列坐标，绘制格不参与正文表格的 HTML 列网格；时间：2026-11-11；作者：lq。 */
+.mo-word-core .doc-table tr.mo-word-repeat-header { position: relative; }
+.mo-word-core .doc-table tr.mo-word-repeat-header > :is(td, th) { position: absolute; top: 0; box-sizing: border-box; background: var(--page-bg, var(--docs-paper)); }
+/* 功能：恢复源 rowspan 时装饰行必须退出列网格；visibility:collapse 仍占合并行槽，会改变自然流列宽；时间：2026-11-11；作者：lq。 */
+.mo-word-core .editor-scroll .doc-page.measuring-natural tr.page-gap-inline:is(.page-gap-table, .mo-word-repeat-header) { display: none !important; visibility: hidden; }
+/* 功能：目录条目显示可点击的指针及悬停提示；时间：2026-11-11；作者：lq。 */
+.mo-word-core .doc-toc-line { cursor: pointer; }
+.mo-word-core .doc-toc-line:hover .doc-toc-title { text-decoration: underline; }

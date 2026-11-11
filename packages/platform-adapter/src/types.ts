@@ -12,6 +12,8 @@ export interface OpenedFile {
   sourceName?: string;
   /** 功能：旧格式转换检测到的兼容缺口，打开时向用户展示；时间：2026-11-03；作者：lq。 */
   conversionWarnings?: string[];
+  /** 功能：false 表示仅识别到扩展名不符的 OOXML，未执行旧格式转换；时间：2026-11-11；作者：lq。 */
+  conversionPerformed?: boolean;
 }
 
 /** 功能：旧版 DOC/XLS/PPT 的内存转换结果，源目录不产生任何文件；时间：2026-11-02；作者：lq。 */
@@ -21,6 +23,8 @@ export interface ConvertedLegacy {
   sourceName: string;
   /** 功能：记录转换器报告的非致命格式损失；时间：2026-11-03；作者：lq。 */
   conversionWarnings?: string[];
+  /** 功能：区分真实转换和原字节打开，避免把容器识别误报为损失；时间：2026-11-11；作者：lq。 */
+  conversionPerformed?: boolean;
 }
 
 export interface SaveTarget {

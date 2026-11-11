@@ -1,9 +1,9 @@
 /** 功能：复用既有样式库和命名对话框，所有文档修改直接提交核心事务；时间：2026-11-10；作者：lq。 */
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { DocStyleDefinition } from '@mini-office/document-model';
 import { Button, Dialog, Field, Input } from '@mini-office/ui';
 import type { WordCoreSession } from '../../word-core/src/index';
-import { applyWordStyle, captureWordFormat, defineWordStyle, deleteWordStyle, importWordStyles, renameWordStyle, wordStyleFormat, wordStyles, type Editor, type WordFormatSnapshot } from '../../word-core/src/editing/index';
+import { applyWordStyle, captureWordFormat, defineWordStyle, deleteWordStyle, importWordStyles, renameWordStyle, wordStyleFormat, type Editor, type WordFormatSnapshot } from '../../word-core/src/editing/index';
 import { coreToolbarFormatting } from './core-formatting';
 import { NewStyleDialog } from './NewStyleDialog';
 import { wordStyleCatalogOf } from '../../word-core/src/editing/styles';
@@ -59,13 +59,21 @@ function previewStyle(id: string, name: string, f: WordFormatSnapshot, headingLe
 /** 功能：现有样式库的状态与对话框，只持有 UI 状态，文档定义保存在核心中；时间：2026-11-10；作者：lq。 */
 export function useWordCoreStyles(core: WordCoreSession, readonly: boolean, run: (command: (editor: Editor) => unknown) => void, capture: () => void, onError: (error: string) => void) {
   const [open, setOpen] = useState(false), [more, setMore] = useState(false), [createOpen, setCreateOpen] = useState(false);
+  // 功能：经典菜单与命令面板进入同一新核心样式库，保留当前区域选区；时间：2026-11-11；作者：lq。
+  useEffect(() => {
+    const show = () => { capture(); setOpen(true); };
+    window.addEventListener('mo:styles', show);
+    return () => window.removeEventListener('mo:styles', show);
+  }, [capture]);
   const [sets, setSets] = useState(readStyleSets), [saveSetOpen, setSaveSetOpen] = useState(false);
   const [renaming, setRenaming] = useState<string>(), [name, setName] = useState('');
-  const source = core.formattingSource();
-  const styles = wordStyles(core.editor.state.doc, core.parsed);
+  // 功能：样式目录未改时复用格式预览，滚动和选区变化不逐个重建整套样式卡片；时间：2026-11-11；作者：lq。
+  const catalog = wordStyleCatalogOf(core.editor.state.doc);
+  const source = useMemo(() => core.formattingSource(), [core, catalog]);
+  const styles = source.styles;
   const builtins = BUILTIN_STYLES;
   const builtinIds = new Set(builtins.map(item => item.id));
-  const previews = [...styles.values()].filter(item => item.type === 'paragraph' && !(item.styleId.startsWith('MoRetained_') && item.semiHidden)).map(style => previewStyle(style.styleId, style.name, wordStyleFormat(style, source), style.headingLevel));
+  const previews = useMemo(() => [...styles.values()].filter(item => item.type === 'paragraph' && !(item.styleId.startsWith('MoRetained_') && item.semiHidden)).map(style => previewStyle(style.styleId, style.name, wordStyleFormat(style, source), style.headingLevel)), [source, styles]);
   const presets = builtins.map(item => {
     const existing = previews.find(style => style.id === item.id);
     return existing ? { ...existing, name: styles.get(item.id)!.name.toLowerCase() === (item.builtinName ?? '').toLowerCase() ? item.name : existing.name } : item;

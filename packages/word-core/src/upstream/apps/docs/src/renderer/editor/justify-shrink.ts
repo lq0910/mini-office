@@ -251,6 +251,9 @@ export function sameLine(
 }
 
 class JustifyShrinkView {
+  private workRaf = 0
+  private destroyed = false
+  private work: { doc: ProseMirrorNode; paras: Array<{ node: ProseMirrorNode; pos: number }>; shrinks: MeasuredShrink[]; next: number; measurable: boolean; topLevel: Map<ProseMirrorNode, HTMLElement> } | null = null
   private lastSig = ''
   private seenSigs = new Set<string>()
   private frozen = false
@@ -264,23 +267,23 @@ class JustifyShrinkView {
   )
   private onFontsLoaded = () => {
     this.invalidate()
-    this.measure()
+    this.queueMeasure()
   }
   // style-level w:jc arrives with the doc stylesheet after setContent measured
   private onDocCss = () => {
     this.invalidate()
-    this.measure()
+    this.queueMeasure()
   }
   private onPhasedSettled = () => {
     this.invalidate()
-    this.measure()
+    this.queueMeasure()
   }
 
   constructor(
     private view: EditorView,
     private storage: JustifyShrinkStorage,
   ) {
-    this.measure()
+    this.queueMeasure()
     document.fonts?.addEventListener('loadingdone', this.onFontsLoaded)
     document.addEventListener(DOC_CSS_COMMITTED_EVENT, this.onDocCss)
     document.addEventListener(WRAP_WIDTHS_COMMITTED_EVENT, this.onDocCss)
@@ -291,7 +294,7 @@ class JustifyShrinkView {
         if (w === this.lastDomWidth) return
         this.lastDomWidth = w
         this.invalidate()
-        this.measure()
+        this.queueMeasure()
       })
       this.resizeObserver.observe(view.dom)
     }
@@ -304,6 +307,7 @@ class JustifyShrinkView {
   }
 
   private restartConvergence() {
+    this.work = null
     this.seenSigs.clear()
     this.frozen = false
     // decorations may have been dropped with the old doc (setContent/reload):
@@ -320,10 +324,13 @@ class JustifyShrinkView {
     ) {
       return
     }
-    this.measure()
+    this.queueMeasure()
   }
 
   destroy() {
+    this.destroyed = true
+    this.work = null
+    if (this.workRaf) cancelAnimationFrame(this.workRaf)
     document.fonts?.removeEventListener('loadingdone', this.onFontsLoaded)
     document.removeEventListener(DOC_CSS_COMMITTED_EVENT, this.onDocCss)
     document.removeEventListener(WRAP_WIDTHS_COMMITTED_EVENT, this.onDocCss)
@@ -337,8 +344,14 @@ class JustifyShrinkView {
     this.retries++
     this.retryRaf = requestAnimationFrame(() => {
       this.retryRaf = 0
-      this.measure()
+      this.queueMeasure()
     })
+  }
+
+  /** 功能：同一帧的字体、样式和文档变更仅触发一次测量；时间：2026-11-11；作者：lq。 */
+  private queueMeasure() {
+    if (this.destroyed || this.workRaf) return
+    this.workRaf = requestAnimationFrame(() => { this.workRaf = 0; if (!this.destroyed) this.measure() })
   }
 
   private measure() {
@@ -369,29 +382,32 @@ class JustifyShrinkView {
       return
     }
 
-    const paras: Array<{ node: ProseMirrorNode; pos: number }> = []
-    view.state.doc.descendants((node, pos) => {
-      if (!node.isTextblock) return true
-      if (isShrinkCandidate(node)) paras.push({ node, pos })
-      return false
-    })
-
-    const shrinks: MeasuredShrink[] = []
-    let measurable = paras.length === 0
-    this.results.beginPass(view)
-    const topLevel = SettledParagraphCache.topLevelDom(view)
-    for (const para of paras) {
-      const measured = this.results.measure(
-        view,
-        para.node,
-        para.pos,
-        (el) => this.measureParagraph(para.node, para.pos, el),
-        topLevel.get(para.node),
-      )
-      if (!measured) continue
-      measurable = true
-      shrinks.push(...measured)
-    }
+    // 功能：一轮中共享自然流几何；所有文档超过 8ms 让出帧，缓存已测段落且不提交不完整结果；时间：2026-11-11；作者：lq。
+    let shrinks: MeasuredShrink[] = []
+    let measurable = false
+    const natural = view.dom.classList.contains('measuring-natural')
+    view.dom.classList.add('measuring-natural')
+    try {
+      let work = this.work
+      if (!work || work.doc !== view.state.doc) {
+        const paras: Array<{ node: ProseMirrorNode; pos: number }> = []
+        view.state.doc.descendants((node, pos) => {
+          if (!node.isTextblock) return true
+          if (isShrinkCandidate(node)) paras.push({ node, pos })
+          return false
+        })
+        this.results.beginPass(view)
+        work = this.work = { doc: view.state.doc, paras, shrinks: [], next: 0, measurable: paras.length === 0, topLevel: SettledParagraphCache.topLevelDom(view) }
+      }
+      const started = performance.now()
+      while (work.next < work.paras.length) {
+        const para = work.paras[work.next++]
+        const measured = this.results.measure(view, para.node, para.pos, el => this.measureParagraph(para.node, para.pos, el), work.topLevel.get(para.node))
+        if (measured) { work.measurable = true; work.shrinks.push(...measured) }
+        if (work.next < work.paras.length && performance.now() - started >= 8) { this.queueMeasure(); return }
+      }
+      shrinks = work.shrinks; measurable = work.measurable; this.work = null
+    } finally { if (!natural) view.dom.classList.remove('measuring-natural') }
     if (!measurable) {
       this.scheduleRetry()
       return

@@ -15,6 +15,8 @@ export function WordCoreRuler({ core, zoom, readonly }: { core: WordCoreSession;
   // 功能：采用纸张真实原点，兼容内层滚动槽、缩放和窄窗口横向滚动；时间：2026-11-11；作者：lq。
   useLayoutEffect(() => {
     const align = () => {
+      // 功能：关闭会话后尺寸观察回调可能仍在队列，禁止访问失效 view；时间：2026-11-11；作者：lq。
+      if (core.editor.isDestroyed) return;
       const paper = core.editor.view.dom.closest<HTMLElement>('.page-wrap');
       if (!paper || !anchor.current || paper.getBoundingClientRect().width <= 0) return;
       const next = paper.getBoundingClientRect().left-anchor.current.getBoundingClientRect().left;

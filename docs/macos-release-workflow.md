@@ -4,6 +4,10 @@
 
 工作流文件：`.github/workflows/macos-release.yml`。
 
+<!-- 功能：本机打包绕过 Finder 自动化超时，产物校验可复现；时间：2026-11-11；作者：lq。 -->
+
+本机打包可运行 `bash scripts/package-macos-local.sh`：生成当前机器架构的签名 `.app`、标准压缩 DMG、ZIP 与 SHA256 清单，写入 `output/releases/<版本>/`。镜像包含 Applications 链接，不依赖 Finder AppleScript；0.1.10 已按此方式完成 arm64 包。使用 `MINI_OFFICE_SKIP_NATIVE_BUILD=1` 可包装已完成的本机 `.app`，脚本会核对签名，版本读取应用自身 Info.plist。
+
 1. 更新项目版本号并将源码推送到 `main`。
 2. 打开 GitHub → Actions → **macOS Release** 或 **Windows Release** → **Run workflow**，选择 `main`，标签输入框留空即可。
 3. 工作流从所选源码的 `tauri.conf.json` 读取版本号，自动创建缺失的 `v<版本号>` 标签和 GitHub Release 草稿。无需手动创建标签或 Release；两平台的准备阶段串行执行，避免重复创建草稿，之后并行编译。

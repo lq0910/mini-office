@@ -1,3 +1,4 @@
+// 功能：菜单命令使用新核心已有事件入口和能力，默认切换后不再错误禁用；时间：2026-11-11；作者：lq。
 /**
  * 经典菜单栏。
  *
@@ -100,7 +101,7 @@ export function MenuBar({ onHome }: { onHome: () => void }) {
           {
             id: 'export-pdf',
             label: '导出为 PDF',
-            disabled: !hasDocument || !!activeSession?.wordCore,
+            disabled: !hasDocument,
             onSelect: () => fire('mo:export-pdf'),
           },
           {
@@ -108,7 +109,7 @@ export function MenuBar({ onHome }: { onHome: () => void }) {
             label: '打印',
             icon: <Printer size={13} />,
             shortcut: `${MOD_KEY}P`,
-            disabled: !hasDocument || !!activeSession?.wordCore,
+            disabled: !hasDocument,
             onSelect: () => fire('mo:print'),
           },
           { type: 'separator' },
@@ -129,7 +130,7 @@ export function MenuBar({ onHome }: { onHome: () => void }) {
             label: '查找与替换',
             icon: <Search size={13} />,
             shortcut: `${MOD_KEY}F`,
-            disabled: !hasDocument || !!activeSession?.wordCore,
+            disabled: !hasDocument,
             onSelect: () => fire('mo:find'),
           },
           {
@@ -137,7 +138,7 @@ export function MenuBar({ onHome }: { onHome: () => void }) {
             id: 'styles',
             label: '样式库…',
             icon: <Sparkles size={13} />,
-            disabled: !hasDocument || !!activeSession?.wordCore,
+            disabled: !hasDocument,
             onSelect: () => fire('mo:styles'),
           },
           { type: 'separator' },

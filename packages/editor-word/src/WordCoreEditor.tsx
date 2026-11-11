@@ -29,6 +29,8 @@ import { WordCoreMailMerge } from './WordCoreMailMerge';
 import { insertWordMergeField } from '../../word-core/src/editing/mail-merge';
 // 功能：打印和 PDF 使用当前原生排版快照；时间：2026-11-11；作者：lq。
 import { useWordCoreOutput } from './WordCoreOutput';
+// 功能：Ctrl+滚轮只缩放当前正文，沿用状态栏范围和未保存状态；时间：2026-11-11；作者：lq。
+import { useWordCoreWheelZoom } from './core-wheel-zoom';
 
 /** 功能：正文、保存和撤销共享工作区核心，组件卸载不销毁标签会话；时间：2026-11-09；作者：lq。 */
 export function WordCoreEditor({ session }: { session: DocumentSession }) {
@@ -43,6 +45,8 @@ export function WordCoreEditor({ session }: { session: DocumentSession }) {
   const [mailOpen, setMailOpen] = useState(false);
   const [painter, setPainter] = useState<{ format: WordFormatSnapshot; sticky: boolean }>();
   const paintGesture = useRef(false);
+  // 功能：目录拖选不误触导航，只有指针停留在同一位置的单击才跳转；时间：2026-11-11；作者：lq。
+  const tocPointer = useRef<{ x: number; y: number }>();
   const paintFrame = useRef<number>();
   const painterRef = useRef(painter);
   painterRef.current = painter;
@@ -50,10 +54,15 @@ export function WordCoreEditor({ session }: { session: DocumentSession }) {
   const selection = useRef<{ editor: Editor; bookmark: SelectionBookmark }>();
   const scroll = useRef<HTMLDivElement>(null);
   const surface = useRef<WordCoreSurface>();
+  // 功能：一帧只读取一次当前页几何，快速拖动滚动条不逐事件强制布局；时间：2026-11-11；作者：lq。
+  const pageFrame = useRef<number>();
   const rulerOpen = useWorkspaceStore(state => state.settings.wordRuler === true);
   const zoom = session.view.zoom ?? 1;
+  useWordCoreWheelZoom(scroll, session.id);
   /** 功能：当前页按真实纸张和可见窗口计算，滚动/缩放只更新视图而不改文档历史；时间：2026-11-11；作者：lq。 */
   const updateCurrentPage = useCallback(() => {
+    // 功能：工作区先移除会话后 React 才清理订阅，关闭期间拒绝迟到测量；时间：2026-11-11；作者：lq。
+    if (core.editor.isDestroyed) return;
     const viewport = scroll.current, layout = surface.current?.layout.current();
     const paper = core.editor.view.dom.closest<HTMLElement>('.page-wrap');
     if (!viewport || !layout?.frames.length || !paper || !viewport.clientHeight) return;
@@ -64,19 +73,25 @@ export function WordCoreEditor({ session }: { session: DocumentSession }) {
     const store = useWorkspaceStore.getState();
     if (store.sessions[session.id]?.view.page !== page) store.updateView(session.id, { page });
   }, [core, session.id]);
+  const scheduleCurrentPage = useCallback(() => {
+    if (pageFrame.current != null) return;
+    pageFrame.current = requestAnimationFrame(() => { pageFrame.current = undefined; updateCurrentPage(); });
+  }, [updateCurrentPage]);
   // 功能：缩放和窗口尺寸改变后使用新几何同步当前页，卸载取消尚未执行的测量；时间：2026-11-11；作者：lq。
   useEffect(() => {
-    const frame = requestAnimationFrame(updateCurrentPage), observer = new ResizeObserver(updateCurrentPage);
+    scheduleCurrentPage(); const observer = new ResizeObserver(scheduleCurrentPage);
     if (scroll.current) observer.observe(scroll.current);
-    return () => { cancelAnimationFrame(frame); observer.disconnect(); };
-  }, [zoom, updateCurrentPage]);
+    return () => { if (pageFrame.current != null) cancelAnimationFrame(pageFrame.current); pageFrame.current = undefined; observer.disconnect(); };
+  }, [zoom, scheduleCurrentPage]);
   const save = (asNew = false) => { void useWorkspaceStore.getState().saveSession(session.id, { asNew }); };
   useEffect(() => core.subscribe(() => refresh(revision => revision + 1)), [core]);
   // 功能：异步剪贴板图片失败沿用编辑器错误入口，不能静默丢失截图或覆盖新正文；时间：2026-11-11；作者：lq。
   useEffect(() => {
     const report = (event: Event) => setError(String((event as CustomEvent).detail));
-    core.editor.view.dom.addEventListener('mo:word-paste-error', report);
-    return () => core.editor.view.dom.removeEventListener('mo:word-paste-error', report);
+    // 功能：清理持有的 DOM，不再访问已销毁编辑器的 view 代理；时间：2026-11-11；作者：lq。
+    const dom = core.editor.view.dom;
+    dom.addEventListener('mo:word-paste-error', report);
+    return () => dom.removeEventListener('mo:word-paste-error', report);
   }, [core]);
   // 功能：菜单、命令面板与 Mod+F 共用外壳事件，只在当前会话打开查找；时间：2026-11-10；作者：lq。
   useEffect(() => {
@@ -117,13 +132,14 @@ export function WordCoreEditor({ session }: { session: DocumentSession }) {
   useEffect(() => () => { if (paintFrame.current != null) cancelAnimationFrame(paintFrame.current); }, [core]);
   // 功能：工具栏操作当前区域能力，表格和目录等结构入口按区域 schema 限定；时间：2026-11-11；作者：lq。
   return <WordCoreMailMerge session={session} open={mailOpen} onClose={() => setMailOpen(false)} onInsertField={name => run(editor => insertWordMergeField(editor, name))}>{mail => <div className="flex h-full min-h-0 flex-col" data-word-engine="word-core" onMouseDownCapture={objects.onMouseDown} onContextMenuCapture={objects.onContextMenu}
+    onPointerDownCapture={event => { tocPointer.current = { x: event.clientX, y: event.clientY }; }}
     onClickCapture={event => {
-      // 功能：沿用 Word 的修饰键+单击目录导航，普通单击保留选择语义；时间：2026-11-11；作者：lq。
-      if (!event.metaKey && !event.ctrlKey) return;
+      // 功能：单击目录直接导航，修饰键单击继续兼容；拖选或组合输入期间不夺取正文选区；时间：2026-11-11；作者：lq。
+      if (core.editor.view.composing || (tocPointer.current && Math.hypot(event.clientX - tocPointer.current.x, event.clientY - tocPointer.current.y) > 4)) return;
       const line = (event.target as HTMLElement).closest<HTMLElement>('.doc-toc-line');
       if (!line || !core.editor.view.dom.contains(line)) return;
       event.preventDefault(); event.stopPropagation(); selection.current = undefined;
-      followWordToc(core.editor, core.formattingSource(), Array.from(core.editor.view.dom.querySelectorAll('.doc-toc-line')).indexOf(line));
+      if (!followWordToc(core.editor, core.formattingSource(), Array.from(core.editor.view.dom.querySelectorAll('.doc-toc-line')).indexOf(line))) setError('此目录条目未找到对应标题或书签，请更新目录后重试。');
     }}
     onKeyDownCapture={event => {
       // 功能：沿用字符/对齐/段落快捷键，仅在编辑区执行且优先保护中文组合输入；时间：2026-11-10；作者：lq。
@@ -184,7 +200,7 @@ export function WordCoreEditor({ session }: { session: DocumentSession }) {
     {findOpen ? <WordCoreFindBar core={core} readonly={session.readonly} onClose={() => { selection.current = undefined; setFindOpen(false); }} /> : null}
     {mail.previewOn ? mail.canvas : null}
     <div ref={scroll} className="mo-scroll h-full overflow-auto bg-[var(--mo-bg)] p-6" style={{ ...(painter ? { cursor: 'crosshair' } : {}), ...(mail.previewOn ? { display: 'none' } : {}) }}
-      onScroll={updateCurrentPage}
+      onScroll={scheduleCurrentPage}
       onPointerDownCapture={event => { paintGesture.current = !!painter && !!(event.target as HTMLElement).closest('.ProseMirror'); }}
       onPointerUp={event => {
         if (!paintGesture.current || !painter || event.button !== 0) return;

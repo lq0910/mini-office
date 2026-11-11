@@ -51,6 +51,64 @@ beforeEach(() => {
 afterEach(() => { for (const core of sessions.splice(0)) core.dispose(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('M3 页面设置和页眉页脚', () => {
+  /** 功能：两个 DrawingML 框及其 VML 兼容分支逐个对应，编辑第一个不覆盖相邻框；时间：2026-11-11；作者：lq。 */
+  it('DrawingML 页码框保存时只同步对应的 VML 分支，撤销恢复原部件', async () => {
+    const source = await open(), zip = await JSZip.loadAsync((await source.prepareSave()).bytes);
+    const content = (text: string) => `<w:txbxContent><w:p><w:pPr><w:suppressOverlap/></w:pPr><w:r><w:rPr><w:sz w:val="18"/></w:rPr><w:t>${text}</w:t></w:r></w:p></w:txbxContent>`;
+    const drawing = (id: number, text: string) => `<w:drawing><wp:anchor><wp:positionH relativeFrom="margin"><wp:align>center</wp:align></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="1905000" cy="190500"/><wp:docPr id="${id}" name="框${id}"/><wp:wrapNone/><a:graphic><a:graphicData><wps:wsp><wps:txbx>${content(text)}</wps:txbx><wps:bodyPr lIns="0" rIns="0" tIns="0" bIns="0"/></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing>`;
+    const fallback = (id: number, text: string) => `<w:pict><v:shape id="fallback-${id}" style="position:absolute;width:150pt;height:15pt;margin-left:100pt"><v:textbox>${content(text)}</v:textbox></v:shape></w:pict>`;
+    const original = `<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><w:p><w:r><mc:AlternateContent><mc:Choice Requires="wps">${drawing(11, '第一个')}${drawing(12, '邻框保留')}</mc:Choice><mc:Fallback>${fallback(11, '第一个')}${fallback(12, '邻框保留')}</mc:Fallback></mc:AlternateContent></w:r></w:p></w:ftr>`;
+    zip.file('word/footer1.xml', original);
+    const core = await WordCoreSession.open(await zip.generateAsync({ type: 'uint8array' })); sessions.push(core);
+    const boxes = resolveHf(core.headerFooterState(), 0, 'footer', 'default').value!.paras!.filter(p => p.box);
+    expect(boxes.map(p => p.box!.miniOfficeShapeId)).toEqual(['drawing:11', 'drawing:12']);
+    const region = new WordHeaderFooterEditor(core, document.createElement('div'), { section: 0, kind: 'footer', variant: 'default', boxId: boxes[0].box!.id });
+    try {
+      region.editor.commands.setTextSelection(1); region.editor.commands.insertContent('编辑：');
+      const saved = await JSZip.loadAsync((await core.prepareSave()).bytes), xml = await saved.file('word/footer1.xml')!.async('string');
+      const contents = [...xml.matchAll(/<w:txbxContent>([\s\S]*?)<\/w:txbxContent>/g)].map(match => match[1]);
+      expect(contents).toHaveLength(4);
+      expect(contents[0]).toContain('编辑：'); expect(contents[2]).toContain('编辑：');
+      expect(contents[1]).toBe(content('邻框保留').slice(15, -16)); expect(contents[3]).toBe(contents[1]);
+      expect(xml).toContain('<w:suppressOverlap/>'); expect(xml).toContain('cx="1905000"');
+      const next = resolveHf((await reopen(core)).headerFooterState(), 0, 'footer', 'default').value!;
+      expect(next.paras!.filter(p => p.box).map(p => p.runs.map(r => r.text).join(''))).toEqual(['编辑：第一个', '邻框保留']);
+      core.editor.commands.undo();
+      expect(await (await JSZip.loadAsync((await core.prepareSave()).bytes)).file('word/footer1.xml')!.async('string')).toBe(original);
+    } finally { region.dispose(); }
+  });
+  /** 功能：真实 VML 页码框可编辑且不生成重复普通页码，定位、字段样式和撤销保存均保持；时间：2026-11-11；作者：lq。 */
+  it('浮动页码框原位编辑、保存重开和撤销，普通页脚修改不复制框内 PAGE', async () => {
+    const source = await open(), zip = await JSZip.loadAsync((await source.prepareSave()).bytes);
+    const original = '<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:v="urn:schemas-microsoft-com:vml"><w:p><w:r><w:pict><v:shape id="footer-page" style="position:absolute;width:100pt;height:20pt;margin-left:200pt;margin-top:0pt"><v:textbox inset="0,0,0,0"><w:txbxContent><w:p><w:pPr><w:jc w:val="center"/><w:suppressOverlap/></w:pPr><w:fldSimple w:instr=" PAGE "><w:r><w:rPr><w:sz w:val="18"/></w:rPr><w:t>1</w:t></w:r></w:fldSimple></w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p></w:ftr>';
+    zip.file('word/footer1.xml', original);
+    const core = await WordCoreSession.open(await zip.generateAsync({ type: 'uint8array' })); sessions.push(core);
+    const resolved = resolveHf(core.headerFooterState(), 0, 'footer', 'default').value!;
+    const box = resolved.paras!.find(p => p.box)!.box!;
+    expect(box.miniOfficeShapeId).toBe('vml:footer-page');
+    const flow = new WordHeaderFooterEditor(core, document.createElement('div'), { section: 0, kind: 'footer', variant: 'default' });
+    flow.editor.commands.insertContent('普通页脚'); flow.dispose();
+    let saved = await JSZip.loadAsync((await core.prepareSave()).bytes), xml = await saved.file('word/footer1.xml')!.async('string');
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    expect(doc.documentElement.children.length).toBe(2);
+    expect(xml.match(/PAGE/g)).toHaveLength(1);
+    expect(xml).toContain('普通页脚');
+    const region = new WordHeaderFooterEditor(core, document.createElement('div'), { section: 0, kind: 'footer', variant: 'default', boxId: box.id });
+    try {
+      expect(region.editor.state.doc.firstChild!.firstChild!.type.name).toBe('hfField');
+      region.editor.commands.setTextSelection(1); region.editor.commands.insertContent('第 ');
+      region.editor.commands.focus('end'); region.editor.commands.insertContent(' 页');
+      saved = await JSZip.loadAsync((await core.prepareSave()).bytes); xml = await saved.file('word/footer1.xml')!.async('string');
+      expect(xml).toContain('margin-left:200pt'); expect(xml).toContain('<w:suppressOverlap/>');
+      expect(xml).toContain(' PAGE '); expect(xml).toContain('w:sz w:val="18"');
+      const reopened = await reopen(core), next = resolveHf(reopened.headerFooterState(), 0, 'footer', 'default').value!;
+      expect(next.paras!.filter(p => p.box).flatMap(p => p.runs).map(r => r.text).join('')).toBe('第 \uE001 页');
+      expect(next.paras!.filter(p => !p.box).flatMap(p => p.runs).map(r => r.text).join('')).toBe('普通页脚');
+      core.editor.commands.undo(); core.editor.commands.undo();
+      const undone = await reopen(core);
+      expect(resolveHf(undone.headerFooterState(), 0, 'footer', 'default').value!.paras!.find(p => p.box)!.runs.map(r => r.text).join('')).toBe('\uE001');
+    } finally { region.dispose(); }
+  });
   /** 功能：完整格内格式保存重开及纸面显示，保留未改属性、邻格和共享历史；时间：2026-11-11；作者：lq。 */
   it('页脚布局表格格内完整段落格式保存重开，未知属性和邻格保持', async () => {
     const source = await open(), zip = await JSZip.loadAsync((await source.prepareSave()).bytes);

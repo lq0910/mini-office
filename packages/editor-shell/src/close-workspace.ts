@@ -9,14 +9,16 @@ export async function confirmWorkspaceClose(
   ask: (session: DocumentSession) => Promise<CloseChoice>,
   save: (id: string) => Promise<boolean>,
 ): Promise<boolean> {
-  const discarded = new Map<string, DocumentSession['data']>();
+  // 功能：新核心正文原位变化，退出确认必须按修订号识别新编辑，不能比较固定标识对象；时间：2026-11-11；作者：lq。
+  const version = (session: DocumentSession) => session.wordCore?.state().revision ?? session.data;
+  const discarded = new Map<string, ReturnType<typeof version>>();
   for (;;) {
     const sessions = getSessions();
     // 保存/导出中的文档先保持打开，避免退出时中断磁盘写入；时间：2026-10-18；作者：lq。
     if (sessions.some((session) => ['SAVING', 'EXPORTING', 'LOADING', 'VALIDATING'].includes(session.state))) return false;
-    const session = sessions.find((item) => item.dirty && discarded.get(item.id) !== item.data);
+    const session = sessions.find((item) => item.dirty && discarded.get(item.id) !== version(item));
     if (!session) return true;
-    const data = session.data;
+    const data = version(session);
     const choice = await ask(session);
     if (choice === 'cancel') return false;
     if (choice === 'discard') discarded.set(session.id, data);

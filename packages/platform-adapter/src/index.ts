@@ -6,6 +6,8 @@ import type { PlatformAdapter } from './types';
 
 export * from './types';
 export * from './fonts';
+// 功能：公开 Word 平台端口，不让 UI 直接依赖 Tauri；时间：2026-11-11；作者：lq。
+export * from './word';
 export * from './snapshots';
 export { WebPlatformAdapter } from './web';
 export { TauriPlatformAdapter } from './tauri';
