@@ -60,8 +60,8 @@ function tableDomAt(view: EditorView, tableStart: number): HTMLTableElement | nu
   return dom as HTMLTableElement | null
 }
 
-function sectionContentWidth(view: EditorView, fallback: number): number {
-  const raw = getComputedStyle(view.dom).getPropertyValue('--section-content-w')
+function sectionContentWidth(view: EditorView, fallback: number, table: HTMLElement): number {
+  const raw = getComputedStyle(table).getPropertyValue('--section-content-w')
   const width = Number.parseFloat(raw)
   return Number.isFinite(width) && width > 0 ? width : fallback
 }
@@ -139,7 +139,7 @@ function startDrag(view: EditorView, event: MouseEvent): boolean {
   const tableStart = $cell.start(-1)
   const table = tableDomAt(view, tableStart)
   if (!table) return false
-  const maxWidth = sectionContentWidth(view, table.parentElement?.clientWidth || 624)
+  const maxWidth = sectionContentWidth(view, table.parentElement?.clientWidth || 624, table)
   const grid = tableGridAtCell(view.state, cellPos, maxWidth)
   if (!grid) return false
   const started = startPreview(table, grid.widths.length)

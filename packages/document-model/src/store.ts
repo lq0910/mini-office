@@ -88,6 +88,8 @@ export interface OpenBytesInput {
   path?: string;
   handle?: FileSystemFileHandle;
   restored?: { dirty: boolean };
+  /** 功能：原生邮件合并生成的 DOCX 直接成为待保存新文档，不冒充已落盘文件或恢复快照；时间：2026-11-11；作者：lq。 */
+  generated?: boolean;
   /**
    * 功能：旧版格式（DOC/XLS/PPT）转换后的原始文件名；存在时按只读兼容会话打开，保存默认另存为；时间：2026-11-02；作者：lq。
    */
@@ -586,7 +588,8 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
               ],
             }
           : result.capability;
-        const restoredDirty = input.restored?.dirty === true;
+        const restoredDirty = input.restored?.dirty === true || input.generated === true;
+        if (input.generated && !readonly) result.wordCore?.markUnsavedOrigin();
         const nextState: LifecycleState = readonly
           ? 'READ_ONLY'
           : restoredDirty
@@ -613,7 +616,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
             !!(input.handle || input.path),
           saveAsCopyRequired:
             !readonly && (!!legacySource || restoredDirty || result.capability.level === 2),
-          isNew: false,
+          isNew: input.generated === true,
           updatedAt: Date.now(),
         };
         sourceBuffers.set(id, input.bytes.slice());
@@ -952,6 +955,8 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
           displayName,
           path: outcome.path ?? (outcome.location === 'in-place' ? session.path : undefined),
           dirty: changedDuringSave,
+          // 功能：生成/新建文档在首次成功写盘后具有实际保存版本；时间：2026-11-11；作者：lq。
+          isNew: false,
           state: changedDuringSave ? 'DIRTY' : 'SAVED',
           lastSavedAt: Date.now(),
           saveError: undefined,

@@ -524,6 +524,149 @@
   border-bottom: 2px solid currentColor;
 }
 
+.mo-word-core .page-hf {
+  position: absolute;
+  transform: translateX(-50%);
+  /* Word: header/footer strip spans the text column; paragraphs default to
+     left-aligned black text at the body size (alignment comes from w:jc).
+     Word's Header/Footer styles are based on Normal, so runs without their own
+     w:sz take the document default size when it is smaller than the 10.5pt
+     static guess (docStyleCss emits the var shrink-only) */
+  width: var(--section-content-w, calc(var(--page-w, 816px) - 120px));
+  font-size: var(--hf-default-fs, 10.5pt);
+  color: var(--docs-paper-ink);
+  /* clip, not hidden: a line multiple below 1 shrinks the line box under the
+     glyphs (Word paints them whole over the strip edge), so the clip edge moves
+     out by the glyph overhang (--hf-ink-over, hf-dom) without touching layout */
+  overflow: clip;
+  overflow-clip-margin: var(--hf-ink-over, 0px);
+  /* tab stops past the right margin: the clip box widens into the margin by
+     --hf-tab-over (content box unchanged, so 100% still means the column) */
+  box-sizing: content-box;
+  padding-right: var(--hf-tab-over, 0px);
+  /* a layout table with a negative tblInd hangs into the start margin: the
+     clip box widens by --hf-ind-over on that side; the negative margin keeps
+     the content box where every left: override (preview, mixed widths) puts it */
+  padding-left: var(--hf-ind-over, 0px);
+  margin-left: calc(-1 * var(--hf-ind-over, 0px));
+  left: calc(50% + (var(--hf-tab-over, 0px) + var(--hf-ind-over, 0px)) / 2);
+  z-index: 1;
+  cursor: default;
+}
+
+.mo-word-core .page-hf-para {
+  white-space: pre-wrap;
+  min-height: 1.3em;
+}
+.mo-word-core .page-hf-obstacle {
+  pointer-events: none;
+}
+.mo-word-core .page-hf-frame:not(:last-child) {
+  height: 0;
+  min-height: 0;
+  overflow: visible;
+}
+.mo-word-core .page-hf-tabbed {
+  position: relative;
+  white-space: nowrap;
+}
+
+.mo-word-core .page-hf-tabseg {
+  position: absolute;
+  white-space: nowrap;
+}
+.mo-word-core .page-hf-tabbed-flow {
+  white-space: pre-wrap;
+}
+
+.mo-word-core .page-hf-tab-gap {
+  display: inline-block;
+}
+
+.mo-word-core .page-hf-tabseg-center {
+  transform: translateX(-50%);
+}
+
+.mo-word-core .page-hf-tabseg-right {
+  transform: translateX(-100%);
+}
+.mo-word-core .page-hf-row {
+  display: flex;
+  text-align: left;
+}
+.mo-word-core .page-hf-cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex-shrink: 1;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.mo-word-core .page-hf-cell-para {
+  white-space: pre-wrap;
+  min-height: 1.3em;
+}
+
+.mo-word-core .page-hf-cell-para.page-hf-tabbed {
+  position: relative;
+  white-space: nowrap;
+}
+
+.mo-word-core .page-hf-cell-para .page-hf-tabseg {
+  overflow: hidden;
+}
+.mo-word-core .page-hf-cell-img {
+  vertical-align: middle;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+}
+.mo-word-core .page-hf-run-img {
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+}
+
+.mo-word-core .page-hf-tab-strut {
+  display: inline-block;
+  width: 0;
+}
+
+.mo-word-core .page-hf-tabseg-img {
+  top: 0;
+}
+.mo-word-core .page-hf-images {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+  user-select: none;
+  pointer-events: none;
+}
+
+.mo-word-core .page-hf-images img {
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.mo-word-core .page-hf-editing {
+  outline: 2px solid var(--word-blue);
+  outline-offset: 2px;
+  border-radius: 2px;
+  background: var(--docs-paper);
+  color: var(--docs-paper-ink);
+  overflow: visible;
+  cursor: text;
+}
+.mo-word-core .page-hf-edit-surface {
+  outline: none;
+  min-height: 1.3em;
+}
+
+.mo-word-core .page-hf-editor {
+  outline: none;
+}
+
 .mo-word-core .page-hf-editor .doc-textbox-para {
   min-height: 1.3em;
 }
@@ -538,8 +681,55 @@
 .mo-word-core .hf-field.ProseMirror-selectednode {
   background: var(--selection-soft, var(--hover));
 }
+.mo-word-core .page-hf-tags {
+  position: absolute;
+  left: 0;
+  display: flex;
+  gap: 6px;
+  font-size: 9px;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mo-word-core .page-hf-header .page-hf-tags {
+  top: 100%;
+  margin-top: 3px;
+}
+
+.mo-word-core .page-hf-footer .page-hf-tags {
+  bottom: 100%;
+  margin-bottom: 3px;
+}
+
+.mo-word-core .page-hf-tag {
+  padding: 2px 6px;
+  border-radius: 2px 2px 0 0;
+  background: var(--word-blue);
+  color: var(--docs-on-accent);
+  white-space: nowrap;
+}
 .mo-word-core .page-wrap.hf-editing .ProseMirror > :not(.page-gap) {
   opacity: 0.55;
+}
+
+.mo-word-core .page-hf-header {
+  top: var(--header-dist, 48px);
+  border-bottom: 1px dashed transparent;
+  padding-bottom: 2px;
+}
+
+.mo-word-core .page-hf-footer {
+  bottom: var(--footer-dist, 48px);
+  border-top: 1px dashed transparent;
+  padding-top: 2px;
+}
+.mo-word-core .page-hf-header.page-hf-editing, .mo-word-core .page-hf-footer.page-hf-editing {
+  border-color: var(--docs-paper-hf-line);
+}
+
+.mo-word-core .page-hf:not(.page-hf-editing) > :not(.page-hf-tags) {
+  opacity: 0.5;
 }
 .mo-word-core .page-gap:not(.page-gap-inline)::after, .mo-word-core .page-wrap:not(.paper-mixed)::before, .mo-word-core .page-wrap:not(.paper-mixed)::after {
   content: '';
@@ -580,6 +770,9 @@
     var(--gap-ml, 96px) 100%,
     calc(100% - var(--gap-mr, 96px) + var(--cm-len)) 100%,
     calc(100% - var(--gap-mr, 96px)) 100%;
+}
+.mo-word-core .pv-page .page-hf:not(.page-hf-editing) > :not(.page-hf-tags) {
+  opacity: 1;
 }
 
 .mo-word-core .pv-clip .page-gap::after {
@@ -1008,6 +1201,40 @@
 .mo-word-core .page-gap-hf .page-hf-tags {
   display: none;
 }
+.mo-word-core .page-hf.page-hf-has-boxes {
+  overflow: visible;
+  z-index: auto;
+  left: calc(50% - var(--section-content-w, calc(var(--page-w, 816px) - 120px)) / 2);
+  transform: none;
+}
+
+.mo-word-core .page-hf-textbox {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.mo-word-core .page-hf-textbox .page-hf-para {
+  min-height: 0;
+}
+.mo-word-core .page-hf-anchor {
+  position: relative;
+}
+.mo-word-core .page-hf-textbox .page-hf-para {
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.mo-word-core .page-hf-textbox.page-hf-nowrap .page-hf-para {
+  white-space: pre;
+}
+.mo-word-core .page-hf-float-img {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  user-select: none;
+}
 
 .mo-word-core .view-print .doc-page {
   isolation: isolate;
@@ -1032,6 +1259,19 @@
 }
 .mo-word-core .pv-clip .doc-page .page-break-before:where(:not(.doc-li))::before, .mo-word-core .pv-clip .doc-page .doc-li.page-break-before::after {
   visibility: hidden;
+}
+
+.mo-word-core .pv-page .page-hf {
+  cursor: default;
+  /* anchor at the left margin, not left:50% + translateX(-50%): Chromium's
+     print fit-to-paper shrink measures the centered strip's untransformed box
+     (reaching 50% + content width past the paper edge) and uniformly scaled
+     down whole multi-page exports */
+  left: var(--pv-ml);
+  transform: none;
+}
+.mo-word-core .pv-page .page-hf-para {
+  min-height: 0;
 }
 
 .mo-word-core .doc-page h1, .mo-word-core .doc-page h2, .mo-word-core .doc-page h3, .mo-word-core .doc-page h4, .mo-word-core .doc-page h5, .mo-word-core .doc-page h6 {
@@ -2662,6 +2902,70 @@
   outline: 2px solid var(--word-blue);
 }
 
+.mo-word-core .img-resize-handle {
+  display: none;
+  position: absolute;
+  box-sizing: border-box;
+  width: 9px;
+  height: 9px;
+  background: var(--docs-paper);
+  border: 1px solid var(--word-blue);
+  border-radius: 1px;
+  z-index: 6;
+}
+
+.mo-word-core .img-resize-handle-nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.mo-word-core .img-resize-handle-n {
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.mo-word-core .img-resize-handle-ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.mo-word-core .img-resize-handle-e {
+  top: 50%;
+  right: -5px;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.mo-word-core .img-resize-handle-se {
+  right: -5px;
+  bottom: -5px;
+  cursor: nwse-resize;
+}
+
+.mo-word-core .img-resize-handle-s {
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.mo-word-core .img-resize-handle-sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.mo-word-core .img-resize-handle-w {
+  top: 50%;
+  left: -5px;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
 .mo-word-core .ProseMirror-focused
   .doc-protected[data-doc-protected='image'].ProseMirror-selectednode
   .img-resize-handle {
@@ -2944,6 +3248,13 @@
   .mo-word-core .page-gap, .mo-word-core .page-float-host {
     display: none !important;
   }
+  .mo-word-core .page-hf-header, .mo-word-core .page-hf-footer {
+    border-color: transparent !important;
+  }
+
+  .mo-word-core .page-hf > * {
+    opacity: 1 !important;
+  }
 
   .mo-word-core .page-gap::after, .mo-word-core .page-wrap::before, .mo-word-core .page-wrap::after {
     display: none !important;
@@ -2965,6 +3276,10 @@
   min-height: 0;
   box-shadow: none;
   padding: 24px 40px 80px;
+}
+
+.mo-word-core .view-web .page-hf {
+  display: none;
 }
 
 .mo-word-core .view-outline .doc-page > :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) {
@@ -3185,6 +3500,24 @@
   left: -100vw;
   width: 200vw;
   border-top: 2px dashed var(--docs-gap-cut);
+}
+.mo-word-core .page-wrap.has-markup-area > .page-hf {
+  left: calc((100% - var(--markup-w, 0px)) / 2);
+}
+.mo-word-core .page-wrap.has-markup-area > .page-hf.page-hf-has-boxes {
+  left: calc(
+    (100% - var(--markup-w, 0px) - var(--section-content-w, calc(var(--page-w, 816px) - 120px))) / 2
+  );
+}
+
+.mo-word-core .page-wrap.has-markup-area.markup-left > .page-hf {
+  left: calc((100% + var(--markup-w, 0px)) / 2);
+}
+
+.mo-word-core .page-wrap.has-markup-area.markup-left > .page-hf.page-hf-has-boxes {
+  left: calc(
+    (100% + var(--markup-w, 0px) - var(--section-content-w, calc(var(--page-w, 816px) - 120px))) / 2
+  );
 }
 .mo-word-core .doc-cell-boxes {
   position: relative;

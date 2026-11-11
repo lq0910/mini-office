@@ -2,7 +2,7 @@
 
 功能：固定 GenOffice Word 源码起点、来源与提取边界；时间：2026-11-08；作者：lq。
 
-当前状态为 **M0、M1 已完成；2026-11-09 M2 产品开发入口及同会话编辑保存已接通并验收**。本目录为我们持续维护的 GenOffice 衍生定制内核；Mini Office 保留 React 18 和自己的外壳/工具栏。默认产品切换仍按 M5 执行。实际交付与检查见 [M1 执行记录](../../docs/word-core-m1/README.md)及 [M2 执行记录](../../docs/word-core-m2/README.md)。
+当前状态为 **M0–M3 已完成对应阶段范围；2026-11-11 完成工具栏、区域编辑、邮件合并及打印/PDF 的开发入口验收**。本目录为我们持续维护的 GenOffice 衍生定制内核；Mini Office 保留 React 18 和自己的外壳/工具栏。默认产品切换仍按 M5 执行。实际交付与检查见 [M1 执行记录](../../docs/word-core-m1/README.md)及 [M2 执行记录](../../docs/word-core-m2/README.md)。
 
 功能：同步 M1 提取范围、定制与构建状态；时间：2026-11-08；作者：lq。
 
@@ -36,6 +36,8 @@ M1 已按实际闭包形成 [SOURCE-MANIFEST.json](SOURCE-MANIFEST.json)，共 3
 
 功能：M2 补充同源分页附属区域的提取记录；时间：2026-11-09；作者：lq。新增 `editor/note-dom.ts`、`hf-heights.ts`、`hf-phantom.ts`，当前映射共 329 项；保持同一固定提交、哈希核验及许可。产品宿主对上游 App 中显示协调逻辑的提取和改造见 `packages/editor-word/src/core-layout*.ts`，不引入上游 React App。
 
+功能：M3 在自有 `src/editing/formatting.ts` 增加格式摘要和局部字符/段落事务，现有工具栏直接消费；时间：2026-11-10；作者：lq。分页按钮复用同源 `editor/page-break.ts`，未修改 329 项上游衍生文件，也未引入上游 Ribbon；会话入口补充活动子编辑器命令目标和历史状态。证据见 [M3 记录](../../docs/word-core-m3/README.md)。
+
 ## 锁定版本与后续安装
 
 | 关键包 | 固定上游锁文件的解析结果 | M1 处理 |
@@ -51,6 +53,26 @@ M1 已按实际闭包形成 [SOURCE-MANIFEST.json](SOURCE-MANIFEST.json)，共 3
 M0 阶段没有安装依赖。M1 已将 Tiptap 三个配套包、JSZip、fast-xml-parser、utif2 的精确版本写入本包及项目 `pnpm-lock.yaml`，没有引入 React 19。实际版本由 `scripts/verify-word-core-source.mjs` 核验，上游完整锁文件继续作为原始参考。
 
 ## 来源与本地修改记录
+
+功能：M3 第二批的 `editing/search.ts`、`editing/lists.ts` 及会话编号资源管理为本地新增；复用固定上游查找扫描和装饰协议，不修改提取文件。列表资源与正文快照配对保存，相关验证见 `docs/word-core-m3/README.md`；时间：2026-11-10；作者：lq。
+
+功能：M3 第三批的 `editing/styles.ts`、`editing/format-painter.ts` 为本地新增；样式目录用原生文档属性事务共享历史及保存快照，复用上游样式补丁、OOXML 子元素排序和 CSS 生成，不修改提取文件；导入样式仅改名保留原定义 XML。固定行距/底纹等新增属性在本地保存后处理，验证和剩余边界见 M3 记录；时间：2026-11-10；作者：lq。
+
+功能：M3 第四批 `editing/page-layout.ts` 为本地新增，页面及页眉页脚草稿存入原生文档属性事务；保存计划按目标分节补写尺寸/边距/编号，保留未知 XML、装订线和固定负边距。复用固定上游 `hf-sections`、`hf-heights` 与动态域序列化，不修改来源文件；产品显示层同步真实纸张坐标并回填分页总数缓存。边界和证据见 M3 记录；时间：2026-11-10；作者：lq。
+
+功能：M3 第五批 `editing/ruler.ts`、`editing/toc.ts` 及产品标尺接线为本地新增，复用固定上游标题规则、TOC 域生成、字段缓存补写及分页切片；引导点度量复用已有外部重测信号。真实页码保存在匹配当前文档的布局缓存中，序列化只补入捕获快照；不改正文版本、撤销栈或原始解析包，不修改 329 项提取文件。标尺拖动结束才向同一历史提交。范围和限制见 M3 记录；时间：2026-11-11；作者：lq。
+
+功能：M3 第六/七批同源新增提取 `insert-picture.ts`、`new-table.ts`、`table-borders.ts`、`table-ops.ts`、`table-properties.ts`，该批共 334 项。所有来源修改由 `scripts/extract-word-core.mjs` 重放并更新清单：表格段落来源属性/未知 XML 及隐藏纵向续格身份；表格尺寸命令读取实际节净宽；生成器保留未知表格/行/格属性与段落来源。`editing/objects.ts`、`table-source.ts`、`section-width.ts`、`paste.ts`、`picture-files.ts`、`statistics.ts` 及 `serialization/table-paragraph.ts` 为本地模块。分节宽度通过节点装饰传递，避免 DOM 重解析破坏图片选区。粘贴载荷、异步解码和历史边界使用各编辑器独立状态，不使用上游全局暂存。实际验证及复杂导入边界见 M3 记录；时间：2026-11-11；作者：lq。
+
+功能：M3 最终新增同源 `editor/hf-editor.ts`，来源映射共 **335 项**；所有提取文件修改均由 `scripts/extract-word-core.mjs` 重放，`SOURCE-MANIFEST.json` 逐项记录哈希及修改原因；时间：2026-11-11；作者：lq。
+
+- 页眉页脚普通富文本/布局表格直接编辑、变体和继承关系；格内完整段落属性及边框/底纹显示，属性级合并保留未修改的段距零值、字符单位和未知 XML。
+- `convert.ts`、`extensions.ts` 及同源 schema 的区域列表/格式和当前焦点改造；`editing/region-history.ts` 让区域、样式目录和正文共享主历史，恢复投影时不提交过时内容。
+- 文本框保存快照重新登记新图片媒体，解析预载文本框媒体，新绘图局部声明命名空间；重复保存及重开验证真实图片字节与几何。
+- 高级字符效果、段落边框线型、列表/边框样式及样式集；安全删除导入定义时保留隐藏基底并迁移跨部件引用。
+- 本地新增 `serialization/mail-merge*.ts`、`merge-fields.ts` 和 XML/段落补写模块，字段与记录包均使用新核心；产品 `core-output.ts` 和 `WordCoreOutput.tsx` 复用同源页面，未引入上游邮件/打印 UI。
+
+最终类型/测试/Web/独立核心检查通过：756 项测试通过、3 项私人样本跳过，425 模块/61 项输出；M3 浏览器 131 项、M2 回归 24 项。范围及支持边界见 [M3 验收记录](../../docs/word-core-m3/README.md)，原生平台和默认交付继续按 M4/M5。
 
 - 原始来源的 LICENSE、NOTICE、字体说明及具体资源文件均有独立哈希。字体不能一律套用仓库根许可；renderer 的字体说明和 `packages/ui` 的共享字体一起保留为资源依据。
 - 当前已记录 renderer 与共享 UI 中的 50 个字体文件，尚未决定全部随产品打包；是否采用按 Word 内容渲染用途与实际依赖确定，界面字体不因上游存在就替换我们的 UI。

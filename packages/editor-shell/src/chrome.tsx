@@ -721,8 +721,8 @@ function documentStats(session: DocumentSession): string {
   if (session.kind === 'docx') {
     // 功能：新内核状态统计直接读取唯一正文，不把文档转换回旧模型；时间：2026-11-09；作者：lq。
     if (session.wordCore) {
-      const text = session.wordCore.editor.getText();
-      return `${text.replace(/\s/g, '').length} 字 · ${text.length} 字符`;
+      const stats = session.wordCore.statistics();
+      return `${stats.words} 字 · ${stats.characters} 字符`;
     }
     const data = session.data as { stats?: { words?: number; characters?: number } };
     return `${data.stats?.words ?? 0} 字 · ${data.stats?.characters ?? 0} 字符`;

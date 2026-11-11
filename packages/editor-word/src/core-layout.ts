@@ -1,8 +1,14 @@
 /** 功能：在产品正文宿主应用同源分页结果，不回读 DOM 或创建第二份正文模型；时间：2026-11-09；作者：lq。
  * 上游显示接线参考：GenOffice e1f50e90d246f3ecc6427d2a0af90f04f37810ec 的 apps/docs/src/renderer/App.tsx；来源与许可见 packages/word-core/UPSTREAM.md。
  */
+// 功能：目录页码按当前标题所在实际切片及分节编号格式显示；时间：2026-11-11；作者：lq。
+import { wordHeadings, wordTocSnapshot } from '../../word-core/src/editing/toc';
+import { pageOfY } from '../../word-core/src/upstream/apps/docs/src/renderer/pagination-slices';
+import { formatPageNumber } from '../../word-core/src/upstream/apps/docs/src/renderer/pagination-hf';
+import { WRAP_WIDTHS_COMMITTED_EVENT } from '../../word-core/src/upstream/apps/docs/src/renderer/editor/cjk-punct-shrink';
+import type { FieldDisplay } from '../../word-core/src/index';
+import type { PmNode } from '../../word-core/src/upstream/apps/docs/src/renderer/editor/convert';
 import type { WordCoreSession } from '../../word-core/src/session/word-session';
-import { readSections } from '../../word-core/src/index';
 import { WordLayoutController, type WordLayoutResult } from '../../word-core/src/layout/controller';
 import { sectionGeoms, effectiveTopPx, effectiveBottomPx, paperWidthPx, pageLeftPx, sectionWidthSpecs, columnLayoutSpecs, vAlignShiftSpecs, mirrorMarginSpecs, verticalTextSpecs, sectionGridPitchSpecs, sectionCharSpaceSpecs, sectionTopMarginSpecs, sectionPageStartSpecs, wrapWidthSig, newWidthPassState, resetWidthPassHistory, widthPassGate } from '../../word-core/src/upstream/apps/docs/src/renderer/pagination-sections';
 import { wordLayoutContext, type WordLayoutContext } from './core-layout-context';
@@ -18,7 +24,9 @@ import { LayoutBatch, setPageGaps, setRowFills, rowFillsSig, gapLedgerOf, stampG
 import { pageMargins } from '../../word-core/src/upstream/apps/docs/src/renderer/page-margins';
 
 /** 功能：分页摘要只暴露真实测量的页数与切点，不把无几何的测试环境伪装为完成排版；时间：2026-11-09；作者：lq。 */
-export interface WordSurfaceLayoutState { pageCount: number; cuts: readonly PageCut[]; }
+/** 功能：显示、打印与 PDF 使用同一实际纸张原点及分节尺寸；时间：2026-11-11；作者：lq。 */
+export interface WordPageFrame { top: number; left: number; widthPx: number; heightPx: number; section: number; }
+export interface WordSurfaceLayoutState { pageCount: number; cuts: readonly PageCut[]; frames: readonly WordPageFrame[]; }
 /** 功能：页面与字体尺寸变化触发排版，异常由产品宿主明确展示；时间：2026-11-09；作者：lq。 */
 export interface WordSurfaceLayoutOptions {
   onLayout?: (state: WordSurfaceLayoutState) => void;
@@ -48,19 +56,26 @@ export class WordSurfaceLayout {
       const root = session.editor.view.dom;
       // 功能：组合输入期间连字体探测及页面样式写入也跳过，DOM 继续归输入法管理；时间：2026-11-09；作者：lq。
       if (session.editor.view.composing) return { root, origin: 0, zoomFactor: this.factor(), sections: [], composing: true };
-      const sections = readSections(session.parsed);
+      const sections = session.sections();
       const settings = sections[0]?.settings;
       if (!settings) throw new Error('Word 文档缺少页面设置');
       this.context = wordLayoutContext(session, sections);
       const factor = this.factor();
+      // 功能：装饰层与居中纸张使用同一坐标原点，横纵切换后页眉和页脚不偏到容器左侧；时间：2026-11-10；作者：lq。
+      const wrap = root.closest<HTMLElement>('.page-wrap');
+      if (wrap) { wrap.style.width = `${paperWidthPx(sections)}px`; wrap.style.marginInline = 'auto'; }
       root.style.setProperty('--page-pad', `${this.context.top}px ${settings.marginRight / 15}px ${this.context.bottom}px ${settings.marginLeft / 15}px`);
+      // 功能：方向或纸张改变后同步自然流纸张高度，不能沿用打开时的尺寸；时间：2026-11-10；作者：lq。
+      root.style.setProperty('--page-h', `${settings.pageHeight / 15}px`);
       root.style.setProperty('--page-w', `${paperWidthPx(sections)}px`);
+      // 功能：尺寸命令读取正文净宽，不能将含页边距的整张纸宽写入表格；时间：2026-11-11；作者：lq。
+      root.style.setProperty('--section-content-w', `${(settings.pageWidth - settings.marginLeft - settings.marginRight) / 15}px`);
       const planOf = planByElement(session.editor.state.doc, session.editor.view, planPropsOf(session.parsed, sections, false), floatShiftsOf(session.editor.state));
       if (!session.editor.view.composing && syncWrapObstacles(root, factor, session.editor.view, planOf)) this.controller.followUp('obstacles');
       return {
         root, origin: root.getBoundingClientRect().top + this.context.top * factor,
-        zoomFactor: factor, sections: sectionGeoms(sections, this.context.heights, session.parsed.evenAndOddHeaders), sectionInfos: sections,
-        headerFooterHeights: this.context.heights, evenOddHeaders: session.parsed.evenAndOddHeaders, mirrorMargins: session.parsed.mirrorMargins,
+        zoomFactor: factor, sections: sectionGeoms(sections, this.context.heights, session.evenAndOddHeaders()), sectionInfos: sections,
+        headerFooterHeights: this.context.heights, evenOddHeaders: session.evenAndOddHeaders(), mirrorMargins: session.parsed.mirrorMargins,
         blockMetaOf: this.context.blockMetaOf, endnotes: this.context.endnotes,
         deletedSectionBreaks: new Set(session.parsed.blocks.filter(block => block.paraMarkDel && block.docxIndex !== null).map(block => block.docxIndex!)),
         composing: session.editor.view.composing,
@@ -114,13 +129,13 @@ export class WordSurfaceLayout {
 
   /** 功能：沿用上游切点与 ProseMirror 装饰，页间空白不进入序列化和撤销历史；时间：2026-11-09；作者：lq。 */
   private apply(result: WordLayoutResult): void {
-    const sections = result.effectiveSections ?? readSections(this.session.parsed);
+    const sections = result.effectiveSections ?? this.session.sections();
     const context = wordLayoutContext(this.session, sections);
     const cuts = buildPageCuts(result.blocks, result.slices, result.geometries, context.heights, {
       titlePgOf: index => sections[index]?.titlePg,
       pageNumberFmtOf: index => sections[index]?.pageNumberFmt,
       floatSplits: result.outputs.floatSplits,
-      evenOddHf: this.session.parsed.evenAndOddHeaders,
+      evenOddHf: this.session.evenAndOddHeaders(),
     });
     const view = this.session.editor.view;
     const root = view.dom;
@@ -265,7 +280,13 @@ export class WordSurfaceLayout {
     wrap.classList.toggle('paper-mixed', mixedPaper);
     syncPageSheets(wrap, factor, mixedPaper ? firstFrame : null, cuts);
     syncPageBorders(wrap, pageBorderStyleOf(sections[0].settings), factor, firstFrame, cuts);
-    this.paintPageRegions(wrap, cuts, context, pagesOfNotes, result);
+    const paperTops = new Map(pagePaperEdges(cuts, context.top).map(edge => [edge.page, edge.top]));
+    const frames: WordPageFrame[] = [];
+    cuts.forEach((cut, index) => {
+      const settings = sections[cut.section].settings;
+      frames.push({ section: cut.section, widthPx: settings.pageWidth / 15, heightPx: settings.pageHeight / 15, left: pageLeftPx(settings, paperWidth), top: paperTops.get(index) ?? (index ? frames[index - 1].top + frames[index - 1].heightPx + 28 : 0) });
+    });
+    this.paintPageRegions(wrap, cuts, context, pagesOfNotes, result, frames);
     const widthSignature = wrapWidthSig([...specs.values()]);
     if (widthSignature !== this.widthSignature || widthsChanged) {
       this.widthSignature = widthSignature;
@@ -276,35 +297,70 @@ export class WordSurfaceLayout {
       this.rowFillSignature = fillSignature;
       this.controller.followUp('rowFills');
     }
-    this.state = { pageCount: cuts.length, cuts };
+    this.state = { pageCount: cuts.length, cuts, frames };
+    this.session.recordPageCount(cuts.length);
+    // 功能：按元素身份映射自然流位置，缺少测量时不伪造页数；只刷新 DOM/快照缓存；时间：2026-11-11；作者：lq。
+    const headings = wordHeadings(this.session.editor.state.doc, this.session.formattingSource().styles);
+    const byElement = new Map(result.blocks.filter(block => block.el).map(block => [block.el, block.top]));
+    const pages = new Map<number, string>();
+    for (const heading of headings) {
+      const element = view.nodeDOM(heading.pos) as HTMLElement | null;
+      const top = element ? byElement.get(element) : undefined;
+      const cut = top === undefined ? undefined : cuts[pageOfY(cuts, top)];
+      if (cut) pages.set(heading.pos, formatPageNumber(cut.pageNo, sections[cut.section]?.pageNumberFmt));
+    }
+    this.session.recordHeadingPages(pages);
+    // 功能：布局只生成顶层属性摘要，避免每轮分页复制整份文字/表格 JSON；时间：2026-11-11；作者：lq。
+    const content: PmNode[] = [];
+    this.session.editor.state.doc.forEach(node => content.push({ type: node.type.name, attrs: node.attrs }));
+    const snapshot = wordTocSnapshot({ type: 'doc', content }, headings, pages);
+    let contentIndex = 0;
+    let tocPagesChanged = false;
+    this.session.editor.state.doc.forEach((node, pos) => {
+      const display = snapshot.content?.[contentIndex++]?.attrs?.fieldDisplay as FieldDisplay | undefined;
+      if (display?.kind !== 'tocLine' || !display.right) return;
+      const element = view.nodeDOM(pos) as HTMLElement | null;
+      const page = element?.querySelector('.doc-toc-page');
+      // 功能：打开未修改文档时保留已存页码；空缓存与新目录继续跟随布局；时间：2026-11-11；作者：lq。
+      if (page && (this.session.state().dirty || !String(node.attrs.fieldDisplay?.right ?? '').trim()) && page.textContent !== String(display.right)) { page.textContent = String(display.right); tocPagesChanged = true; }
+    });
+    // 功能：页码从空缓存变为文字后重新度量引导点，避免尾部宽度按旧值把页码挤到下一行；时间：2026-11-11；作者：lq。
+    if (tocPagesChanged) {
+      document.dispatchEvent(new Event(WRAP_WIDTHS_COMMITTED_EVENT));
+      this.controller.followUp('toc-pages');
+    }
     this.options.onLayout?.(this.state);
   }
 
   /** 功能：缩放只改变显示与测量单位，不改 DOCX 纸张参数；时间：2026-11-09；作者：lq。 */
   private factor(): number { return canvasZoomOf(this.session.editor.view.dom.closest<HTMLElement>('.doc-zoom'), 1); }
 
-  /** 功能：页眉页脚与注释按实际页界显示；它们的编辑入口留给 M3，保存保留原始部件；时间：2026-11-09；作者：lq。 */
-  private paintPageRegions(wrap: HTMLElement, cuts: PageCut[], context: WordLayoutContext, notes: ReturnType<WordLayoutContext['pageNotes']>, result: WordLayoutResult): void {
+  /** 功能：页眉页脚与注释按实际页界显示，页面设置变化与撤销时同步重绘；时间：2026-11-10；作者：lq。 */
+  private paintPageRegions(wrap: HTMLElement, cuts: PageCut[], context: WordLayoutContext, notes: ReturnType<WordLayoutContext['pageNotes']>, result: WordLayoutResult, frames: readonly WordPageFrame[]): void {
     let layer = wrap.querySelector<HTMLElement>(':scope > .mo-core-page-regions');
     if (!layer) { layer = document.createElement('div'); layer.className = 'mo-core-page-regions'; layer.contentEditable = 'false'; layer.style.cssText = 'position:absolute;inset:0;pointer-events:none'; wrap.append(layer); }
     layer.replaceChildren();
-    const tops = new Map(pagePaperEdges(cuts, context.top).map(edge => [edge.page, edge.top]));
-    const paperWidth = paperWidthPx(context.sections);
     cuts.forEach((cut, index) => {
       const settings = context.sections[cut.section].settings;
-      const top = tops.get(index) ?? (index === 0 ? 0 : (tops.get(index - 1) ?? 0) + settings.pageHeight / 15 + 28);
-      const left = pageLeftPx(settings, paperWidth);
+      const { top, left } = frames[index];
       const margins = pageMargins(settings, cut.pageNo, !!this.session.parsed.mirrorMargins);
       const reserved = hfVariantReservedPx(context.heights[cut.section], cut.hf.variant);
       for (const kind of ['header', 'footer'] as const) {
         const strip = context.strip(cut.section, kind, cut.hf.variant, cut.display, cuts.length, cuts.filter(page => page.section === cut.section).length);
-        if (!strip) continue;
-        strip.classList.add(`mo-core-${kind}`);
-        strip.style.position = 'absolute'; strip.style.bottom = 'auto';
-        strip.style.left = `${left + margins.left / 15}px`;
-        strip.style.width = `${(settings.pageWidth - margins.left - margins.right) / 15}px`;
-        strip.style.top = `${top + (kind === 'header' ? (settings.headerDist ?? 720) / 15 : settings.pageHeight / 15 - (settings.footerDist ?? 720) / 15 - reserved.footerPx)}px`;
-        layer!.append(strip);
+        // 功能：空白区域也提供双击入口；只读报告仍保留原生显示层；时间：2026-11-11；作者：lq。
+        const region = strip ?? (this.session.editor.isEditable ? document.createElement('div') : undefined);
+        if (!region) continue;
+        region.classList.add(strip ? `mo-core-${kind}` : `mo-core-empty-${kind}`);
+        region.dataset.hfSection = String(cut.section); region.dataset.hfKind = kind; region.dataset.hfVariant = cut.hf.variant;
+        region.dataset.hfPage = String(index); region.dataset.hfNumber = cut.display;
+        region.dataset.hfTotal = String(cuts.length); region.dataset.hfSectionPages = String(cuts.filter(page => page.section === cut.section).length);
+        // 功能：宿主已经按纸张左上角定位，清除同源居中条带的半宽位移；时间：2026-11-11；作者：lq。
+        region.style.position = 'absolute'; region.style.bottom = 'auto'; region.style.transform = 'none';
+        region.style.left = `${left + margins.left / 15}px`;
+        region.style.width = `${(settings.pageWidth - margins.left - margins.right) / 15}px`;
+        region.style.top = `${top + (kind === 'header' ? (settings.headerDist ?? 720) / 15 : settings.pageHeight / 15 - (settings.footerDist ?? 720) / 15 - reserved.footerPx)}px`;
+        if (this.session.editor.isEditable) { region.style.pointerEvents = 'auto'; region.style.minHeight = '20px'; region.title = `双击编辑${kind === 'header' ? '页眉' : '页脚'}`; }
+        layer!.append(region);
       }
       const footnotes = context.notesElement(notes[index] ?? [], cut.section);
       if (footnotes) {

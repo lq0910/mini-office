@@ -4,7 +4,7 @@
  * 为什么单独做对话框：工具栏只能放高频的少量取值，而固定行距的磅值、悬挂缩进、
  * 段前段后间距都需要精确输入。这里一次提交整份补丁，编辑器只产生一条撤销记录。
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ParagraphStyle, WordAlignment } from '@mini-office/document-model';
 import { Button, Dialog, Field, Input, Select, Switch } from '@mini-office/ui';
 import {
@@ -77,6 +77,7 @@ export function ParagraphDialog({
   selectionHint,
   onClose,
   onApply,
+  applyChangedOnly,
 }: {
   open: boolean;
   style: ParagraphStyle | undefined;
@@ -84,16 +85,23 @@ export function ParagraphDialog({
   selectionHint?: string;
   onClose: () => void;
   onApply: (patch: Partial<ParagraphStyle>) => void;
+  /** 功能：新核心只提交用户修改的字段，避免混合选区被初始值批量覆盖；时间：2026-11-10；作者：lq。 */
+  applyChangedOnly?: boolean;
 }) {
   const [draft, setDraft] = useState<Draft>(() => toDraft(style, fontSizePt));
+  // 功能：记录对话框内实际修改的字段，不将未编辑的混合值写回正文；时间：2026-11-10；作者：lq。
+  const changed = useRef(new Set<keyof Draft>());
 
   useEffect(() => {
-    if (open) setDraft(toDraft(style, fontSizePt));
+    if (open) { setDraft(toDraft(style, fontSizePt)); changed.current.clear(); }
     // 打开时以当前段落为初值；对话框打开期间不跟随外部变化，避免输入被覆盖。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const patch = (next: Partial<Draft>) => setDraft((current) => ({ ...current, ...next }));
+  const patch = (next: Partial<Draft>) => {
+    for (const key of Object.keys(next) as Array<keyof Draft>) changed.current.add(key);
+    setDraft((current) => ({ ...current, ...next }));
+  };
 
   const isPresetMultiple = (value: SpacingOption): boolean => /^\d+(\.\d+)?$/.test(value);
 
@@ -112,7 +120,16 @@ export function ParagraphDialog({
       ...writeLineSpacing({ mode: spacingMode, value: spacingValue }),
       pageBreakBefore: draft.pageBreakBefore,
     };
-    onApply(result);
+    // 功能：按编辑控件映射原有字段，一次确认仍只生成一个事务；时间：2026-11-10；作者：lq。
+    const keys: Record<keyof Draft, Array<keyof ParagraphStyle>> = {
+      alignment: ['alignment'], leftChars: ['indentLeftPx'], rightChars: ['indentRightPx'],
+      special: ['firstLineIndentPx'], specialChars: ['firstLineIndentPx'],
+      beforePt: ['spaceBeforePx'], afterPt: ['spaceAfterPx'],
+      spacing: ['lineHeight', 'lineHeightExactPx', 'lineHeightAtLeastPx'],
+      spacingValue: ['lineHeight', 'lineHeightExactPx', 'lineHeightAtLeastPx'], pageBreakBefore: ['pageBreakBefore'],
+    };
+    const edited = new Set([...changed.current].flatMap(key => keys[key]));
+    onApply(applyChangedOnly ? Object.fromEntries(Object.entries(result).filter(([key]) => edited.has(key as keyof ParagraphStyle))) : result);
     onClose();
   };
 

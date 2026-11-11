@@ -2,9 +2,9 @@
 /** w:pBdr paragraph border CSS shared by the body paragraphs (para-layout-spec), the
  *  document stylesheet and the header/footer strips. */
 /** w:pBdr line CSS: declared color/width when present, legacy 1px #444 otherwise (document content color) */
-export function paraBorderCss(line?: { color?: string; szPt?: number }): string {
+export function paraBorderCss(line?: { color?: string; szPt?: number; val?: string }): string {
   const widthPx = line?.szPt ? Math.max(1, Math.round((line.szPt * 96) / 72)) : 1
-  return `${widthPx}px solid #${line?.color ?? '444'}`
+  return `${widthPx}px ${line?.val === 'double' ? 'double' : line?.val === 'dotted' ? 'dotted' : /dash/i.test(line?.val ?? '') ? 'dashed' : 'solid'} #${line?.color ?? '444'}`
 }
 
 export type ParaBorderPadding = Partial<

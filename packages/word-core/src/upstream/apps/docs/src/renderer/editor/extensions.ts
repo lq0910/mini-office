@@ -1,5 +1,8 @@
 /** 功能：融合 GenOffice Word 内核；时间：2026-11-08；集成作者：lq；上游作者、固定版本及本地修改见 packages/word-core/UPSTREAM.md 和 SOURCE-MANIFEST.json。 */
 import { wordPlatform } from '../../../../../../platform/ports';
+import { paraBorderCss } from './para-border-css';
+import { wordRegionHistory, nextWordRegionGroup, registerWordRegion } from '../../../../../../editing/region-history';
+import { closeHistory as closeRegionHistory } from '@tiptap/pm/history';
 import { ScriptFonts } from './script-fonts'
 import { MultiSelect } from './multi-select'
 import { Editor, Extension, Node } from '@tiptap/core'
@@ -3722,7 +3725,10 @@ export const NativeTableSupport = Extension.create({
               // which runs after this handler and its microtasks; wait a macrotask so
               // the committed grid, not the previous drag frame, is constrained.
               window.setTimeout(() => {
-                const raw = getComputedStyle(view.dom).getPropertyValue('--section-content-w')
+                const cell = view.nodeDOM(handle)
+                const table = cell instanceof Element ? cell.closest('table.doc-table') : null
+                if (!table || !view.dom.contains(table)) return
+                const raw = getComputedStyle(table).getPropertyValue('--section-content-w')
                 const maxWidth = Number.parseFloat(raw)
                 if (Number.isFinite(maxWidth) && maxWidth > 0) {
                   constrainTableWidthAtCell(handle, maxWidth)(view.state, view.dispatch)
@@ -4091,7 +4097,7 @@ export const DocProtected = Node.create({
       const dom = buildProtectedDom(currentNode)
       const getNode = () => currentNode
       const pos = getPos as () => number | undefined
-      const textboxes = mountTextboxEditors(dom, getNode, pos, editor.view)
+      const textboxes = mountTextboxEditors(dom, getNode, pos, editor.view, editor)
       const table = wireTableEditing(dom, getNode, pos, editor.view)
       const field = wireFieldEditing(dom, getNode, pos, editor.view)
       const formula = wireFormulaEditing(dom, getNode, pos, editor.view)
@@ -5330,7 +5336,7 @@ function wireProtectedInteractionMode(
     const target = event.target
     if (
       target instanceof HTMLElement &&
-      !dom.contains(target) &&
+      !dom.contains(target) && view.dom.contains(target) &&
       dom.classList.contains('doc-content-editing')
     ) {
       setEditing(false)
@@ -5625,6 +5631,10 @@ function textboxDocJson(box: TextboxDisplay): Record<string, unknown> {
   const paras = box.paras.map((para) => ({
     type: 'docParagraph',
     attrs: {
+      tabStops: para.tabStops ? JSON.stringify(para.tabStops) : null,
+      borderLines: para.borderLines ? JSON.stringify(para.borderLines) : null,
+      keepNext: para.keepNext ?? null, keepLines: para.keepLines ?? null,
+      widowControl: para.widowControl ?? null, pageBreakBefore: para.pageBreakBefore ?? null,
       styleId: para.styleId ?? null,
       align: para.align ?? null,
       lineSpacing: para.lineSpacing ?? null,
@@ -5661,6 +5671,7 @@ function subEditorParas(sub: Editor): TextboxPara[] {
     const para: TextboxPara = { runs: inlineToRuns(p.content ?? []) }
     const attrs = p.attrs ?? {}
     const keys = [
+      'keepNext', 'keepLines', 'widowControl', 'pageBreakBefore',
       'styleId',
       'align',
       'lineSpacing',
@@ -5682,8 +5693,10 @@ function subEditorParas(sub: Editor): TextboxPara[] {
     ] as const
     for (const key of keys) {
       const value = attrs[key]
-      if (value !== null && value !== undefined) Object.assign(para, { [key]: value })
+      Object.assign(para, { [key]: value ?? undefined })
     }
+    para.tabStops = attrs.tabStops ? JSON.parse(String(attrs.tabStops)) : []
+    para.borderLines = attrs.borderLines ? JSON.parse(String(attrs.borderLines)) : undefined
     return para
   })
 }
@@ -5700,6 +5713,7 @@ function mountTextboxEditors(
   getNode: () => PmNode,
   getPos: () => number | undefined,
   view: EditorView,
+  owner: Editor,
 ):
   | (ProtectedContentEditor & {
       cleanup: () => void
@@ -5709,6 +5723,12 @@ function mountTextboxEditors(
   let knownBoxes = getNode().attrs.textboxes as TextboxDisplay[] | null
   if (!knownBoxes || knownBoxes.length === 0) return null
 
+  let syncingRegions = false, disposedRegions = false
+  let liveCommit = () => {}
+  let regionTransaction: Transaction | undefined
+  let pasteGroup: { time: number; group: number } | undefined
+  let historyGroup = nextWordRegionGroup(), lastEditTime = 0
+  const unregisterRegions: Array<() => void> = []
   const editors: Editor[] = []
   const boxEls = Array.from(dom.querySelectorAll('.doc-textbox')) as HTMLElement[]
   // only a box under the chrome rotator hands its float slot and turn to that
@@ -5771,15 +5791,17 @@ function mountTextboxEditors(
     el.replaceChildren() // the static spec children are replaced by the live editor
     const sub: Editor = new Editor({
       element: el,
-      extensions: textboxSubExtensions,
-      content: textboxDocJson(box),
+      extensions: [...textboxSubExtensions.filter(extension => extension.name !== 'undoRedo'), wordRegionHistory(view)],
+      content: { ...textboxDocJson(box), attrs: { miniOfficeStyles: view.state.doc.attrs.miniOfficeStyles } },
       editorProps: {
         attributes: { class: 'doc-textbox-editor', spellcheck: 'false' },
       },
       onFocus: () => setActiveSubEditor(sub),
       onTransaction: ({ transaction }) => {
-        notifySubEditorState(transaction.docChanged)
-        if (transaction.docChanged) scheduleMeasure(i)
+        if (syncingRegions || transaction.getMeta('miniOfficeRegionProjection')) return
+        if (transaction.docChanged) { regionTransaction = transaction; liveCommit(); scheduleMeasure(i) }
+        else if (transaction.selectionSet) lastEditTime = 0
+        notifySubEditorState(false)
       },
     })
     // TipTap initializes the host element and may clear attributes emitted by
@@ -5787,6 +5809,7 @@ function mountTextboxEditors(
     el.setAttribute('style', boxStyle(box, el))
     el.classList.toggle('doc-textbox-filled', textboxIsFilled(box))
     editors[i] = sub
+    unregisterRegions.push(registerWordRegion(owner, sub, () => String(getPos()) + ":" + i))
   })
   if (editors.length === 0) return null
 
@@ -5797,6 +5820,7 @@ function mountTextboxEditors(
   }
 
   const commit = () => {
+    if (disposedRegions) return
     const current = getNode()
     const model = current.attrs.textboxes as TextboxDisplay[] | null
     if (!model) return
@@ -5804,7 +5828,7 @@ function mountTextboxEditors(
     const next = model.map((box, i) => {
       const sub = editors[i]
       if (!sub || sub.isDestroyed) return box
-      const paras = subEditorParas(sub)
+      const paras = subEditorParas(sub).map((para, j) => ({ ...box.paras[j], ...para }))
       // the sub-editor of a paras:[] ink box always holds one seeded empty
       // paragraph — without text that is still "no content", not an edit, and
       // any measured height is a transient of the emptied text: commit nothing
@@ -5820,22 +5844,48 @@ function mountTextboxEditors(
       changed = true
       return { ...box, paras, heightPx: measuredHeight }
     })
-    if (!changed) return
+    const styles = editors.find(sub => sub && JSON.stringify(sub.state.doc.attrs.miniOfficeStyles) !== JSON.stringify(view.state.doc.attrs.miniOfficeStyles))?.state.doc.attrs.miniOfficeStyles
+    if (!changed && styles === undefined) return
     const pos = getPos()
     if (typeof pos !== 'number') return
     knownBoxes = next
-    view.dispatch(
-      view.state.tr.setNodeMarkup(pos, undefined, { ...current.attrs, textboxes: next }),
-    )
+    // 功能：一次区域内容/样式事务对应一次主历史提交，连续输入复用组合身份；时间：2026-11-11；作者：lq。
+    const now = Date.now()
+    const previousGroup = historyGroup
+    const boundary = now - lastEditTime > 500 || !regionTransaction || regionTransaction.getMeta('uiEvent') === 'paste' || (!regionTransaction.getMeta('appendedTransaction') && regionTransaction.steps.some(step => step.toJSON().stepType !== 'replace'))
+    if (boundary) historyGroup = nextWordRegionGroup()
+    if (regionTransaction?.getMeta('uiEvent') === 'paste') {
+      if (pasteGroup?.time === regionTransaction.time) historyGroup = pasteGroup.group
+      else pasteGroup = { time: regionTransaction.time, group: historyGroup }
+    }
+    lastEditTime = now
+    const tr = previousGroup !== historyGroup ? closeRegionHistory(view.state.tr) : view.state.tr
+    tr.setMeta('composition', historyGroup)
+    if (changed) tr.setNodeMarkup(pos, undefined, { ...current.attrs, textboxes: next })
+    if (styles !== undefined) tr.setDocAttribute('miniOfficeStyles', styles)
+    view.dispatch(tr)
+    regionTransaction = undefined
   }
+
+  liveCommit = commit
 
   /** external model change (undo of a commit, AI edit): re-feed the sub-editors */
   const sync = (boxes: TextboxDisplay[] | null) => {
-    if (!boxes || boxes === knownBoxes) return
+    if (!boxes) return
+    if (boxes === knownBoxes && editors.every(sub => !sub || JSON.stringify(sub.state.doc.attrs.miniOfficeStyles) === JSON.stringify(view.state.doc.attrs.miniOfficeStyles))) return
     knownBoxes = boxes
     boxes.forEach((box, i) => {
       const sub = editors[i]
-      if (sub && !sub.isDestroyed) sub.commands.setContent(textboxDocJson(box))
+      if (sub && !sub.isDestroyed) {
+        syncingRegions = true
+        try {
+          const selection = sub.state.selection
+          sub.commands.setContent({ ...textboxDocJson(box), attrs: { miniOfficeStyles: view.state.doc.attrs.miniOfficeStyles } }, { emitUpdate: false })
+          const from = Math.min(selection.from, sub.state.doc.content.size - 1), to = Math.min(selection.to, sub.state.doc.content.size - 1)
+          sub.commands.setTextSelection({ from, to })
+          lastEditTime = 0
+        } finally { syncingRegions = false }
+      }
       const el = boxEls[i]
       if (el) {
         el.setAttribute('style', boxStyle(box, el))
@@ -5876,7 +5926,9 @@ function mountTextboxEditors(
   })
   window.addEventListener('ai-docs-commit-tables', commit)
   const cleanup = () => {
+    disposedRegions = true
     window.removeEventListener('ai-docs-commit-tables', commit)
+    for (const unregister of unregisterRegions) unregister()
     for (const frame of resizeFrames) {
       if (frame !== undefined) cancelAnimationFrame(frame)
     }
@@ -7141,6 +7193,9 @@ export const TextboxParagraph = Node.create({
   content: 'inline*',
   addAttributes() {
     return {
+      tabStops: { default: null as string | null }, borderLines: { default: null as string | null },
+      keepNext: { default: null as boolean | null }, keepLines: { default: null as boolean | null }, widowControl: { default: null as boolean | null },
+      pageBreakBefore: { default: null as boolean | null },
       styleId: { default: null as string | null },
       align: { default: null as string | null },
       lineSpacing: { default: null as number | null },
@@ -7220,6 +7275,7 @@ export const TextboxParagraph = Node.create({
     const styles = [
       node.attrs.align ? textAlignDecl(String(node.attrs.align)) : '',
       ...fontStyles,
+      ...(['t','l','b','r'] as const).filter(side => String(node.attrs.borders ?? '').includes(side)).map(side => 'border-' + ({ t: 'top', l: 'left', b: 'bottom', r: 'right' }[side]) + ':' + paraBorderCss(node.attrs.borderLines ? JSON.parse(node.attrs.borderLines)[side] : undefined)),
       cssLineHeight(lineRule, lineRawTwips, lineSpacing)
         ? `line-height:${cssLineHeight(lineRule, lineRawTwips, lineSpacing)}`
         : '',
@@ -7339,7 +7395,32 @@ export const TextboxListRenumber = Extension.create({
 })
 
 /** shared with the main editor: same mark names, so ribbon commands route 1:1 */
+
+/** 功能：精简区域 schema 的列表键盘语义，不向正文派发命令；时间：2026-11-11；作者：lq。 */
+const MiniOfficeRegionListKeys = Extension.create({
+  name: 'miniOfficeRegionListKeys',
+  priority: 1100,
+  addKeyboardShortcuts() {
+    const level = (delta: number) => {
+      const { state, view } = this.editor, marker = state.selection.$from.parent.attrs.listMarker
+      if (!marker || view.composing) return false
+      const ilvl = Math.max(0, Math.min(8, (marker.ilvl ?? 0) + delta))
+      return this.editor.commands.updateAttributes('docParagraph', { listMarker: { ...marker, ilvl, indentLeft: 720 * (ilvl + 1), hanging: 360 }, indentLeft: null, indentFirstLine: null })
+    }
+    return {
+      Tab: () => level(1), 'Shift-Tab': () => level(-1),
+      Enter: () => {
+        const { state, view } = this.editor
+        if (!state.selection.empty || !state.selection.$from.parent.attrs.listMarker || view.composing) return false
+        if (state.selection.$from.parent.content.size === 0) return this.editor.commands.updateAttributes('docParagraph', { listMarker: null })
+        return this.editor.commands.splitBlock()
+      },
+    }
+  },
+})
+
 export const textboxSubExtensions = [
+  MiniOfficeRegionListKeys,
   Node.create({ name: 'doc', topNode: true, content: 'block+' }),
   DocText,
   DocHardBreak,

@@ -1,0 +1,18 @@
+/* 功能：页眉页脚原位编辑保留顶部工具栏，区域工具随纸张定位且不进入打印；时间：2026-11-11；作者：lq。 */
+.mo-word-core .mo-core-hf-editing { position: absolute; z-index: 30; outline: 1px dashed var(--mo-accent, #5074df); background: white; color: black; min-height: 20px; }
+.mo-word-core .mo-core-hf-editing .page-hf-editor { min-height: 20px; outline: none; }
+.mo-word-core .mo-core-hf-controls { position: absolute; bottom: calc(100% + 4px); left: 0; display: flex; gap: 10px; align-items: center; white-space: nowrap; padding: 4px 8px; background: var(--mo-surface, white); color: var(--mo-text, #262626); border: 1px solid var(--mo-line, #ddd); border-radius: 5px; font: 12px/1.5 sans-serif; box-shadow: 0 2px 8px #0001; }
+.mo-word-core .mo-core-hf-controls button:hover { color: var(--mo-accent, #5074df); }
+@media print { .mo-word-core .mo-core-hf-controls { display: none !important; } .mo-word-core .mo-core-hf-editing { outline: none; } }
+/* 功能：边距手柄保持原页面参考线的轻量交互，拖动时才显示完整边界；时间：2026-11-11；作者：lq。 */
+.mo-word-core .mo-core-margin-layer { position:absolute; inset:0; pointer-events:none; z-index:9; }
+.mo-word-core .mo-core-margin-guide { position:absolute; pointer-events:none; border:1px dashed transparent; }
+.mo-word-core .mo-core-margin-guide.dragging { border-color:var(--mo-accent,#3478f6); }
+.mo-word-core .mo-core-margin-handle { position:absolute; pointer-events:auto; background:transparent; border:0; padding:0; opacity:0; outline-offset:2px; }
+.mo-word-core .mo-core-margin-handle:hover,.mo-word-core .mo-core-margin-handle:focus-visible,.mo-word-core .dragging .mo-core-margin-handle { opacity:1; background:var(--mo-accent,#3478f6); }
+.mo-word-core .mo-core-margin-handle[data-edge=left],.mo-word-core .mo-core-margin-handle[data-edge=right] { width:6px; height:28px; top:36px; cursor:ew-resize; }
+/* 功能：页边距手柄放在正文外侧，不能拦截段首拖选和跨区域格式刷；时间：2026-11-11；作者：lq。 */
+.mo-word-core .mo-core-margin-handle[data-edge=left] { left:-12px; }.mo-word-core .mo-core-margin-handle[data-edge=right] { right:-12px; }
+.mo-word-core .mo-core-margin-handle[data-edge=top],.mo-word-core .mo-core-margin-handle[data-edge=bottom] { width:28px; height:6px; left:calc(50% - 14px); cursor:ns-resize; }
+.mo-word-core .mo-core-margin-handle[data-edge=top] { top:-12px; }.mo-word-core .mo-core-margin-handle[data-edge=bottom] { bottom:-12px; }
+@media print { .mo-core-margin-layer { display:none!important; } }

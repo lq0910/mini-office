@@ -65,9 +65,9 @@ const RESIZE_SVG =
   'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
   '<path d="M2 14 14 2M14 7v7H7"/></svg>'
 
-function sectionContentWidth(view: EditorView, fallback: number): number {
+function sectionContentWidth(view: EditorView, fallback: number, table: HTMLElement): number {
   const width = Number.parseFloat(
-    getComputedStyle(view.dom).getPropertyValue('--section-content-w'),
+    getComputedStyle(table).getPropertyValue('--section-content-w'),
   )
   return Number.isFinite(width) && width > 0 ? width : fallback
 }
@@ -302,7 +302,7 @@ function tableHandlePlugin(): Plugin {
         const cellPos = tableStart + TableMap.get(node).map[0]
         const table = view.nodeDOM(tablePos)
         if (!(table instanceof HTMLTableElement)) return
-        const maxWidth = sectionContentWidth(view, table.parentElement?.clientWidth || 624)
+        const maxWidth = sectionContentWidth(view, table.parentElement?.clientWidth || 624, table)
         const grid = tableGridAtCell(view.state, cellPos, maxWidth)
         if (!grid) return
         const preview = startPreview(table, grid.widths.length)

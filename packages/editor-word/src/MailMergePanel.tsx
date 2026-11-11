@@ -24,6 +24,13 @@ export function MailMergePanel({ open, session, doc, onClose, onInsertField, ren
     persist: !controller,
   });
   const c = controller ?? own;
+  return <MailMergePanelView open={open} controller={c} onClose={onClose} onInsertField={onInsertField} />;
+}
+
+/** 功能：纯面板可由原生 Word 会话直接驱动，不额外挂载旧模型控制器；时间：2026-11-11；作者：lq。 */
+export function MailMergePanelView({ open, controller: c, onClose, onInsertField }: {
+  open: boolean; controller: MailMergeController; onClose: () => void; onInsertField: (field: string) => void;
+}) {
   const [filterModal, setFilterModal] = useState(false);
   // 功能：筛选浮层的位置与尺寸，标题栏可拖动、四边四角可缩放；时间：2026-10-28；作者：lq。
   const [filterBox, setFilterBox] = useState<FilterBox | null>(null);

@@ -973,7 +973,7 @@ export function docStyleCss(parsed: ParsedDocFull): string {
     else if (d.bold === false) decls.push('font-weight:400')
     if (d.italic) decls.push('font-style:italic')
     else if (d.italic === false) decls.push('font-style:normal')
-    if (d.underline || d.strike) {
+    if (info.type === 'character' && (d.underline || d.strike)) {
       decls.push(
         `text-decoration:${[d.underline && 'underline', d.strike && 'line-through'].filter(Boolean).join(' ')}`,
       )

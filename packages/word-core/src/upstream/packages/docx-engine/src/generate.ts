@@ -819,6 +819,8 @@ function patchNestedInCell(
  * a value rewrites it.
  */
 export interface TextboxParaPatch {
+  format?: ParaFormat
+  originalFormat?: ParaFormat
   runs: Run[]
   align?: 'left' | 'center' | 'right' | 'justify' | 'distribute' | null
   /** list membership write-back: sets or clears the paragraph's w:numPr.
@@ -926,6 +928,7 @@ function patchTxbxContent(
     }
     const template = originals[Math.min(i, originals.length - 1)]
     let pPr = /<w:pPr[\s\S]*?<\/w:pPr>|<w:pPr[^>]*\/>/.exec(template)?.[0] ?? ''
+    if (patch.format) pPr = mergePPrFormat(pPr, patch.format, patch.originalFormat)
     if (patch.numPr !== undefined) pPr = pPrWithNumPr(pPr, patch.numPr)
     if (patch.indentLeft !== undefined) pPr = pPrWithIndLeft(pPr, patch.indentLeft)
     if (patch.align !== undefined) pPr = pPrWithJc(pPr, patch.align)
@@ -1486,6 +1489,8 @@ function paraSpacingXml(format: ParaFormat): string {
 function formatPPrChildren(format: ParaFormat | undefined): PPrChild[] {
   if (!format) return []
   const out: PPrChild[] = []
+  if (format.listMarker?.numId) out.push({ name: 'w:numPr', xml: '<w:numPr><w:ilvl w:val="' + (format.listMarker.ilvl ?? 0) + '"/><w:numId w:val="' + escapeXmlAttr(format.listMarker.numId) + '"/></w:numPr>' })
+  if (format.styleId) out.push({ name: 'w:pStyle', xml: '<w:pStyle w:val="' + escapeXmlAttr(format.styleId) + '"/>' })
   if (format.pageBreakBefore) out.push({ name: 'w:pageBreakBefore', xml: '<w:pageBreakBefore/>' })
   for (const tag of PPR_FLAG_TAGS) {
     const v = format[PPR_FLAG_FIELDS[tag]]
@@ -1505,7 +1510,7 @@ function formatPPrChildren(format: ParaFormat | undefined): PPrChild[] {
         declared?.spacePt !== undefined
           ? Math.min(31, Math.max(0, Math.round(declared.spacePt)))
           : space
-      return `<w:${side} w:val="single" w:sz="${sz}" w:space="${sp}" w:color="${color}"/>`
+      return `<w:${side} w:val="${escapeXmlAttr(declared?.val ?? 'single')}" w:sz="${sz}" w:space="${sp}" w:color="${color}"/>`
     }
     const sides: string[] = []
     // schema order inside pBdr: top, left, bottom, right
@@ -1734,11 +1739,12 @@ function rawPBdrUnchanged(raw: string | undefined, f: ParaFormat): boolean {
       const color = rawAttr(el.xml, 'w:color')
       const sz = parseInt(rawAttr(el.xml, 'w:sz') ?? '', 10)
       const line: NonNullable<ParaFormat['borderLines']>[typeof ch] = {}
+      if (val && val !== 'single') line.val = val
       if (color && color !== 'auto') line.color = color
       if (Number.isFinite(sz) && sz > 0) line.szPt = sz / 8
       const space = parseInt(rawAttr(el.xml, 'w:space') ?? '', 10)
       if (Number.isFinite(space) && space > 0) line.spacePt = space
-      if (line.color !== undefined || line.szPt !== undefined || line.spacePt !== undefined)
+      if (line.val !== undefined || line.color !== undefined || line.szPt !== undefined || line.spacePt !== undefined)
         rawLines[ch] = line
     }
   }
@@ -1747,6 +1753,7 @@ function rawPBdrUnchanged(raw: string | undefined, f: ParaFormat): boolean {
   const normLines = (lines: ParaFormat['borderLines']) =>
     JSON.stringify(
       (['t', 'b', 'l', 'r'] as const).map((ch) => [
+        lines?.[ch]?.val ?? null,
         lines?.[ch]?.color ?? null,
         lines?.[ch]?.szPt ?? null,
         lines?.[ch]?.spacePt ?? null,
@@ -1912,8 +1919,8 @@ function pprGroupUnchanged(
 /** pPr groups a header/footer cell paragraph models, by the format fields that feed them */
 const CELL_PPR_GROUPS: Array<[tag: string, fields: Array<keyof ParaFormat>]> = [
   ['w:jc', ['align']],
-  ['w:spacing', ['spaceBefore', 'spaceAfter', 'lineSpacing', 'lineRule', 'lineRawTwips']],
-  ['w:ind', ['indentLeft', 'indentFirstLine']],
+  ['w:spacing', ['spaceBefore', 'spaceAfter', 'spaceBeforeAuto', 'spaceAfterAuto', 'lineSpacing', 'lineRule', 'lineRawTwips']],
+  ['w:ind', ['indentLeft', 'indentRight', 'indentFirstLine']],
   ['w:tabs', ['tabStops']],
 ]
 
@@ -1928,6 +1935,7 @@ const CELL_MODELED_ATTR_GROUPS: Record<
   Array<{ attrs: string[]; fields: Array<keyof ParaFormat> }>
 > = {
   'w:ind': [
+    { attrs: ['w:right', 'w:end', 'w:rightChars', 'w:endChars'], fields: ['indentRight'] },
     { attrs: ['w:left', 'w:start', 'w:leftChars', 'w:startChars'], fields: ['indentLeft'] },
     {
       attrs: ['w:firstLine', 'w:hanging', 'w:firstLineChars', 'w:hangingChars'],
@@ -1935,8 +1943,8 @@ const CELL_MODELED_ATTR_GROUPS: Record<
     },
   ],
   'w:spacing': [
-    { attrs: ['w:before', 'w:beforeLines', 'w:beforeAutospacing'], fields: ['spaceBefore'] },
-    { attrs: ['w:after', 'w:afterLines', 'w:afterAutospacing'], fields: ['spaceAfter'] },
+    { attrs: ['w:before', 'w:beforeLines', 'w:beforeAutospacing'], fields: ['spaceBefore', 'spaceBeforeAuto'] },
+    { attrs: ['w:after', 'w:afterLines', 'w:afterAutospacing'], fields: ['spaceAfter', 'spaceAfterAuto'] },
     { attrs: ['w:line', 'w:lineRule'], fields: ['lineSpacing', 'lineRule', 'lineRawTwips'] },
   ],
 }
@@ -1995,7 +2003,6 @@ export function mergeCellParaFormat(
   const differs = (k: keyof ParaFormat) =>
     JSON.stringify(format[k] ?? null) !== JSON.stringify(original?.[k] ?? null)
   const tags = new Set(CELL_PPR_GROUPS.filter(([, f]) => f.some(differs)).map(([tag]) => tag))
-  if (tags.size === 0) return rawPPr
   let out = !rawPPr || /^<w:pPr(?:\s[^>]*)?\/>$/.test(rawPPr) ? '<w:pPr></w:pPr>' : rawPPr
   const realStops = (format.tabStops ?? []).filter((ts) => !ts.rel && !ts.inherited)
   if (tags.has('w:tabs') && realStops.length === 0) {
@@ -2013,7 +2020,9 @@ export function mergeCellParaFormat(
     )
     out = mergeCellElementAttrs(out, tag, fresh.find((c) => c.name === tag)?.xml, rebuilt)
   }
-  return /^<w:pPr(?: [^>]*)?><\/w:pPr>$/.test(out) ? '' : out
+  // 功能：其余段落组共享同源差异判断，避免再次重建已精确合并的缩进和段距；时间：2026-11-11；作者：lq。
+  const extraTags = new Set(PPR_CHILD_ORDER.filter(tag => !CELL_PPR_GROUPS.some(([handled]) => handled === tag)))
+  return mergePPrFormat(out, format, original, extraTags)
 }
 
 export function mergePPrFormat(
@@ -2053,6 +2062,8 @@ export function mergePPrFormat(
   const inner = rawPPr.slice(open.length, rawPPr.length - '</w:pPr>'.length)
   // build set of managed tags for this format (base + conditional)
   const managedTags = new Set(FORMAT_MANAGED_TAGS)
+  if (format?.styleId !== undefined) managedTags.add('w:pStyle')
+  if (format?.listMarker !== undefined || original?.listMarker !== undefined) managedTags.add('w:numPr')
   if (format?.tabStops !== undefined) managedTags.add('w:tabs')
   for (const tag of PPR_FLAG_TAGS) {
     const field = PPR_FLAG_FIELDS[tag]
@@ -2525,6 +2536,8 @@ function tableCellXml(
         runs: text === '' ? [] : [{ text, bold: cell.bold, color: cell.color }],
       }))
   const paraXmls = paragraphs.map((paragraph) => {
+    // 功能：来源校验已由转换器完成，表格属性改变不重建未目标段落；时间：2026-11-11；作者：lq。
+    if ('sourceXml' in paragraph && paragraph.sourceXml) return paragraph.sourceXml
     const list = 'list' in paragraph ? paragraph.list : undefined
     const numPr = list
       ? `<w:numPr><w:ilvl w:val="${list.ilvl}"/><w:numId w:val="${escapeXmlAttr(list.numId)}"/></w:numPr>`
@@ -2940,7 +2953,7 @@ export function inlinePictureDrawingXml(o: InlinePictureXmlOptions): string {
   const id = String(o.docPrId)
   const name = `Picture ${id}`
   return (
-    '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">' +
+    '<w:drawing xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><wp:inline distT="0" distB="0" distL="0" distR="0">' +
     `<wp:extent cx="${cx}" cy="${cy}"/>` +
     `<wp:effectExtent l="${eeX}" t="${eeY}" r="${eeX}" b="${eeY}"/>` +
     `<wp:docPr id="${id}" name="${name}"${o.altText ? ` descr="${escapeXmlAttr(o.altText)}"` : ''}/>` +
@@ -3624,7 +3637,7 @@ function modelRPrChildren(run: Run, insideLink: boolean): PPrChild[] {
   if (run.italic) {
     out.push({ name: 'w:i', xml: '<w:i/>' }, { name: 'w:iCs', xml: '<w:iCs/>' })
   }
-  if (run.strike) out.push({ name: 'w:strike', xml: '<w:strike/>' })
+  if (run.strike !== undefined) out.push({ name: 'w:strike', xml: onOffXml('w:strike', run.strike) })
   if (run.caps === 'all') out.push({ name: 'w:caps', xml: '<w:caps/>' })
   else if (run.caps === 'small') out.push({ name: 'w:smallCaps', xml: '<w:smallCaps/>' })
   else if (run.caps === 'none') {
@@ -3652,7 +3665,7 @@ function modelRPrChildren(run: Run, insideLink: boolean): PPrChild[] {
   }
   if (run.highlight)
     out.push({ name: 'w:highlight', xml: `<w:highlight w:val="${escapeXmlAttr(run.highlight)}"/>` })
-  if (run.underline) out.push({ name: 'w:u', xml: '<w:u w:val="single"/>' })
+  if (run.underline !== undefined) out.push({ name: 'w:u', xml: `<w:u w:val="${run.underline ? 'single' : 'none'}"/>` })
   if (run.shading) {
     out.push({
       name: 'w:shd',
@@ -3735,7 +3748,7 @@ export function mergeRPrModel(rawRPr: string, run: Run, insideLink: boolean): st
       case 'italic':
         return rawBool(rawOf(cs ? 'w:iCs' : 'w:i')) === !!run.italic
       case 'strike':
-        return rawBool(rawOf('w:strike')) === !!run.strike
+        return run.strike === false ? !!rawOf('w:strike') && !rawBool(rawOf('w:strike')) : rawBool(rawOf('w:strike')) === !!run.strike
       case 'caps':
         return rawCaps(rawOf('w:caps'), rawOf('w:smallCaps')) === run.caps
       case 'dstrike':
@@ -3778,7 +3791,7 @@ export function mergeRPrModel(rawRPr: string, run: Run, insideLink: boolean): st
         // underline, regardless of other attributes like w:color. Must match
         // underlineProp() used at parse time.
         const val = rawAttr(rawOf('w:u'), 'w:val')
-        return (val !== undefined && val !== 'none') === !!run.underline
+        return run.underline === false ? val === 'none' : (val !== undefined && val !== 'none') === !!run.underline
       }
       case 'vertAlign': {
         const raw = rawAttr(rawOf('w:vertAlign'), 'w:val')

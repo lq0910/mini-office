@@ -1,0 +1,154 @@
+/** 功能：实际产品样式库/格式刷按钮、鼠标拖选、同源历史与下载重开验收；时间：2026-11-10；作者：lq。 */
+import { chromium } from 'playwright-core';
+import assert from 'node:assert/strict';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join, resolve } from 'node:path';
+import JSZip from 'jszip';
+
+const root = resolve(import.meta.dirname, '..');
+const output = join(root, 'output/playwright/word-core-m3-styles-painter.local');
+await mkdir(output, { recursive: true });
+const browser = await chromium.launch({ headless: true, executablePath: process.env.MINI_OFFICE_CHROME ?? join(homedir(), 'Library/Caches/ms-playwright/chromium-1217/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing') });
+const report = { status: 'running', checks: [], errors: [] };
+try {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
+  page.setDefaultTimeout(20000);
+  page.on('pageerror', error => report.errors.push(String(error)));
+  await page.addInitScript(() => { window.showSaveFilePicker = undefined; });
+  await page.goto(process.env.MINI_OFFICE_TEST_URL ?? 'http://127.0.0.1:1431');
+  await page.getByRole('button', { name: 'DOCX 文件 Word 文档' }).click();
+  const editor = page.locator('[data-word-engine="word-core"] .ProseMirror');
+  await editor.click();
+  await page.keyboard.insertText('源格式示范'); await page.keyboard.press('Enter');
+  await page.keyboard.insertText('目标文字一'); await page.keyboard.press('Enter');
+  await page.keyboard.insertText('目标文字二');
+  // 功能：运行时入口只观察真实 UI 事务，不用内部选区命令绕过鼠标和键盘；时间：2026-11-10；作者：lq。
+  await page.evaluate(async root => {
+    const { useWorkspaceStore } = await import('/@fs' + root + '/packages/document-model/src/index.ts');
+    const { coreToolbarFormatting } = await import('/@fs' + root + '/packages/editor-word/src/core-formatting.ts');
+    window.__styleStore = useWorkspaceStore;
+    window.__styleCore = () => useWorkspaceStore.getState().sessions[useWorkspaceStore.getState().activeId].wordCore;
+    window.__styleFormat = () => coreToolbarFormatting(window.__styleCore());
+  }, root);
+  /** 功能：用原生鼠标拖选具体段落，坐标只从文字 Range 读取；时间：2026-11-10；作者：lq。 */
+  const selectParagraph = async index => {
+    const revision = await page.evaluate(() => window.__styleCore().state().revision);
+    const margins = await page.evaluate(() => JSON.stringify(window.__styleCore().editor.state.doc.attrs.miniOfficePageLayout));
+    const painting = await page.getByRole('button', { name: '格式刷', exact: true }).getAttribute('aria-pressed') === 'true';
+    const box = await editor.locator(':scope > p, :scope > h1, :scope > h2').nth(index).evaluate(element => {
+      const range = document.createRange(); range.selectNodeContents(element);
+      const bounds = range.getBoundingClientRect();
+      return { x: bounds.left, y: bounds.top + bounds.height / 2, width: bounds.width };
+    });
+    await page.mouse.move(box.x + 1, box.y); await page.mouse.down(); await page.mouse.move(box.x + box.width - 1, box.y, { steps: 10 }); await page.mouse.up();
+    await page.waitForFunction(() => !window.__styleCore().editor.state.selection.empty);
+    assert.equal(await page.evaluate(() => JSON.stringify(window.__styleCore().editor.state.doc.attrs.miniOfficePageLayout)), margins, '拖选正文不能误触页边距修改');
+    if (!painting) assert.equal(await page.evaluate(() => window.__styleCore().state().revision), revision);
+  };
+  await selectParagraph(0);
+  await page.getByRole('button', { name: '字号', exact: true }).click();
+  await page.getByRole('textbox', { name: '字号磅值' }).fill('18'); await page.getByRole('textbox', { name: '字号磅值' }).press('Enter');
+  await page.getByRole('button', { name: '加粗', exact: true }).click();
+  await page.getByRole('button', { name: '字体颜色调色板', exact: true }).click();
+  await page.getByRole('dialog', { name: '字体颜色', exact: true }).getByRole('button', { name: '#D92D20', exact: true }).click();
+  await page.getByRole('button', { name: '居中', exact: true }).click();
+  await page.getByRole('button', { name: '样式库', exact: true }).click();
+  await page.getByRole('button', { name: '新建样式…', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '新建样式', exact: true });
+  await dialog.getByPlaceholder('例如：合同条款').fill('验收样式');
+  await dialog.getByRole('button', { name: '创建', exact: true }).click();
+  const styleId = await page.evaluate(() => window.__styleCore().editor.state.doc.firstChild.attrs.styleId);
+  assert.ok(styleId.startsWith('MoStyle_'));
+  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  assert.equal(await page.evaluate(() => window.__styleCore().editor.state.doc.attrs.miniOfficeStyles?.definitions.some(item => item.upsert.name === '验收样式') ?? false), false);
+  await page.getByRole('button', { name: '重做', exact: true }).click();
+  report.checks.push('new-style-from-current-selection', 'create-definition-and-apply-single-undo-redo');
+
+  await selectParagraph(1);
+  await page.getByRole('button', { name: '样式库', exact: true }).click();
+  await page.locator(`[data-style-card-host="${styleId}"] button[data-style-card]`).click();
+  assert.equal(await page.evaluate(() => window.__styleCore().editor.state.doc.child(1).attrs.styleId), styleId);
+  assert.equal((await page.evaluate(() => window.__styleFormat())).activeStyle.fontSizePt, 18);
+  await page.getByRole('button', { name: '样式库', exact: true }).click();
+  await page.getByRole('button', { name: '重命名样式 验收样式', exact: true }).click();
+  const rename = page.getByRole('dialog', { name: '重命名样式', exact: true });
+  await rename.getByRole('textbox').fill('验收正文');
+  await rename.getByRole('button', { name: '确定', exact: true }).click();
+  await page.getByRole('button', { name: '样式库', exact: true }).click();
+  await page.getByRole('button', { name: '删除样式 验收正文', exact: true }).click();
+  assert.equal(await page.evaluate(() => window.__styleCore().editor.state.doc.child(1).attrs.styleId), null);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  assert.equal(await page.evaluate(() => window.__styleCore().editor.state.doc.child(1).attrs.styleId), styleId);
+  report.checks.push('style-gallery-preserves-target-selection', 'rename-and-delete-definition-undo-restores-references');
+
+  await selectParagraph(0);
+  const beforeCopy = await page.evaluate(() => window.__styleCore().state().revision);
+  await page.getByRole('button', { name: '格式刷', exact: true }).click();
+  assert.equal(await page.evaluate(() => window.__styleCore().state().revision), beforeCopy);
+  await selectParagraph(2);
+  await page.waitForFunction(() => document.querySelector('button[aria-label="格式刷"]')?.getAttribute('aria-pressed') === 'false');
+  assert.equal((await page.evaluate(() => window.__styleFormat())).activeStyle.fontSizePt, 18);
+  assert.equal((await page.evaluate(() => window.__styleFormat())).paragraph.alignment, 'center');
+  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  assert.notEqual((await page.evaluate(() => window.__styleFormat())).activeStyle.fontSizePt, 18);
+  await page.getByRole('button', { name: '重做', exact: true }).click();
+  await page.getByRole('button', { name: '格式刷', exact: true }).dblclick();
+  assert.equal(await page.getByRole('button', { name: '格式刷', exact: true }).getAttribute('aria-pressed'), 'true');
+  await selectParagraph(1);
+  assert.equal(await page.getByRole('button', { name: '格式刷', exact: true }).getAttribute('aria-pressed'), 'true');
+  await selectParagraph(2);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.getByRole('button', { name: '格式刷', exact: true }).getAttribute('aria-pressed'), 'false');
+  report.checks.push('copy-format-does-not-edit-document', 'mouse-drag-single-paint-and-single-undo', 'double-click-sticky-repeat-and-escape');
+  await page.getByRole('button', { name: '样式库', exact: true }).click();
+  await page.getByRole('button', { name: '保存此文档为我的样式集', exact: true }).click();
+  const setDialog = page.getByRole('dialog', { name: '保存为我的样式集', exact: true });
+  await setDialog.getByRole('textbox').fill('验收样式集');
+  await setDialog.getByRole('button', { name: '保存', exact: true }).click();
+  await page.getByRole('button', { name: '样式库', exact: true }).click();
+  const beforeImport = await page.evaluate(() => window.__styleCore().editor.state.doc.attrs.miniOfficeStyles.definitions.length);
+  await page.getByRole('button', { name: '验收样式集 1', exact: true }).click();
+  assert.equal(await page.evaluate(() => window.__styleCore().editor.state.doc.attrs.miniOfficeStyles.definitions.length), beforeImport + 1);
+  assert.equal(await page.locator(`[data-style-card-host="${styleId}"]`).count(), 1);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  assert.equal(await page.evaluate(() => window.__styleCore().editor.state.doc.attrs.miniOfficeStyles.definitions.length), beforeImport);
+  await page.getByRole('button', { name: '样式库', exact: true }).click();
+  await page.getByRole('button', { name: '删除样式集 验收样式集', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: '验收样式集 1', exact: true }).count(), 0);
+  await page.keyboard.press('Escape');
+  report.checks.push('save-local-style-set', 'import-style-set-remaps-collision-and-single-undo', 'delete-local-style-set');
+  await page.screenshot({ path: join(output, 'styles-and-painter.png') });
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  const download = await downloading; const path = join(output, '样式格式刷验收.docx'); await download.saveAs(path);
+  const bytes = await readFile(path); const zip = await JSZip.loadAsync(bytes);
+  const stylesXml = await zip.file('word/styles.xml').async('string');
+  assert.ok(stylesXml.includes('验收正文')); assert.ok(stylesXml.includes(styleId));
+  await page.evaluate(bytes => window.__styleStore.getState().openBytes({ name: '样式格式刷重开.docx', bytes: new Uint8Array(bytes) }), Array.from(bytes));
+  await page.waitForFunction(() => window.__styleCore().parsed.styles.has([...window.__styleCore().parsed.styles.keys()].find(id => id.startsWith('MoStyle_'))) && !window.__styleCore().state().dirty);
+  await selectParagraph(1);
+  assert.equal((await page.evaluate(() => window.__styleFormat())).activeStyle.fontSizePt, 18);
+  await page.getByRole('button', { name: '样式库', exact: true }).click();
+  assert.equal(await page.locator(`[data-style-card-host="${styleId}"] button[data-style-card]`).innerText(), '验收正文');
+  // 功能：截图等待浮层入场动画完成，避免用半透明过渡帧作为验收证据；时间：2026-11-10；作者：lq。
+  await page.waitForFunction(() => [...document.querySelectorAll('.mo-pop-in')].every(element => element.getAnimations().every(animation => animation.playState === 'finished')));
+  await page.screenshot({ path: join(output, 'reopened-gallery.png') });
+  report.checks.push('actual-download-contains-style-definitions', 'reopen-preserves-names-and-formatting');
+  // 功能：重开后的导入样式可删除，引用转隐藏基底且撤销恢复公开定义；时间：2026-11-11；作者：lq。
+  await page.getByRole('button', { name: '删除样式 验收正文', exact: true }).click();
+  assert.equal(await page.locator(`[data-style-card-host="${styleId}"]`).count(), 0);
+  const retained = await page.evaluate(id => window.__styleCore().editor.state.doc.attrs.miniOfficeStyles.retained[id], styleId);
+  assert.ok(retained.startsWith('MoRetained_'));
+  await page.keyboard.press('Escape'); await page.getByRole('button', { name: '撤销', exact: true }).click();
+  await page.getByRole('button', { name: '样式库', exact: true }).click();
+  assert.equal(await page.locator(`[data-style-card-host="${styleId}"] button[data-style-card]`).innerText(), '验收正文');
+  report.checks.push('imported-style-delete-preserves-hidden-format-base-and-undo');
+  assert.deepEqual(report.errors, []); report.status = 'passed'; report.browser = browser.version();
+} catch (error) {
+  report.status = 'failed'; report.error = String(error); report.stack = error.stack;
+  report.diagnostic = await browser.contexts()[0]?.pages()[0]?.evaluate(() => ({ format: window.__styleFormat?.(), doc: window.__styleCore?.().editor.getJSON(), selection: window.__styleCore?.().editor.state.selection.toJSON(), active: document.activeElement?.outerHTML.slice(0, 200) }));
+  await browser.contexts()[0]?.pages()[0]?.screenshot({ path: join(output, 'failure.png') }); process.exitCode = 1;
+} finally { await browser.close(); await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2)); console.log(JSON.stringify(report)); }

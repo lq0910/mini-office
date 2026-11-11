@@ -21,10 +21,13 @@ import {
 
 export function FontSizePicker({
   value,
+  mixed,
   disabled,
   onChange,
 }: {
   value?: number;
+  /** 功能：混合字号显示空状态，不将默认字号冒充选区格式；时间：2026-11-10；作者：lq。 */
+  mixed?: boolean;
   disabled?: boolean;
   onChange: (pt: number) => void;
 }) {
@@ -32,8 +35,8 @@ export function FontSizePicker({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setDraft(value ? formatPt(value) : '');
-  }, [value]);
+    setDraft(!mixed && value ? formatPt(value) : '');
+  }, [value, mixed]);
 
   const commit = (raw: string, close?: () => void) => {
     const parsed = parseFontSizeInput(raw);
@@ -60,7 +63,7 @@ export function FontSizePicker({
             open && 'bg-[var(--mo-surface-2)]',
           )}
         >
-          <span className="truncate">{fontSizeLabel(value)}</span>
+          <span className="truncate">{mixed ? '混合字号' : fontSizeLabel(value)}</span>
           <ChevronDown size={12} className="shrink-0 text-[var(--mo-text-muted)]" />
         </button>
       )}
@@ -103,7 +106,7 @@ export function FontSizePicker({
                 }}
                 className={cn(
                   'flex h-7 items-center justify-between rounded px-2 text-[11px] text-[var(--mo-text-primary)] hover:bg-[var(--mo-surface-2)]',
-                  value !== undefined && Math.abs(value - item.pt) < 0.01 && 'bg-[var(--mo-accent-soft)] text-[var(--mo-accent)]',
+                  !mixed && value !== undefined && Math.abs(value - item.pt) < 0.01 && 'bg-[var(--mo-accent-soft)] text-[var(--mo-accent)]',
                 )}
               >
                 <span>{item.name}</span>
@@ -124,14 +127,14 @@ export function FontSizePicker({
                 }}
                 className={cn(
                   'h-7 rounded text-[11px] tabular-nums text-[var(--mo-text-primary)] hover:bg-[var(--mo-surface-2)]',
-                  value !== undefined && Math.abs(value - pt) < 0.01 && 'bg-[var(--mo-accent-soft)] text-[var(--mo-accent)]',
+                  !mixed && value !== undefined && Math.abs(value - pt) < 0.01 && 'bg-[var(--mo-accent-soft)] text-[var(--mo-accent)]',
                 )}
               >
                 {formatPt(pt)}
               </button>
             ))}
           </div>
-          {value && cnFontSizeName(value) ? (
+          {!mixed && value && cnFontSizeName(value) ? (
             <p className="px-2 pt-1 text-[10px] text-[var(--mo-text-faint)]">
               当前：{cnFontSizeName(value)} · {formatPt(value)} 磅
             </p>

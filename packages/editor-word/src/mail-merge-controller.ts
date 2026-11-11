@@ -1,13 +1,13 @@
 // 邮件合并全部状态与动作的单一来源，供侧栏、主画布预览与控制条共用
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
-import { getSourceBytes, useWorkspaceStore, type DocBlock, type DocModel, type WordSession, type WorkbookModel } from '@mini-office/document-model';
+import { getSourceBytes, useWorkspaceStore, type DocBlock, type DocModel, type DocumentSession, type WorkbookModel } from '@mini-office/document-model';
 import { getPlatformAdapter, printCurrentView } from '@mini-office/platform-adapter';
 import { stripExtension } from '@mini-office/shared';
 import { exportElementsToPdf } from '@mini-office/export-service';
 import { serializeDocx } from './serialize';
 import { mountMergeReport, type MergeBlockRenderer } from './MergeReport';
-import { collectMergeFields, countNextBlocks, extractMergeData, filterMergeRecords, hasNextMergeField, MAX_MERGE_BATCH, mergeDocument, mergeFileName, mergeNextDocument, mergeReadProgressText, pageRangeToRecordRange, readMergeWorkbookOffThread, recordsByRange, type MergeCondition, type MergeData, type MergeRangeKind } from './mail-merge';
+import { collectMergeFields, countNextBlocks, extractMergeData, filterMergeRecords, hasNextMergeField, MAX_MERGE_BATCH, mergeDocument, mergeFileName, mergeNextDocument, mergeReadProgressText, pageRangeToRecordRange, readMergeWorkbookOffThread, recordsByRange, type MergeCondition, type MergeData, type MergeRangeKind, type MergeRecord } from './mail-merge';
 import { type WordMailMergeInfo } from './mail-merge-ooxml';
 
 export { MAX_MERGE_BATCH } from './mail-merge';
@@ -19,14 +19,19 @@ export const OPERATORS: { value: MergeCondition['op']; label: string }[] = [
   { value: 'notContains', label: '不包含' },
 ];
 export type OutputKind = 'print' | 'pdf' | 'docx' | 'docx-zip' | 'pdf-zip';
+/** 功能：复用现有数据源/筛选 UI，原生核心只提供字段摘要、设置持久化及真实输出；时间：2026-11-11；作者：lq。 */
+export interface NativeMailMergeTemplate {
+  fields: string[]; nextBlocks: number; panelState?: string;
+  persistPanel(state: string, source?: WordMailMergeInfo | null): void;
+  generate(request: { records: MergeRecord[]; output: OutputKind; namePattern: string; isCancelled: () => boolean; onProgress: (value: number, message: string) => void }): Promise<string>;
+}
 /** 功能：在同一文档切换标签时保留数据快照、筛选和勾选，不自动刷新源数据；时间：2026-10-24；作者：lq。 */
 export type MergeSource = { workbook: WorkbookModel; name: string; path?: string };
 interface MergeDraft { source?: MergeSource; sheetId: string; headerRow: number; conditions: MergeCondition[]; search: string; sort: string; descending: boolean; selected: number[]; allowEmpty: boolean; namePattern: string; output: OutputKind; mergeRange?: MergeRangeKind; rangeStart?: number; rangeEnd?: number }
 const mergeDrafts = new Map<string, MergeDraft>();
 
 /** 功能：从文档 meta 里读回保存的面板状态（筛选、排序、命名、输出方式、范围），首次打开模板时恢复；时间：2026-10-29；作者：lq。 */
-function loadPersistedMailMergeState(doc: DocModel): MergeDraft | undefined {
-  const raw = doc.meta?.mailMergeState;
+function loadPersistedMailMergeState(raw?: string): MergeDraft | undefined {
   if (!raw) return undefined;
   try {
     const parsed = JSON.parse(raw) as Partial<MergeDraft>;
@@ -63,8 +68,10 @@ function mergeRecordsIntoDocument(documents: DocModel[]): DocModel {
   return { ...first, blocks };
 }
 
-export function useMailMergeController({ session, doc, renderBlocks, onOpenDocument, persist = true }: {
-  session: WordSession; doc: DocModel; renderBlocks: MergeBlockRenderer;
+export function useMailMergeController({ session, doc, renderBlocks, onOpenDocument, persist = true, native }: {
+  session: DocumentSession; doc?: DocModel; renderBlocks?: MergeBlockRenderer;
+  /** 功能：新核心不构造占位旧正文，只使用真实字段/数据设置和原生输出后端；时间：2026-11-11；作者：lq。 */
+  native?: NativeMailMergeTemplate;
   /** 功能：docx 输出时若提供，合并结果直接作为新文档在软件窗口打开，不弹保存框；时间：2026-10-30；作者：lq。 */
   onOpenDocument?: (doc: DocModel, name: string) => void | Promise<void>;
   /** 功能：外部已传入 controller 时内部兜底实例不持久化，避免多实例互相覆盖；时间：2026-10-29；作者：lq。 */
@@ -73,7 +80,7 @@ export function useMailMergeController({ session, doc, renderBlocks, onOpenDocum
   const sessions = useWorkspaceStore((state) => state.sessions);
   const notify = useWorkspaceStore((state) => state.notify);
   const updateDocMeta = useWorkspaceStore((state) => state.updateDocMeta);
-  const cached = useRef(mergeDrafts.get(session.id) ?? loadPersistedMailMergeState(doc)).current;
+  const cached = useRef(mergeDrafts.get(session.id) ?? loadPersistedMailMergeState(native?.panelState ?? doc?.meta?.mailMergeState)).current;
   // 功能：挂载面板只恢复界面，不把默认状态写入原文件或清除原邮件合并关系；时间：2026-11-07；作者：lq。
   const initialPanelState = useRef<string>();
   const panelWasEdited = useRef(false);
@@ -107,7 +114,7 @@ export function useMailMergeController({ session, doc, renderBlocks, onOpenDocum
   const cancel = useRef(false);
   const printCleanup = useRef<(() => void) | null>(null);
   const workbooks = Object.values(sessions).filter((item) => item.kind === 'xlsx');
-  const templateFields = useMemo(() => collectMergeFields(doc), [doc]);
+  const templateFields = useMemo(() => native?.fields ?? (doc ? collectMergeFields(doc) : []), [doc, native?.fields]);
   const result = useMemo<{ data?: MergeData; error?: string }>(() => {
     if (!source) return {};
     try { return { data: extractMergeData(source.workbook, sheetId, headerRow) }; }
@@ -127,8 +134,8 @@ export function useMailMergeController({ session, doc, renderBlocks, onOpenDocum
     return records;
   }, [data, conditions, search, sort, descending]);
   // 功能：模板每页的记录块数（NEXT 块个数），用于说明输出页数与末尾空块来源；时间：2026-10-28；作者：lq。
-  const hasNext = useMemo(() => hasNextMergeField(doc), [doc]);
-  const blocksPerPage = useMemo(() => (hasNext ? countNextBlocks(doc) : 0), [hasNext, doc]);
+  const hasNext = useMemo(() => native ? native.nextBlocks > 0 : !!doc && hasNextMergeField(doc), [doc, native?.nextBlocks]);
+  const blocksPerPage = useMemo(() => native?.nextBlocks ?? (hasNext && doc ? countNextBlocks(doc) : 0), [hasNext, doc, native?.nextBlocks]);
   // 功能：一页容纳的记录数——NEXT 模板按记录块数，普通模板一份报告即一页；时间：2026-10-30；作者：lq。
   const pageSize = blocksPerPage > 0 ? blocksPerPage : 1;
   const chosen = useMemo(() => filtered.filter((record) => selected.has(record.rowNumber)), [filtered, selected]);
@@ -154,7 +161,7 @@ export function useMailMergeController({ session, doc, renderBlocks, onOpenDocum
     [previewRecords, nextPageStart, blocksPerPage],
   );
   const previewDoc = useMemo(() => {
-    if (!templateFields.length) return undefined;
+    if (!doc || !templateFields.length) return undefined;
     // 功能：NEXT 模板(每页多条)的预览必须与正式合并一致，使用多块合并；否则仍按当前记录逐条预览；时间：2026-10-28；作者：lq。
     if (hasNextMergeField(doc)) {
       // 功能：NEXT 预览只渲染当前记录所在的那一页模板，不再一次性展开全部合并页；用「上一页 / 下一页」逐页切换；时间：2026-10-30；作者：lq。
@@ -164,7 +171,7 @@ export function useMailMergeController({ session, doc, renderBlocks, onOpenDocum
     if (!current || templateFields.some((field) => !Object.hasOwn(current.values, field))) return undefined;
     return mergeDocument(doc, current);
   }, [current, doc, templateFields, nextWindow, allowEmpty]);
-  const multipleSections = doc.blocks.some((block) => block.type === 'paragraph' && block.sectionEnd);
+  const multipleSections = !native && !!doc?.blocks.some((block) => block.type === 'paragraph' && block.sectionEnd);
   const badNameFields = [...namePattern.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]).filter((field) => field !== '序号' && !data?.fields.includes(field));
   // NEXT 模板输出为合并单文档，docx-zip/pdf-zip 自动退化为单文件，不校验逐条命名
   const invalidName = !hasNext && (output === 'docx-zip' || output === 'pdf-zip') && badNameFields.length > 0;
@@ -196,7 +203,7 @@ export function useMailMergeController({ session, doc, renderBlocks, onOpenDocum
     for (const id of mergeDrafts.keys()) if (!sessions[id]) mergeDrafts.delete(id);
     // 同步模板持久化状态：通过 store 更新元数据而不标记脏，避免直接 mutate 丢失未保存标记；时间：2026-10-29；作者：lq。
     const mailMergeState = JSON.stringify({
-      conditions, search, sort, descending, allowEmpty, output, mergeRange, rangeStart, rangeEnd,
+      sheetId, headerRow, conditions, search, sort, descending, selected: [...selected], allowEmpty, namePattern, output, mergeRange, rangeStart, rangeEnd,
       dataSource: source ? { name: source.name, path: source.path ?? '' } : undefined,
     });
     const currentMeta = (useWorkspaceStore.getState().sessions[session.id]?.data as DocModel | undefined)?.meta;
@@ -207,11 +214,13 @@ export function useMailMergeController({ session, doc, renderBlocks, onOpenDocum
     if (initialPanelState.current === undefined) initialPanelState.current = signature;
     if (signature !== initialPanelState.current) panelWasEdited.current = true;
     if (!panelWasEdited.current) return;
+    // 功能：原生面板状态进入原生保存快照，不通过旧 store.updateDocMeta 修改第二份正文；时间：2026-11-11；作者：lq。
+    if (native) { native.persistPanel(mailMergeState, wordCompatible ?? (source ? null : undefined)); return; }
     // 以 store 中的最新元数据为准，避免组件持有旧 doc 引用时反复写入；时间：2026-10-29；作者：lq。
     if (currentMeta && (currentMeta.mailMergeState !== mailMergeState || JSON.stringify(currentMeta.mailMergeTemplate) !== JSON.stringify(mailMergeTemplate))) {
       updateDocMeta(session.id, { mailMergeState, mailMergeTemplate });
     }
-  }, [session.id, sessions, source, sheetId, headerRow, conditions, search, sort, descending, selected, allowEmpty, namePattern, output, mergeRange, rangeStart, rangeEnd, wordCompatible, persist, updateDocMeta]);
+  }, [session.id, sessions, source, sheetId, headerRow, conditions, search, sort, descending, selected, allowEmpty, namePattern, output, mergeRange, rangeStart, rangeEnd, wordCompatible, persist, updateDocMeta, native]);
   // 预览模式下按 ESC 快速返回编辑模板
   useEffect(() => {
     if (!previewOn) return;
@@ -278,6 +287,16 @@ export function useMailMergeController({ session, doc, renderBlocks, onOpenDocum
       return;
     }
     cancel.current = false; setBusy(true); setProgress(0); setError('');
+    // 功能：新核心的预览/输出由 OOXML 快照实现；保留既有数据筛选与范围规则，禁止进入旧序列化分支；时间：2026-11-11；作者：lq。
+    if (native) {
+      try {
+        const message = await native.generate({ records: rangedRecords, output, namePattern, isCancelled: () => cancel.current, onProgress: (value, message) => { setProgress(value); setStatus(message); } });
+        setStatus(message); setProgress(100); notify('success', '邮件合并完成', message);
+      } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); setStatus(''); }
+      finally { setBusy(false); }
+      return;
+    }
+    if (!doc || !renderBlocks) { setError('缺少邮件合并模板。'); setBusy(false); return; }
     printCleanup.current?.(); printCleanup.current = null;
     const container = document.createElement('div');
     container.style.cssText = 'position:fixed;left:-100000px;top:0;background:white;color:black;';

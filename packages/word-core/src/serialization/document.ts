@@ -4,11 +4,15 @@ import {
   patchChartWorkbookXlsxBase64, readDocxPartBase64, saveDocx,
   type ParsedDocFull, type SaveOptions, type NewInkImage,
 } from '../upstream/packages/docx-engine/src/index';
+// 功能：页面和附属区域按相同事务快照合并进保存计划；时间：2026-11-10；作者：lq。
+import { pageLayoutSavePlan, type WordPageLayout } from '../editing/page-layout';
 import { pmDocToSavePlan, type PmNode } from '../upstream/apps/docs/src/renderer/editor/convert';
 
 /** 功能：序列化事务快照，保留上游图表/嵌入工作簿的联动回写及来源计划；时间：2026-11-08；作者：lq。 */
 export async function serializeWordDocument(parsed: ParsedDocFull, document: PmNode, options: SaveOptions = {}): Promise<Uint8Array> {
   const plan = pmDocToSavePlan(document, parsed.blocks);
+  const catalog = document.attrs?.miniOfficePageLayout as WordPageLayout | null | undefined;
+  const layout = catalog ? pageLayoutSavePlan(parsed, catalog, plan.saveBlocks) : undefined;
   const partXml = { ...options.partXml };
   const partBinary = { ...options.partBinary };
   for (const { partPath, patch } of plan.chartPatches) {
@@ -39,8 +43,8 @@ export async function serializeWordDocument(parsed: ParsedDocFull, document: PmN
       inks.push(entry);
     }
   }
-  return saveDocx(parsed, plan.saveBlocks, {
-    ...options,
+  return saveDocx(parsed, layout?.blocks ?? plan.saveBlocks, {
+    ...options, ...layout?.options,
     newPictures: Object.keys(plan.newPictures).length ? { ...options.newPictures, ...plan.newPictures } : options.newPictures,
     trailingSectPrChange: plan.trailingSectPrChange ?? options.trailingSectPrChange,
     inks,

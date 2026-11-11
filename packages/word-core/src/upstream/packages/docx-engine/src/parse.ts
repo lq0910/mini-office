@@ -6220,6 +6220,8 @@ function extractCell(
     const emptyFont = markSized ? emptyParaMarkFont(p, pPr, ctx.themeFonts, spaceOnly) : undefined
     const markSz = cellRef ? markSizeOf(eff, pPr) : undefined
     richParas.push({
+      // 功能：保留格内段落的书签、链接外壳及未知子节点；时间：2026-11-11；作者：lq。
+      sourceXml: serializeXNode(p),
       ...format,
       ...(cellStyleId ? { styleId: cellStyleId } : {}),
       ...(emptySz ? { emptyRunSizeHalfPoints: emptySz } : {}),
@@ -7228,6 +7230,9 @@ function hfStyledParaFormat(pNode: XNode, ctx: BuildContext): ParaFormat {
   const rctx = resolverOf(ctx)
   const eff = resolveParagraphProps(pPr, rctx)
   return {
+    // 功能：区域列表编号身份及几何随原生段落往返；时间：2026-11-11；作者：lq。
+    ...(eff.list ? { listMarker: { numId: eff.list.numId, ilvl: eff.list.ilvl, kind: eff.list.level?.numFmt === 'bullet' ? 'bullet' as const : 'ordered' as const, text: eff.list.level?.numFmt === 'bullet' ? eff.list.level.lvlText : '1.', indentLeft: eff.list.level?.indentLeft, hanging: eff.list.level?.hanging } } : {}),
+    ...(pPr && attrsOf(findChild(pPr, 'w:pStyle') ?? {})['w:val'] ? { styleId: attrsOf(findChild(pPr, 'w:pStyle') ?? {})['w:val'] } : {}),
     ...withoutResolvedGeometry(direct),
     ...effectiveParaFormat(eff, rctx.compat, { lineSources: hfLineSources(eff, false) }),
   }
@@ -7425,6 +7430,9 @@ function hfParagraphs(
   flushDeferred()
   // empty paragraphs stay, even when the whole part is blank: Word lays them
   // out and their height pushes the body when it exceeds the margin
+  const listed = out.filter(para => para.listMarker?.numId)
+  const infos = computeListMarkerInfos(listed.map(para => ({ numId: para.listMarker!.numId ?? null, ilvl: para.listMarker!.ilvl ?? 0 })), resolver?.numbering ?? new Map())
+  listed.forEach((para, i) => { if (infos[i]) para.listMarker = { ...para.listMarker!, text: infos[i].text } })
   return out
 }
 
@@ -7704,6 +7712,7 @@ function hfCellContent(
         ? eff.mark.sizeHalfPoints
         : undefined
     const props: NonNullable<HfTableCell['paraProps']>[number] = {
+      ...hfStyledParaFormat(node, ctx),
       ...(eff.align ? { align: eff.align } : {}),
       ...(eff.indent.left ? { indentLeft: eff.indent.left } : {}),
       ...(eff.indent.firstLine ? { indentFirstLine: eff.indent.firstLine } : {}),
@@ -8648,9 +8657,9 @@ async function tableBlipMedia(
   const out = new Map<string, string>()
   const rIds = new Set<string>()
   for (const el of elements) {
-    if (el.name !== 'w:tbl' && el.name !== 'w:sdt') continue
+    if (el.name !== 'w:tbl' && el.name !== 'w:sdt' && !documentXml.slice(el.start, el.end).includes('<w:txbxContent')) continue
     let slice = documentXml.slice(el.start, el.end)
-    if (el.name === 'w:sdt') {
+    if (el.name === 'w:sdt' && !slice.includes('<w:txbxContent')) {
       const from = slice.indexOf('<w:tbl')
       if (from === -1) continue
       slice = slice.slice(from, slice.lastIndexOf('</w:tbl>') + '</w:tbl>'.length)

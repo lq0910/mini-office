@@ -1,8 +1,7 @@
 /** 功能：承接固定 GenOffice 的页眉页脚和注释度量，让分页容量与显示使用同一份数据；时间：2026-11-09；作者：lq。 */
 import type { WordCoreSession } from '../../word-core/src/session/word-session';
-import { readSections, readPageColor, type NoteInfo, type SectionInfo } from '../../word-core/src/index';
-import { hfVariantsFromParsed } from '../../word-core/src/upstream/apps/docs/src/renderer/doc-state';
-import { resolveHf, type HfSectionState, type HfKind } from '../../word-core/src/upstream/apps/docs/src/renderer/hf-sections';
+import { readPageColor, type NoteInfo, type SectionInfo } from '../../word-core/src/index';
+import { resolveHf, type HfKind } from '../../word-core/src/upstream/apps/docs/src/renderer/hf-sections';
 import { sectionHfHeights } from '../../word-core/src/upstream/apps/docs/src/renderer/hf-heights';
 import { hfLayoutResolved, hfPhantomSpec } from '../../word-core/src/upstream/apps/docs/src/renderer/hf-phantom';
 import { effectiveTopPx, effectiveBottomPx, sectionPageBox } from '../../word-core/src/upstream/apps/docs/src/renderer/pagination-sections';
@@ -14,14 +13,13 @@ import { paraPaginationMeta, imageParaPaginationMeta } from '../../word-core/src
 import { pageOfY, type BlockBox, type PageSlice, type PageNoteItem, type BlockMeta } from '../../word-core/src/upstream/apps/docs/src/renderer/pagination';
 
 /** 功能：按当前事务构建注释引用，不把已删除的脚注继续留在页面底部；时间：2026-11-09；作者：lq。 */
-export function wordLayoutContext(session: WordCoreSession, sections: SectionInfo[] = readSections(session.parsed)) {
+export function wordLayoutContext(session: WordCoreSession, sections: SectionInfo[] = session.sections()) {
   const parsed = session.parsed;
-  const hfState: HfSectionState = { sections, edits: {}, links: {}, parsed,
-    docStrips: { header: parsed.headerText || parsed.headerParas?.length || parsed.headerHasPageNumber ? { text: parsed.headerText ?? '', paras: parsed.headerParas ?? undefined, pageNumber: parsed.headerHasPageNumber } : null,
-      footer: parsed.footerText || parsed.footerParas?.length || parsed.footerHasPageNumber ? { text: parsed.footerText ?? '', paras: parsed.footerParas ?? undefined, pageNumber: parsed.footerHasPageNumber } : null, variants: hfVariantsFromParsed(parsed) } };
+  // 功能：读取事务中的页眉页脚草稿，撤销及重做与正文分页同步；时间：2026-11-10；作者：lq。
+  const hfState = { ...session.headerFooterState(), sections };
   const hf = (section: number, kind: HfKind, variant: HfVariant) => hfLayoutResolved(kind, resolveHf(hfState, section, kind, variant), readPageColor(parsed) ? hfPhantomSpec(parsed) : null);
-  const heights = sectionHfHeights(sections, hf, { titlePg: !!sections[0]?.titlePg, evenOddHf: !!parsed.evenAndOddHeaders });
-  const firstVariant = hfVariantOf(sections[0]?.titlePg, true, !!parsed.evenAndOddHeaders, sections[0]?.pageNumberStart ?? 1);
+  const heights = sectionHfHeights(sections, hf, { titlePg: !!sections[0]?.titlePg, evenOddHf: !!session.evenAndOddHeaders() });
+  const firstVariant = hfVariantOf(sections[0]?.titlePg, true, !!session.evenAndOddHeaders(), sections[0]?.pageNumberStart ?? 1);
   const firstReserved = hfVariantReservedPx(heights[0], firstVariant);
   const top = effectiveTopPx(sections[0].settings, firstReserved.headerPx);
   const bottom = effectiveBottomPx(sections[0].settings, heights[0].footerPx);

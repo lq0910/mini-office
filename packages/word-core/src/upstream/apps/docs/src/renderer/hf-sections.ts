@@ -128,7 +128,7 @@ function pendingForRef(
     if (refOf(sec, kind, variant) !== rId) continue
     if (state.links[linkKey(sec.lastBlockIndex, kind, variant)]) continue
     const edited = state.edits[editKey(sec.lastBlockIndex, kind, variant)]
-    if (edited) return edited
+    if (edited && !edited.miniOfficeSourceRid) return edited
   }
   return undefined
 }
@@ -183,8 +183,9 @@ export function ownHf(
   if (sec && state.links[linkKey(sec.lastBlockIndex, kind, variant)]) return undefined
   const rId = refOf(sec, kind, variant)
   const parts = state.parsed?.hfParts
-  const images = rId
-    ? parts?.[rId]?.images
+  const sourceRid = state.edits[editKey(sec?.lastBlockIndex ?? -1, kind, variant)]?.miniOfficeSourceRid ?? rId
+  const images = sourceRid
+    ? parts?.[sourceRid]?.images
     : single
       ? docImages(state.parsed, kind, variant)
       : undefined
@@ -271,7 +272,8 @@ export function withHfEdit(
  * the text now counts as edited.
  */
 export function hfTextCommit(prev: HeaderFooter | undefined, next: HeaderFooter): HeaderFooter {
-  const { pictureOnly: _textKept, ...rest } = next
+  const { pictureOnly: _textKept, keepContent: _kept, ...rest } = next
+  if (prev?.miniOfficeSourceRid && !rest.miniOfficeSourceRid) rest.miniOfficeSourceRid = prev.miniOfficeSourceRid
   const pictureEdits = prev?.pictureEdits ?? next.pictureEdits
   return pictureEdits ? { ...rest, pictureEdits } : rest
 }
@@ -330,7 +332,10 @@ export function withHfLink(
     const { [key]: _dropped, ...edits } = state.edits
     return { edits, links: { ...state.links, [key]: true } }
   }
-  const copy = resolveHf(state, si, kind, variant).value ?? { text: '' }
+  const resolved = resolveHf(state, si, kind, variant)
+  const inherited = resolved.value ?? { text: '' }
+  const sourceRid = inherited.miniOfficeSourceRid ?? refOf(state.sections[resolved.owner], kind, variant)
+  const copy = { ...inherited, ...(sourceRid ? { miniOfficeSourceRid: sourceRid } : {}), ...(!Object.values(state.edits).includes(inherited) ? { keepContent: true as const } : {}) }
   const { [key]: _unlinked, ...links } = state.links
   return { edits: { ...state.edits, [key]: copy }, links }
 }

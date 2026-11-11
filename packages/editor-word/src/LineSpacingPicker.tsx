@@ -20,11 +20,14 @@ const PRECISE_MODES = [
 
 export function LineSpacingPicker({
   style,
+  mixed,
   disabled,
   onChange,
   onOpenOptions,
 }: {
   style: ParagraphStyle | undefined;
+  /** 功能：混合行距不误显示默认倍数或勾选预设；时间：2026-11-10；作者：lq。 */
+  mixed?: boolean;
   disabled?: boolean;
   onChange: (patch: Partial<ParagraphStyle>) => void;
   onOpenOptions?: () => void;
@@ -66,7 +69,7 @@ export function LineSpacingPicker({
             open && 'bg-[var(--mo-surface-2)]',
           )}
         >
-          <span className="truncate">{lineSpacingLabel(state)}</span>
+          <span className="truncate">{mixed ? '混合行距' : lineSpacingLabel(state)}</span>
           <ChevronDown size={12} className="shrink-0 text-[var(--mo-text-muted)]" />
         </button>
       )}
@@ -85,7 +88,7 @@ export function LineSpacingPicker({
                 }}
                 className={cn(
                   'h-7 rounded text-[11px] tabular-nums text-[var(--mo-text-primary)] hover:bg-[var(--mo-surface-2)]',
-                  state.mode === 'multiple' && Math.abs(state.value - multiple) < 0.01 && 'bg-[var(--mo-accent-soft)] text-[var(--mo-accent)]',
+                  !mixed && state.mode === 'multiple' && Math.abs(state.value - multiple) < 0.01 && 'bg-[var(--mo-accent-soft)] text-[var(--mo-accent)]',
                 )}
               >
                 {formatPt(multiple)}

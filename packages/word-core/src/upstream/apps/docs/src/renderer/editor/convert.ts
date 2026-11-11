@@ -1,4 +1,8 @@
 /** 功能：融合 GenOffice Word 内核；时间：2026-11-08；集成作者：lq；上游作者、固定版本及本地修改见 packages/word-core/UPSTREAM.md 和 SOURCE-MANIFEST.json。 */
+import { patchWordCellParagraph } from '../../../../../../serialization/table-paragraph';
+import { patchParagraphTexts } from '../../../../../packages/docx-engine/src/text-patch';
+import { patchWordRunEffects } from '../../../../../../serialization/run-effects';
+import { patchWordParagraphStructure } from '../../../../../../serialization/paragraph-structure';
 import {
   mergePPrFormat,
   parseLazyMediaUrl,
@@ -1303,6 +1307,7 @@ export function tableModelToPmNode(
     content: model.rows.map((row, rowIndex) => ({
       type: 'docTableRow',
       attrs: {
+        miniOfficeSourceRow: rowIndex,
         heightTwips: model.rowHeightsTwips?.[rowIndex] ?? null,
         heightRule: model.rowHeightRules?.[rowIndex] ?? null,
         repeatHeader: model.repeatHeaderRows?.[rowIndex] ?? false,
@@ -1334,6 +1339,7 @@ export function tableModelToPmNode(
                 // rendered grid, so the build must spell it the same way or the
                 // signature never matches after load
                 colwidth: widthPx ? widthPx.slice(start, start + (cell.colSpan ?? 1)) : null,
+                miniOfficeSourceColumn: start,
                 mergeGap: true,
                 gridGap: true,
               },
@@ -1349,6 +1355,7 @@ export function tableModelToPmNode(
             attrs: {
               colspan,
               rowspan,
+              miniOfficeSourceColumn: start,
               clipHeightTwips: cellClipTwips(model, rowIndex, cell, rowspan),
               colwidth: widthPx ? widthPx.slice(start, start + colspan) : null,
               gridGap: cell.gridGap ?? false,
@@ -1413,6 +1420,11 @@ function cellContentNodes(cell: TableCell): PmNode[] {
           content: runsToInline(paragraph.runs),
         }
   })
+  // 功能：来源只保存不可变 XML 和格式签名，不引入第二份可编辑正文；时间：2026-11-11；作者：lq。
+  for (let i = 0; i < paraNodes.length; i++) {
+    const xml = cell.richParas?.[i]?.sourceXml
+    if (xml) paraNodes[i].attrs = { ...paraNodes[i].attrs, miniOfficeCellSource: { xml, format: nodeFormat(paraNodes[i]), styleId: paraNodes[i].attrs?.styleId ?? null, signature: cellSourceSignature(paraNodes[i]), skeleton: cellSourceSignature(paraNodes[i], true) } }
+  }
   // fidelity on save comes from the outer table's bytes; reverse insertion keeps anchors valid
   const inserts: Array<{ at: number; node: PmNode }> = []
   const nested = cell.nestedTables ?? []
@@ -1520,7 +1532,7 @@ function inlineFormattingSignature(content: PmNode[] | undefined): string[] {
         ? JSON.stringify(
             [...(node.marks ?? [])]
               .sort((a, b) => a.type.localeCompare(b.type))
-              .map((mark) => [mark.type, mark.attrs ?? null]),
+              .map((mark) => [mark.type, mark.attrs ? Object.fromEntries(Object.entries(mark.attrs).filter(([, value]) => value !== null && value !== undefined).sort(([a], [b]) => a.localeCompare(b))) : null]),
           )
         : atom
           ? JSON.stringify([node.type, node.attrs?.widthPx ?? null, node.attrs?.heightPx ?? null])
@@ -1562,6 +1574,7 @@ function unwrapBlockRevisionXml(xml: string): string {
 export function pmTableToModel(table: PmNode): TableModel {
   type ActiveSpan = {
     remaining: number
+    sourceColumn: number | null
     span: number
     cell: Omit<TableModel['rows'][number][number], 'paras'>
     // tracked-change records live on the restart cell (the merged-away cells
@@ -1607,7 +1620,7 @@ export function pmTableToModel(table: PmNode): TableModel {
   const layoutUntouched =
     typeof table.attrs?.originalStructure !== 'string' ||
     table.attrs.originalStructure === tableStructureSignature(table)
-  if (!layoutUntouched) continuationCells.clear()
+  // 来源坐标由不可编辑身份携带，结构属性变化不丢弃续格。
   const rowHeightsTwips: Array<number | null> = []
   const rowHeightRules: NonNullable<TableModel['rowHeightRules']> = []
   const repeatHeaderRows: Array<boolean | null> = []
@@ -1642,7 +1655,7 @@ export function pmTableToModel(table: PmNode): TableModel {
     const entries: Array<{ column: number; cell: TableModel['rows'][number][number] }> = []
     const occupied = new Set<number>()
     for (const [column, span] of active) {
-      const original = continuationCells.get(rowIndex + ':' + column)
+      const original = continuationCells.get(String(rowNode.attrs?.miniOfficeSourceRow ?? -1) + ':' + (span.sourceColumn ?? -1))
       const merged = original && (original.colSpan ?? 1) === span.span ? original : undefined
       // null = the editor accepted (strip the record), an object = still pending;
       // only an absent attr leaves the build-time record in place
@@ -1688,7 +1701,7 @@ export function pmTableToModel(table: PmNode): TableModel {
         // the empty cell keeps the grid width, as Word keeps the row.
         while (occupied.has(cursor)) cursor++
         const gap = Math.max(1, Number(cellNode.attrs?.colspan) || 1)
-        const record = continuationCells.get(rowIndex + ':' + cursor)
+        const record = continuationCells.get(String(rowNode.attrs?.miniOfficeSourceRow ?? -1) + ':' + (cellNode.attrs?.miniOfficeSourceColumn ?? -1))
         const merged = record && (record.colSpan ?? 1) === gap ? record : undefined
         entries.push({
           column: cursor,
@@ -1766,6 +1779,7 @@ export function pmTableToModel(table: PmNode): TableModel {
           ...style,
           paras: cellParas.map(paragraphText),
           richParas: cellParas.map((paragraph) => ({
+            ...preservedCellParagraph(paragraph),
             ...nodeFormat(paragraph),
             ...(paragraph.type === 'docListItem' && paragraph.attrs?.numId
               ? {
@@ -1791,6 +1805,7 @@ export function pmTableToModel(table: PmNode): TableModel {
       if (rowspan > 1)
         added.set(cursor, {
           remaining: rowspan - 1,
+          sourceColumn: (cellNode.attrs?.miniOfficeSourceColumn as number | null) ?? null,
           span: colspan,
           cell: style,
           trackedCellMerge: cellNode.attrs?.cellMerge,
@@ -1802,7 +1817,7 @@ export function pmTableToModel(table: PmNode): TableModel {
     }
     // a merged-away cell a rowspan did not stand in for (an orphan
     // continuation) has no node of its own: rebuild it from the record
-    for (const [key, cell] of continuationCells) {
+    if (layoutUntouched) for (const [key, cell] of continuationCells) {
       const [recordRow, recordColumn] = key.split(':').map(Number)
       if (recordRow !== rowIndex || recordColumn === undefined) continue
       if (entries.some((entry) => entry.column === recordColumn)) continue
@@ -2076,8 +2091,8 @@ function runMarks(run: Run): PmMark[] {
   const cs = run.effective?.cs ? run.effective : undefined
   if (run.bold) marks.push({ type: 'bold' })
   if (run.italic) marks.push({ type: 'italic' })
-  if (run.underline) marks.push({ type: 'underline' })
-  if (run.strike) marks.push({ type: 'strike' })
+  if (run.underline ?? run.effective?.underline) marks.push({ type: 'underline' })
+  if (run.strike ?? run.effective?.strike) marks.push({ type: 'strike' })
   if (run.link)
     marks.push({
       type: 'link',
@@ -2178,6 +2193,7 @@ function runMarks(run: Run): PmMark[] {
     run.em ||
     run.bold === false ||
     run.italic === false ||
+    run.underline === false || run.strike === false ||
     run.caps ||
     run.vanish ||
     run.eastAsiaLang ||
@@ -2235,6 +2251,7 @@ function runMarks(run: Run): PmMark[] {
         em: run.em ?? null,
         boldOff: run.bold === false || null,
         italicOff: run.italic === false || null,
+        underlineOff: run.underline === false || null, strikeOff: run.strike === false || null, miniOfficeEffectXml: null,
         caps: run.caps ?? null,
         vanish: run.vanish ?? null,
         vanishOwn: run.vanishOwn ?? null,
@@ -2432,7 +2449,7 @@ export function pmDocToSavePlan(inputDoc: PmNode, originalBlocks: Block[]): Save
   newPictures.clear()
   newPictureSeq = 0
   newPictureTokenOf = new WeakMap()
-  const doc = normalizeZoteroFieldParts(inputDoc)
+  const doc = normalizeZoteroFieldParts(registerTextboxPictures(inputDoc))
   const originalByIndex = new Map<number, Block>()
   for (const block of originalBlocks) {
     if (!block.hidden && block.docxIndex !== null) originalByIndex.set(block.docxIndex, block)
@@ -3397,7 +3414,8 @@ export function textboxParaSignature(para: TextboxDisplay['paras'][number]): str
   const m = para.listMarker
   const list = m ? [m.numId ?? null, m.ilvl ?? null, m.kind ?? null] : null
   return JSON.stringify([
-    para.align ?? null,
+    ...['styleId','align','lineSpacing','lineRule','lineRawTwips','snapToGrid','indentLeft','indentRight','indentFirstLine','spaceBefore','spaceAfter','spaceBeforeAuto','spaceAfterAuto','shadingFill','shadingDisplay','shadingClear','borders','borderLines','keepNext','keepLines','widowControl','pageBreakBefore'].map(key => (para as unknown as Record<string, unknown>)[key] ?? null),
+    para.tabStops?.length ? para.tabStops : null,
     para.indentLeft ?? null,
     normalizedRuns(para.runs),
     list,
@@ -3444,7 +3462,7 @@ function textboxParasPatch(node: PmNode, original: Block): TextboxParasPatchSet 
         const origIndent = origParas[j]?.indentLeft ?? null
         const indent = p.indentLeft ?? null
         return {
-          runs: mergeRuns(p.runs),
+          runs: mergeRuns(p.runs), format: { ...p, styleId: p.styleId ?? '', tabStops: p.tabStops ?? [] }, originalFormat: origParas[j],
           align: p.align ?? null,
           numPr: m?.numId != null ? { numId: m.numId, ilvl: m.ilvl ?? 0 } : null,
           ...(indent !== origIndent ? { indentLeft: indent } : {}),
@@ -3453,8 +3471,8 @@ function textboxParasPatch(node: PmNode, original: Block): TextboxParasPatchSet 
     } else if (origBox.shapeId) {
       inject.push({
         shapeId: origBox.shapeId,
-        paras: box.paras.map((p) => ({
-          runs: mergeRuns(p.runs),
+        paras: box.paras.map((p, j) => ({
+          runs: mergeRuns(p.runs), format: { ...p, styleId: p.styleId ?? '', tabStops: p.tabStops ?? [] }, originalFormat: origParas[j],
           align: p.align ?? null,
           numPr:
             p.listMarker?.numId != null
@@ -3610,13 +3628,13 @@ function applyRawPPr(generated: GeneratedBlock, original: Block): void {
     generated.rawPPr = built
     return
   }
-  if (!structureSame) return
   const formatSame =
     JSON.stringify(normalizedFormat(original.format)) ===
     JSON.stringify(normalizedFormat(generated.format))
   let rawPPr = formatSame
     ? original.rawPPr
     : mergePPrFormat(original.rawPPr, generated.format, original.format)
+  if (!structureSame) rawPPr = patchWordParagraphStructure(mergePPrFormat(rawPPr, generated.format, original.format), generated)
   // Strip pPrChange when the user accepted/rejected it (pPrChange: null in generated block)
   if (generated.pPrChange === null && original.pPrChangeInfo !== undefined) {
     rawPPr = stripPPrChange(rawPPr)
@@ -4154,6 +4172,8 @@ function runFromMarks(text: string, marks: PmMark[]): Run {
         run.charSpacingTwips = Number(mark.attrs.charSpacingTwips)
       if (mark.attrs?.charScalePct) run.charScalePct = Number(mark.attrs.charScalePct)
       if (mark.attrs?.kernHalfPoints != null) run.kernHalfPoints = Number(mark.attrs.kernHalfPoints)
+      if (mark.attrs?.underlineOff) run.underline = false
+      if (mark.attrs?.strikeOff) run.strike = false
       if (mark.attrs?.highlight) run.highlight = String(mark.attrs.highlight)
       if (mark.attrs?.shading) run.shading = String(mark.attrs.shading)
       if (mark.attrs?.textOutline) {
@@ -4185,6 +4205,7 @@ function runFromMarks(text: string, marks: PmMark[]): Run {
       if (mark.attrs?.rtl != null) run.rtl = Boolean(mark.attrs.rtl)
       if (mark.attrs?.styleId) run.styleId = String(mark.attrs.styleId)
       if (mark.attrs?.rawRPr) run.rawRPr = String(mark.attrs.rawRPr)
+      if (typeof mark.attrs?.miniOfficeEffectXml === 'string') run.rawRPr = patchWordRunEffects(run.rawRPr, mark.attrs.miniOfficeEffectXml)
       if (mark.attrs?.themeRFonts) {
         run.themeRFonts = JSON.parse(String(mark.attrs.themeRFonts)) as Run['themeRFonts']
       }
@@ -4441,4 +4462,40 @@ export function signatureOfGenerated(block: GeneratedBlock): string {
     sectPrChange: block.sectPrChange ?? null,
     blockRevision: block.blockRevision ?? null,
   })
+}
+
+/** 功能：为文本框历史中的未落盘图片登记当前保存媒体，保留尺寸和绘图 XML；时间：2026-11-11；作者：lq。 */
+function registerTextboxPictures(node: PmNode): PmNode {
+  const boxes = node.attrs?.textboxes as TextboxDisplay[] | undefined
+  const textboxes = boxes?.map(box => ({ ...box, paras: box.paras.map(para => ({ ...para, runs: para.runs.map(run => {
+    const image = run.image
+    if (!image?.xml.includes(NEW_PICTURE_TOKEN_PREFIX)) return run
+    const bytes = newPictureBytes(image.dataUrl)
+    if (!bytes) throw new Error('文本框图片数据缺失，已取消保存')
+    const token = NEW_PICTURE_TOKEN_PREFIX + ++newPictureSeq
+    newPictures.set(token, bytes)
+    return { ...run, image: { ...image, xml: image.xml.replace(new RegExp(NEW_PICTURE_TOKEN_PREFIX + '[0-9]+', 'g'), token) } }
+  }) })) }))
+  return { ...node, ...(textboxes ? { attrs: { ...node.attrs, textboxes } } : {}), ...(node.content ? { content: node.content.map(registerTextboxPictures) } : {}) }
+}
+
+/** 功能：格内段落来源校验包含格式/列表及 run，文字单改保留书签原位置；时间：2026-11-11；作者：lq。 */
+function cellSourceSignature(node: PmNode, withoutText = false): string {
+  const runs = inlineToRuns(node.content ?? [])
+  return JSON.stringify([node.type, nodeFormat(node), node.attrs?.styleId ?? null,
+    node.type === 'docListItem' ? [node.attrs?.kind, node.attrs?.numId, node.attrs?.ilvl] : null,
+    withoutText ? runs.map(run => ({ ...run, text: '' })) : runs])
+}
+/** 功能：只复用与当前格式匹配的来源；复杂修改仍由同源 rich-run 生成器负责；时间：2026-11-11；作者：lq。 */
+function preservedCellParagraph(node: PmNode): { sourceXml?: string } {
+  const source = node.attrs?.miniOfficeCellSource as { xml: string; format?: ParaFormat; styleId?: string | null; signature: string; skeleton: string } | null
+  if (!source) return {}
+  if (source.signature === cellSourceSignature(node)) return { sourceXml: source.xml }
+  if (source.skeleton === cellSourceSignature(node, true)) {
+    const xml = patchParagraphTexts(source.xml, inlineToRuns(node.content ?? []).map(run => run.text).join(''))
+    if (xml) return { sourceXml: xml }
+  }
+  const sourceXml = patchWordCellParagraph(source, nodeFormat(node), inlineToRuns(node.content ?? []), (node.attrs?.styleId as string | null) ?? null,
+    node.type === 'docListItem' ? { numId: String(node.attrs?.numId), ilvl: Number(node.attrs?.ilvl) || 0 } : undefined)
+  return sourceXml ? { sourceXml } : {}
 }

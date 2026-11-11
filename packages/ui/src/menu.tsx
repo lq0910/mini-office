@@ -168,6 +168,7 @@ export function Dropdown({
   );
 }
 
+/** 功能：上下文菜单在窄/矮窗口保留边缘并允许滚动到全部命令；时间：2026-11-11；作者：lq。 */
 export function ContextMenu({
   x,
   y,
@@ -188,8 +189,8 @@ export function ContextMenu({
     const width = ref.current?.offsetWidth ?? minWidth;
     const height = ref.current?.offsetHeight ?? 200;
     setPosition({
-      left: Math.min(x, window.innerWidth - width - 8),
-      top: Math.min(y, window.innerHeight - height - 8),
+      left: Math.max(8, Math.min(x, window.innerWidth - width - 8)),
+      top: Math.max(8, Math.min(y, window.innerHeight - height - 8)),
     });
   }, [x, y, minWidth]);
 
@@ -214,7 +215,7 @@ export function ContextMenu({
     <div
       ref={ref}
       className="fixed z-[90]"
-      style={{ left: position.left, top: position.top }}
+      style={{ left: position.left, top: position.top, maxHeight: 'calc(100vh - 16px)', maxWidth: 'calc(100vw - 16px)', overflow: 'auto' }}
       onContextMenu={(event) => event.preventDefault()}
     >
       <MenuList items={items} onClose={onClose} minWidth={minWidth} />

@@ -7,7 +7,7 @@
       "upstreamPath": "apps/docs/src/renderer/styles.css",
       "localPath": "packages/word-core/src/styles/document.css",
       "upstreamSha256": "61feb03766feb2b3c537e1915086211a0cd11aec6fa97b265f7a71e8e70932be",
-      "localSha256": "917e40f0e29de6a2f1e1095cfad79239569205e09da58b57d1d47f46483b1d8e",
+      "localSha256": "57d92b9ddf6435220f5c281c78e3277e70d6d11381aed9d32b35ba39cbe354cb",
       "modifications": [
         "仅保留文档排版规则并加 .mo-word-core 范围；排除产品界面样式"
       ]
@@ -134,9 +134,10 @@
       "upstreamPath": "apps/docs/src/renderer/doc-style-css.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/doc-style-css.ts",
       "upstreamSha256": "20a36a5dc189e817722ed3749352626fdeed61434f5547d7394ab01959b68fed",
-      "localSha256": "449cde492154fe01ad21ced60a02fef7883bbb7a8990e4d6ec1ec4d06934e99f",
+      "localSha256": "87606e289ef75e6e0c1c4acf26365b5324383e29b05194acac039495823f417e",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "段落下划线通过有效 Run 标记显示，避免祖先 CSS 阻止局部取消",
         "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
       ]
     },
@@ -276,9 +277,15 @@
       "upstreamPath": "apps/docs/src/renderer/editor/convert.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/convert.ts",
       "upstreamSha256": "3ed4700ab93544559c7a2e2e7668a4433949c86d35e2968898874d98faaa9d6c",
-      "localSha256": "3401c112fc6a654cd9465b9cbff7c22cae41b63eb384e18566a7e3f173f14beb",
+      "localSha256": "a57f894894de913b65ab93a7bc580ffcc81b824378d90692907b9b0fa71e45cf",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "文本框新插图在保存快照重登记媒体，历史和不同会话不共享占位符",
+        "表格字符格式签名统一空属性和键顺序，扩展属性不触发无操作重写",
+        "样式/列表语义切换局部更新 pPr，保留分节及未知属性",
+        "下划线/删除线显式关闭作为原生字符属性保存，段落继承显示经有效 Run 读取",
+        "格内来源 XML 随原生段落移动；未编辑或仅文字修改的段落保留书签等未知节点",
+        "导入 @genoffice/docx-engine/text-patch → ../../../../../packages/docx-engine/src/text-patch",
         "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
       ]
     },
@@ -335,10 +342,12 @@
       "upstreamPath": "apps/docs/src/renderer/editor/extensions.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/extensions.ts",
       "upstreamSha256": "07e1a9c96763c4e9bdcb47d1b1a06c2902e75fa3ffdcfb8d075adddcf7390667",
-      "localSha256": "8b4ccf7bcf62c7e5c8b3b4ec8f0b971c9916c18aef8cea581113942289bb612c",
+      "localSha256": "747dac8884134bbc51235d26a302fac6236333fdba30cd36ee720b88638fb1d0",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "文本框编辑/样式实时提交到主文档并共享历史，撤销投影保留选区",
         "剪贴板图片写入改用本项目注入端口；保留失败时不删除图片的原逻辑",
+        "延迟列宽约束采用目标表格所在分节净宽",
         "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
       ]
     },
@@ -393,9 +402,22 @@
       "upstreamPath": "apps/docs/src/renderer/editor/hf-dom.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/hf-dom.ts",
       "upstreamSha256": "1518ce4e205b97dd929bf39b986d1c8793d6c33aaf98213caa2cb01088c06c0e",
-      "localSha256": "eb2a2af45b972da6461ce29dc466b1adb0c077cefc41e4820b9dbe4fc1e5a54b",
+      "localSha256": "c7265ce0d3fc0c80a2444dca5c04b465489a313e986a5487b8b078e5f4abd640",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "页眉页脚格内纸面显示完整段落格式",
+        "页眉页脚列表标记与直接编辑区同步显示",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/hf-editor.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/hf-editor.ts",
+      "upstreamSha256": "7b9e4f6a8ef56225d64f27dd0a976eedbe2422d60d061debbd7eb89e1f6d959e",
+      "localSha256": "271cbe8595e493e5f01e0d20c9a9e43980a5f07a5c213ca8a76355a6b2a44eee",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导出动态页码装饰更新函数，供单一主历史的受控编辑区使用",
         "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
       ]
     },
@@ -438,6 +460,15 @@
       ]
     },
     {
+      "upstreamPath": "apps/docs/src/renderer/editor/insert-picture.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/insert-picture.ts",
+      "upstreamSha256": "e3a7aafce06a9d376ac553feebeb52da8819ebca62834c1ae75eb3336bd3aae6",
+      "localSha256": "8a00416ee6d54918c1b6ded7c5139048507568ce096738e1957d431ca8e2c4fa",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
       "upstreamPath": "apps/docs/src/renderer/editor/justify-shrink.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/justify-shrink.ts",
       "upstreamSha256": "b4c5072a1bbc937e55e8d1998f3ec64649a8185dfd52a31ae774ce2ca3ece107",
@@ -468,9 +499,10 @@
       "upstreamPath": "apps/docs/src/renderer/editor/marks.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/marks.ts",
       "upstreamSha256": "55b9e51ef9374cefc3cb075a9ff4f7689d0c5c62694280b1ff1483b92f0eb743",
-      "localSha256": "c90cc502c733d977d4ab53817d92ba819fcb86147842164b90ccc069d937e57e",
+      "localSha256": "6175f804c0ab2c213e39b547ecd03460df9330c716c3307e39609ad86370454a",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "增加下划线/删除线关闭属性及剪贴板和标记互斥规则",
         "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
       ]
     },
@@ -497,6 +529,16 @@
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/nav-outline.ts",
       "upstreamSha256": "398c8f72f940a091be9c9d411b71943d82a2c04b7e199859ba2718d536295b01",
       "localSha256": "8144513719978161434e3f1145c595e8717e2ad2cd947c232b50aa2126d60638",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/new-table.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/new-table.ts",
+      "upstreamSha256": "b4454475492477aa835b1ac98e031236b17aa4989103cfe2bca9294a3619cb43",
+      "localSha256": "7b1ebcb8468d38f3dce299bd7a99ee0493ccca2577946b68811eda4c66d50990",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
         "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
@@ -573,9 +615,10 @@
       "upstreamPath": "apps/docs/src/renderer/editor/para-border-css.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/para-border-css.ts",
       "upstreamSha256": "42f4d4e25646374df1ee5e1ee28635f431878be72a32b5b77cbd252a7c8d2e3c",
-      "localSha256": "18938109ca1c6ad6c51044dfeb2c06ad2763f57c3a08d05363f95de7295e3ad8",
+      "localSha256": "2828da2df50606ab97183ea288f85d7ca1edf1551301a4212ced85ff2178b9a2",
       "modifications": [
-        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "段落边框按真实双线/虚线/点线渲染"
       ]
     },
     {
@@ -778,12 +821,22 @@
       ]
     },
     {
+      "upstreamPath": "apps/docs/src/renderer/editor/table-borders.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/table-borders.ts",
+      "upstreamSha256": "1958e7ffcdffe1da0260d4bc47c337cf1f0a0834062d5e3a85adfb6a1f63cee2",
+      "localSha256": "eb1873be958dbfc14d921ff4e0eece016f5f18b149ef6b52ce56596f86354027",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
       "upstreamPath": "apps/docs/src/renderer/editor/table-column-drag.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/table-column-drag.ts",
       "upstreamSha256": "3305fd0580b115b027c7b8363b4ed5c47710358ada965d3bc51a6e1e4d5a05ce",
-      "localSha256": "b7e87ff943e72230891ad59a9e25b8937ffa262c893980b7187d00a9f520be6f",
+      "localSha256": "fc3fb32c05e66aab0c0067b5fea4ea5c6029b2aaa35fa0817bac186f9caae04b",
       "modifications": [
-        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "表格拖动尺寸采用所在分节的正文净宽，不能采用含页边距的整页宽"
       ]
     },
     {
@@ -800,9 +853,30 @@
       "upstreamPath": "apps/docs/src/renderer/editor/table-handle.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/table-handle.ts",
       "upstreamSha256": "df389bb4a7753aa04eba0c53b0339b59c9160a83decbc055a388f95ac9ff998e",
-      "localSha256": "4cfff0e6c489dabe961d943fb822e984226e2874f66473b636b7fe8e135916df",
+      "localSha256": "8c33372595f1679b5ae80072b20bed09a7529e71db16eb70e34af2e477982637",
       "modifications": [
-        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "表格拖动尺寸采用所在分节的正文净宽，不能采用含页边距的整页宽"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/table-ops.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/table-ops.ts",
+      "upstreamSha256": "d47b69d719287f3126b97bb157b548451a234102351f95ddcfd6af3d44a5adbd",
+      "localSha256": "aafd26cac90fe0871adafc2f524c7d85051d3c994a51b2fffafa6cc0f4973128",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "移除上游 Toast/UI 依赖，只读命令返回 false，由本项目 UI 反馈"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/table-properties.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/table-properties.ts",
+      "upstreamSha256": "bbff51fa2da6198df69fb290b8dd5624c00c87713c381b32713d9cf36fd0001f",
+      "localSha256": "3886f99ea82d2e9fbe5def13ff541d1e3fdcd598e6cd0e5937857f78aea2bdc1",
+      "modifications": [
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
       ]
     },
     {
@@ -1351,9 +1425,10 @@
       "upstreamPath": "apps/docs/src/renderer/hf-sections.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/hf-sections.ts",
       "upstreamSha256": "a14e21efa8de9ed928e973b3d237552688a8ffbe7f607de7a1acb8dffb61be6f",
-      "localSha256": "fb7ffd17b37d50e5d542598d27d9cc704134906ebf4bb8d2c76f28090f3acc97",
+      "localSha256": "7f64a3b7e9b1bfc46d965a4d5da50561c83321d558a9b6d92685f6292de08fa9",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "解除继承记录原部件来源，克隆图片关系及未知 XML；未编辑的副本按原字节保存",
         "导入 @genoffice/docx-engine → ../../../../packages/docx-engine/src/index"
       ]
     },
@@ -2336,9 +2411,12 @@
       "upstreamPath": "packages/docx-engine/src/generate.ts",
       "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/generate.ts",
       "upstreamSha256": "a7a4fe91c8358b64d01437dad7e8ce2599513381fc7e5c0a1b46798b38e0286f",
-      "localSha256": "eb818f88b922adad86c3aec15689b7627dd9a805cb91a67d3077d6603c25b8ac",
+      "localSha256": "926c34c0078d3c808eabd9b4d716799470429b0ef548761029a3873ac89c84d9",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "布局表格单元格承接完整段落格式，未修改的段距/字符单位缩进/未知属性保留",
+        "新插入图片声明所需命名空间，兼容没有绘图前缀的来源",
+        "段落边框类型参与生成及来源一致性比较，未改双线保留原 XML",
         "增加同格式纯文字的原段落 XML 补丁，保留书签和未知段落属性；复杂结构仍走原有生成逻辑"
       ]
     },
@@ -2465,9 +2543,10 @@
       "upstreamPath": "packages/docx-engine/src/parse-props.ts",
       "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/parse-props.ts",
       "upstreamSha256": "e5d903a6180e9e5e0856c439e27d1d67543afdfa4b66b0e5ad6510f591b3bc6a",
-      "localSha256": "f04866d9e87f957375dffabaa6d41a9a089f394242fa2da3ac2d1cbdc2e94a49",
+      "localSha256": "a91487a18e48dc00969fd32fda9147cd326f757ef09dc2f11a917535e78245ae",
       "modifications": [
-        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "段落边框保留非单线类型"
       ]
     },
     {
@@ -2510,9 +2589,12 @@
       "upstreamPath": "packages/docx-engine/src/parse.ts",
       "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/parse.ts",
       "upstreamSha256": "e5f853e845fadc7b488ff6033fb07fa284e4503a73f2b16e408ca515eaab0f21",
-      "localSha256": "d0aa039c8ddef6401c41f68537b07742135743e90f6f9bfbae169c9a59738eb9",
+      "localSha256": "7078cf405720bb97c10d477a08ba3df359f846f919d39ce578fec389d5aac6d0",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "文本框图片预解析本部件关系以保留重开后的富文本图片",
+        "页眉页脚普通段落保留原生样式引用，套用保存重开不丢失身份",
+        "格内段落携带来源 XML，结构编辑不再必然重建未修改段落",
         "导入 @genoffice/pptx-engine/custgeom → ../../pptx-engine/src/custgeom"
       ]
     },
@@ -2520,9 +2602,10 @@
       "upstreamPath": "packages/docx-engine/src/patch.ts",
       "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/patch.ts",
       "upstreamSha256": "f3c79e3b8bbd4a48c670debae3e1506af2e921f2afbffc5942a3f6dc89d727ba",
-      "localSha256": "740c1cb29949223f620a951a69c0bf145617c7deee8dec1c611b765f09d661d1",
+      "localSha256": "7cf22c53837ecba8b7aa4ed617712144a8e9c7bd0b51eeb5870f8bd9211f669b",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "页眉页脚独立副本克隆来源 XML 和关系，替换节引用而不污染继承所有者",
         "导入 @genoffice/agent-core/redact-range → ../../agent-core/src/redact-range"
       ]
     },
@@ -2656,9 +2739,10 @@
       "upstreamPath": "packages/docx-engine/src/types.ts",
       "localPath": "packages/word-core/src/upstream/packages/docx-engine/src/types.ts",
       "upstreamSha256": "62c69b473be0c83c71b9ba7bd3ea3c77f206bb32afa12ee5a3bb3173b738138f",
-      "localSha256": "f758d2e76d02707423e159333feb35ea8ef91f0afa6db90ae481676021465b0a",
+      "localSha256": "bd2995ebabda3acb9518b719293f3ec5930dc0ba56022a295489ab08abcae6c3",
       "modifications": [
-        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "TableParagraph 增加非目标格内段落 XML 来源，供结构回写保留"
       ]
     },
     {

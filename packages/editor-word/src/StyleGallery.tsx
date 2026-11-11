@@ -10,7 +10,7 @@ import { useCallback, useMemo, useRef, useState, type KeyboardEvent as ReactKeyb
 import type { DocStyleDefinition } from '@mini-office/document-model';
 import { fontStackFor } from '@mini-office/design-system';
 import { cn } from '@mini-office/ui';
-import { ChevronDown, ChevronUp, Eraser, FolderPlus, Sparkles, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eraser, FolderPlus, Pencil, Sparkles, Trash2, X } from 'lucide-react';
 import { BASIC_STYLE_COUNT, type WordStyleSet } from './styles';
 import { cnFontSizeName, formatPt, pxToChars, pxToPt, readLineSpacing } from './typography';
 
@@ -28,6 +28,11 @@ export interface StyleGalleryProps {
   onNewStyle: () => void;
   onToggleMore: () => void;
   onDeleteStyle: (id: string) => void;
+  /** 功能：新核心支持原定义原位重命名，可单独限制导入定义的删除；时间：2026-11-10；作者：lq。 */
+  onRenameStyle?: (id: string) => void;
+  canDeleteStyle?: (id: string) => boolean;
+  /** 功能：新核心只导出已完整迁移的新建格式，避免把导入复杂定义降成摘要；时间：2026-11-10；作者：lq。 */
+  canSaveStyleSet?: boolean;
   onSaveStyleSet: () => void;
   onApplyStyleSet: (set: WordStyleSet) => void;
   onDeleteStyleSet: (id: string) => void;
@@ -78,6 +83,7 @@ function StyleCard({
   disabled,
   onApply,
   onDelete,
+  onRename,
   onHover,
 }: {
   style: DocStyleDefinition;
@@ -87,6 +93,7 @@ function StyleCard({
   disabled?: boolean;
   onApply: () => void;
   onDelete?: () => void;
+  onRename?: () => void;
   onHover: (id: string | undefined) => void;
 }) {
   const fontSize = style.run.fontSizePt ?? defaultFontSizePt;
@@ -129,9 +136,13 @@ function StyleCard({
           {style.name}
         </span>
       </button>
+      {onRename ? <button type="button" disabled={disabled} aria-label={`重命名样式 ${style.name}`} title={`重命名样式「${style.name}」`}
+        onMouseDown={event => event.preventDefault()} onClick={onRename}
+        className="absolute bottom-1 right-1 rounded p-0.5 text-[var(--mo-text-faint)] opacity-0 hover:bg-[var(--mo-surface-3)] focus-visible:opacity-100 group-hover:opacity-100"><Pencil size={11} /></button> : null}
       {onDelete ? (
         <button
           type="button"
+          disabled={disabled}
           aria-label={`删除样式 ${style.name}`}
           title={`删除样式「${style.name}」`}
           onMouseDown={(event) => event.preventDefault()}
@@ -231,7 +242,8 @@ export function StyleGallery(props: StyleGalleryProps) {
             defaultFontSizePt={props.defaultFontSizePt}
             disabled={readonly}
             onApply={() => props.onApply(style.id)}
-            onDelete={deletable ? () => props.onDeleteStyle(style.id) : undefined}
+            onDelete={deletable && (props.canDeleteStyle?.(style.id) ?? true) ? () => props.onDeleteStyle(style.id) : undefined}
+            onRename={deletable && props.onRenameStyle ? () => props.onRenameStyle!(style.id) : undefined}
             onHover={setHoveredId}
           />
         </div>
@@ -323,7 +335,7 @@ export function StyleGallery(props: StyleGalleryProps) {
         <ActionRow
           icon={<FolderPlus size={14} />}
           label="保存此文档为我的样式集"
-          disabled={readonly}
+          disabled={readonly || props.canSaveStyleSet === false}
           onClick={props.onSaveStyleSet}
         />
       </div>

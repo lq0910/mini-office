@@ -105,6 +105,8 @@ export interface PrintPagesOptions extends PrintPageGeometry {
    * 缺省时整份文档统一使用 widthPx / heightPx（例如 Excel 单表打印）。
    */
   pageSizes?: PrintPageGeometry[];
+  /** 功能：已按完整纸张裁切的原生页面保留全高，避免旧流程安全余量裁掉页脚；时间：2026-11-11；作者：lq。 */
+  fullPaper?: boolean;
   /** 页面内部的附加样式（例如编辑器自身的缩放复位）。 */
   extraCss?: string;
   /** 打印任务标题，便于系统打印队列识别。 */
@@ -123,7 +125,10 @@ interface PaperGroup {
  */
 function resolvePapers(options: PrintPagesOptions): { papers: ResolvedPaper[]; groups: PaperGroup[]; rootWidthMm: number } {
   const sizes = options.pageSizes && options.pageSizes.length === options.pages.length ? options.pageSizes : null;
-  const papers = options.pages.map((_, index) => resolvePrintPaper(sizes ? sizes[index] : options));
+  const papers = options.pages.map((_, index) => {
+    const paper = resolvePrintPaper(sizes ? sizes[index] : options);
+    return options.fullPaper ? { ...paper, sheetHeight: paper.height } : paper;
+  });
   const groups: PaperGroup[] = [];
   for (const paper of papers) {
     const key = `${paper.width}|${paper.height}`;
@@ -158,6 +163,9 @@ export function createPrintRoot(options: PrintPagesOptions): PrintRootHandle {
   clearPrintRoots();
   const { papers, groups, rootWidthMm } = resolvePapers(options);
   const mixed = groups.length > 1;
+  // 功能：混合纸张按各命名页宽排版，最大横向页宽不能触发 Chromium 对纵向页整体缩小；时间：2026-11-11；作者：lq。
+  const layoutWidth = options.fullPaper && mixed ? 'auto' : `${rootWidthMm}mm`;
+  const maximumWidth = options.fullPaper && mixed ? 'none' : `${rootWidthMm}mm`;
   const root = document.createElement('div');
   root.setAttribute(PRINT_ROOT_ATTRIBUTE, 'true');
   if (options.title) root.setAttribute('data-print-title', options.title);
@@ -201,15 +209,15 @@ export function createPrintRoot(options: PrintPagesOptions): PrintRootHandle {
         padding: 0 !important;
         background: #ffffff !important;
         /* 功能：把布局宽度锁到纸张宽度，否则 WebKit 会按当前窗口宽度排版再整体缩放到纸张，导致内容变小且贴左；时间：2026-10-29；作者：lq。 */
-        width: ${rootWidthMm}mm !important;
-        max-width: ${rootWidthMm}mm !important;
+        width: ${layoutWidth} !important;
+        max-width: ${maximumWidth} !important;
       }
       body > *:not([${PRINT_ROOT_ATTRIBUTE}]) { display: none !important; }
       [${PRINT_ROOT_ATTRIBUTE}] {
         display: block !important;
         position: static !important;
-        width: ${rootWidthMm}mm !important;
-        max-width: ${rootWidthMm}mm !important;
+        width: ${layoutWidth} !important;
+        max-width: ${maximumWidth} !important;
         height: auto !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -218,7 +226,7 @@ export function createPrintRoot(options: PrintPagesOptions): PrintRootHandle {
       [${PRINT_ROOT_ATTRIBUTE}] .mo-print-page {
         display: block !important;
         position: relative !important;
-        margin: 0 auto !important;
+        margin: ${options.fullPaper && mixed ? '0' : '0 auto'} !important;
         border: 0 !important;
         border-radius: 0 !important;
         box-shadow: none !important;
@@ -321,6 +329,8 @@ export interface PreviewOverlayContext {
 
 /** 功能：页边距参考线的可拖动规格；时间：2026-11-01；作者：lq。 */
 export interface PreviewMarginSpec {
+  /** 功能：只读文档仍可显示参考线，不开放拖拽手柄；时间：2026-11-11；作者：lq。 */
+  readonly?: boolean;
   margins: { left: number; right: number; top: number; bottom: number };
   pageWidthPx: number;
   pageHeightPx: number;
@@ -334,7 +344,7 @@ export interface PreviewMarginSpec {
  *
  * 说明：拖动期间只移动参考线本身，松手才回调改值，避免每帧重排整份文档。
  */
-export function attachPreviewMargins(context: PreviewOverlayContext, spec: PreviewMarginSpec): void {
+export function attachPreviewMargins(context: PreviewOverlayContext, spec: PreviewMarginSpec): () => void {
   const { frame, scale } = context;
   const { margins, pageWidthPx, pageHeightPx, onChange } = spec;
   const factor = scale > 0 ? scale : 1;
@@ -371,19 +381,23 @@ export function attachPreviewMargins(context: PreviewOverlayContext, spec: Previ
 
   const edges = ['left', 'right', 'top', 'bottom'] as const;
   const strips = {} as Record<(typeof edges)[number], HTMLElement>;
+  // 功能：取消和卸载只清理拖动，不能提交旧弹窗的页边距；时间：2026-11-11；作者：lq。
+  let cancelDrag: (() => void) | undefined;
   for (const edge of edges) {
     const strip = document.createElement('span');
     strip.setAttribute('role', 'separator');
     strip.setAttribute('aria-label', `拖动调整${edge === 'left' ? '左' : edge === 'right' ? '右' : edge === 'top' ? '上' : '下'}页边距`);
     strip.title = strip.getAttribute('aria-label')!;
     strip.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) return;
+      if (event.button !== 0 || spec.readonly) return;
+      cancelDrag?.();
       event.preventDefault();
       event.stopPropagation();
       const startX = event.clientX;
       const startY = event.clientY;
       const initial = { ...box };
       const move = (pointer: PointerEvent) => {
+        if (pointer.pointerId !== event.pointerId) return;
         const dx = pointer.clientX - startX;
         const dy = pointer.clientY - startY;
         if (edge === 'left') box.left = Math.max(0, Math.min(initial.right - 40, initial.left + dx));
@@ -392,21 +406,30 @@ export function attachPreviewMargins(context: PreviewOverlayContext, spec: Previ
         else box.bottom = Math.min(pageHeightPx * factor, Math.max(initial.top + 40, initial.bottom + dy));
         paint();
       };
-      const finish = () => {
+      const cleanup = () => {
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', finish);
-        window.removeEventListener('pointercancel', finish);
+        window.removeEventListener('pointercancel', abort);
+        cancelDrag = undefined;
+      };
+      const abort = () => { cleanup(); Object.assign(box, initial); paint(); };
+      const finish = (pointer: PointerEvent) => {
+        if (pointer.pointerId !== event.pointerId) return;
+        cleanup();
         const value = edge === 'left' ? box.left : edge === 'right' ? pageWidthPx * factor - box.right : edge === 'top' ? box.top : pageHeightPx * factor - box.bottom;
         onChange(edge, Math.max(0, Math.round(value / factor)));
       };
+      cancelDrag = abort;
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', finish);
-      window.addEventListener('pointercancel', finish);
+      window.addEventListener('pointercancel', abort);
     });
     strips[edge] = strip;
     layer.appendChild(strip);
   }
   paint();
+  if (spec.readonly) Object.values(strips).forEach(strip => { strip.style.pointerEvents = 'none'; strip.style.cursor = 'default'; });
+  return () => { cancelDrag?.(); layer.remove(); };
 }
 
 /** 功能：打印预览句柄——清理、翻页与页数；时间：2026-11-01；作者：lq。 */

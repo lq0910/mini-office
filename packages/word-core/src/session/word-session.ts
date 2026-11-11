@@ -1,10 +1,15 @@
 /** 功能：提供独立于旧 DocModel、React 和文件对话框的 Word 会话；时间：2026-11-08；作者：lq。 */
 import { Editor, Extension, type JSONContent } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
+// 功能：目录页码仅作为与当前文档相配的排版缓存进入保存快照；时间：2026-11-11；作者：lq。
+import { wordHeadings, wordTocSnapshot, type WordHeadingPages } from '../editing/toc';
+import type { Node as WordNode } from '@tiptap/pm/model';
 import { parseDocx, buildBlankDocx, readSections, type ParsedDocFull, type SaveOptions, type BlankDocxOptions } from '../upstream/packages/docx-engine/src/index';
 import { editorExtensions } from '../upstream/apps/docs/src/renderer/editor/extensions';
 import { blocksToPmDoc, pmDocOptions, type PmNode } from '../upstream/apps/docs/src/renderer/editor/convert';
 import { setActiveSubEditor, getActiveSubEditor, subscribeSubEditorState } from '../upstream/apps/docs/src/renderer/editor/active-editor';
+// 功能：文本框跟随主样式目录，不将回填记为新操作；时间：2026-11-11；作者：lq。
+import { captureWordRegionRefresh, restoreWordRegionRefresh, syncWordRegionStyles } from '../editing/region-history';
 import { collectDocFonts } from '../upstream/apps/docs/src/renderer/font-check';
 import { prefetchFaces } from '../upstream/apps/docs/src/renderer/font-resolve';
 import { adoptEmbeddedFonts } from '../upstream/apps/docs/src/renderer/embedded-fonts';
@@ -13,6 +18,22 @@ import { setDocFontTable, loadBundledStandIns } from '../upstream/apps/docs/src/
 import { applyDocLayoutSettings } from '../upstream/apps/docs/src/renderer/document-settings';
 import { parseDocxOffThread } from '../upstream/apps/docs/src/renderer/parse-off-thread';
 import { serializeWordDocument } from '../serialization/document';
+// 功能：会话管理列表资源，正文及历史仍由原生事务唯一持有；时间：2026-11-10；作者：lq。
+import { WordListDefinitions } from '../editing/lists';
+// 功能：页面目录进入正文原生历史，供布局与保存读取同一版本；时间：2026-11-10；作者：lq。
+import { wordPageLayout, wordSections, wordHeaderFooterState, wordPageLayoutOf, commitWordPageLayout, type WordPageLayout } from '../editing/page-layout';
+// 功能：样式定义与正文共用事务和保存快照，保持原始解析包不可变；时间：2026-11-10；作者：lq。
+import { wordStyleCatalog, wordStyleCatalogOf, wordStyles, finishWordStyles, type StyleCatalog } from '../editing/styles';
+// 功能：表格结构与属性回写保留未目标段落来源，不复制可编辑正文；时间：2026-11-11；作者：lq。
+import { wordTableSource } from '../editing/table-source';
+// 功能：正文与子编辑区共用三种粘贴规则，载荷按编辑器隔离；时间：2026-11-11；作者：lq。
+import { wordPaste, ensureWordPaste } from '../editing/paste';
+// 功能：属性面板与状态栏从唯一正文读取统计摘要；时间：2026-11-11；作者：lq。
+import { wordDocumentStats } from '../editing/statistics';
+// 功能：分节尺寸以原生装饰进入 DOM，不能触发段落重解析及选区丢失；时间：2026-11-11；作者：lq。
+import { wordSectionWidths } from '../editing/section-width';
+// 功能：邮件面板配置只随保存快照输出，不制造正文 dirty 或第二套编辑模型；时间：2026-11-11；作者：lq。
+import { patchWordMergeSettings, type WordMergeSettings } from '../serialization/mail-merge-settings';
 
 /** 功能：工作区只消费会话摘要，不复制原始包、DOM 或第二份正文；时间：2026-11-08；作者：lq。 */
 export interface WordSessionState { revision: number; savedRevision: number; dirty: boolean; canUndo: boolean; canRedo: boolean; }
@@ -28,13 +49,27 @@ export class WordCoreSession {
   private revision = 0;
   private savedRevision = 0;
   private options: SaveOptions = {};
-  private preparing = false;
+  // 功能：输出预览和实际保存共用串行序列化队列，每次调用先捕获独立版本；时间：2026-11-11；作者：lq。
+  private saveQueue: Promise<unknown> = Promise.resolve();
+  private mergeSettings?: WordMergeSettings;
+  private measuredPageCount?: number;
+  private headingPages?: { doc: WordNode; pages: WordHeadingPages };
+  private readonly initialDocument: WordNode;
   private disposed = false;
   private readonly issued = new WeakSet<PreparedWordSave>();
   private readonly listeners = new Set<(state: WordSessionState) => void>();
   private readonly unsubscribeSubEditor: () => void;
   private readonly viewOnly: boolean;
-  private readonly focusMain = () => setActiveSubEditor(null);
+  private readonly lists: WordListDefinitions;
+  /** 功能：页眉页脚是正文同级的受控区域，仅显式登记的子编辑器可接收本会话命令；时间：2026-11-11；作者：lq。 */
+  private readonly regions = new Set<Editor>();
+  /** 功能：子编辑器的 focusin 会冒泡，不能把其焦点误判为正文焦点；时间：2026-11-10；作者：lq。 */
+  private readonly focusMain = (event: FocusEvent) => {
+    const active = getActiveSubEditor();
+    if (active?.view.dom.contains(event.target as Node)) return;
+    setActiveSubEditor(null);
+    this.emit();
+  };
 
   /** 功能：打开完整 OOXML 模型，复制输入字节避免调用者修改来源缓存；时间：2026-11-08；作者：lq。 */
   static async open(bytes: Uint8Array, options: WordSessionOptions = {}): Promise<WordCoreSession> {
@@ -52,6 +87,7 @@ export class WordCoreSession {
   }
   private constructor(parsed: ParsedDocFull, options: WordSessionOptions) {
     this.parsed = parsed;
+    this.lists = new WordListDefinitions(parsed.numbering);
     // 功能：受保护文档在事务层保持只读，未经解锁不能由开发入口绕过保护；时间：2026-11-09；作者：lq。
     this.viewOnly = options.readonly === true || parsed.protection?.enforced === true;
     if (options.onChange) this.listeners.add(options.onChange);
@@ -60,7 +96,7 @@ export class WordCoreSession {
     const readonlyGuard = Extension.create({ name: 'miniOfficeReadonlyGuard', addProseMirrorPlugins: () => [new Plugin({ filterTransaction: transaction => !readonly || !transaction.docChanged })] });
     this.editor = new Editor({
       element: options.element ?? document.createElement('div'),
-      extensions: [...editorExtensions, readonlyGuard],
+      extensions: [...editorExtensions, readonlyGuard, wordStyleCatalog, wordPageLayout, wordTableSource, wordPaste, wordSectionWidths(parsed)],
       content: blocksToPmDoc(parsed.blocks, readSections(parsed), pmDocOptions(parsed)) as JSONContent,
       editable: !this.viewOnly,
       // 功能：首个 NodeView 绘制前采用原始编号与样式定义，不能等第一次编辑才修正列表；时间：2026-11-08；作者：lq。
@@ -70,12 +106,20 @@ export class WordCoreSession {
         editor.storage.listNumbering.defs = parsed.numbering;
       },
       editorProps: { attributes: { class: 'doc-page', spellcheck: 'false' } },
-      onTransaction: ({ transaction }) => { if (transaction.docChanged) this.revision++; this.emit(); },
+      onTransaction: ({ transaction, editor }) => {
+        // 功能：样式改名、撤销与重做即时更新渲染目录，不改原始样式定义；时间：2026-11-10；作者：lq。
+        if (transaction.docChanged) { this.revision++; editor.storage.listNumbering.styles = wordStyles(editor.state.doc, parsed); syncWordRegionStyles(editor); }
+        restoreWordRegionRefresh(editor);
+        this.emit();
+      },
     });
+    this.editor.on('beforeTransaction', ({ editor }) => captureWordRegionRefresh(editor));
+    this.initialDocument = this.editor.state.doc;
     applyDocLayoutSettings(this.editor, parsed);
     this.editor.view.dom.addEventListener('focusin', this.focusMain);
     this.unsubscribeSubEditor = subscribeSubEditorState(changed => {
       const active = getActiveSubEditor();
+      if (active && this.regions.has(active)) { this.emit(); return; }
       if (!active || !this.editor.view.dom.contains(active.view.dom)) return;
       if (changed) this.revision++;
       this.emit();
@@ -90,14 +134,50 @@ export class WordCoreSession {
     await loadBundledStandIns(collectDocFonts(this.parsed));
     applyDocLayoutSettings(this.editor, this.parsed);
     this.assertOpen();
-    return docStyleCss(this.parsed);
+    return this.styleCss();
   }
+  /** 功能：当前样式摘要/渲染使用事务目录，序列化仍以原始包为来源；时间：2026-11-10；作者：lq。 */
+  formattingSource(): ParsedDocFull { return { ...this.parsed, styles: wordStyles(this.editor.state.doc, this.parsed) }; }
+  /** 功能：样式变化时只重新生成文档 CSS，不重新打开正文或丢失历史；时间：2026-11-10；作者：lq。 */
+  styleCss(): string { return docStyleCss(this.formattingSource()); }
+  /** 功能：只读统计不创建编辑版本或历史；时间：2026-11-11；作者：lq。 */
+  statistics() { return wordDocumentStats(this.editor.state.doc); }
   /** 功能：状态随当前选区的可撤销/可重做能力返回；时间：2026-11-08；作者：lq。 */
   state(): WordSessionState {
-    return { revision: this.revision, savedRevision: this.savedRevision, dirty: this.revision !== this.savedRevision, canUndo: this.editor.can().undo(), canRedo: this.editor.can().redo() };
+    // 功能：历史按钮跟随当前活动编辑区，其他文档的全局子编辑器不能串入本会话；时间：2026-11-10；作者：lq。
+    const editor = this.commandEditor();
+    return { revision: this.revision, savedRevision: this.savedRevision, dirty: this.revision !== this.savedRevision, canUndo: editor.can().undo(), canRedo: editor.can().redo() };
+  }
+  /** 功能：工具栏只操作属于当前文档的活动子编辑器，其余情况使用正文；时间：2026-11-10；作者：lq。 */
+  commandEditor(): Editor {
+    const active = getActiveSubEditor();
+    if (active && (this.regions.has(active) || this.editor.view.dom.contains(active.view.dom))) { ensureWordPaste(active); return active; }
+    return this.editor;
   }
   /** 功能：供现有工具栏直接订阅状态，不增加通用命令转发框架；时间：2026-11-08；作者：lq。 */
   subscribe(listener: (state: WordSessionState) => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
+  /** 功能：受控区域将内容即时提交到主历史，活动选区通知不能重复增加编辑版本；时间：2026-11-11；作者：lq。 */
+  registerRegion(editor: Editor): () => void {
+    this.assertEditable(); this.regions.add(editor);
+    return () => { this.regions.delete(editor); if (getActiveSubEditor() === editor) setActiveSubEditor(null); };
+  }
+  /** 功能：列表命令只作用于本会话的活动编辑器，不产生独立资源历史；时间：2026-11-10；作者：lq。 */
+  toggleList(kind: 'bullet' | 'ordered', editor = this.commandEditor()): boolean {
+    if (this.viewOnly || (editor !== this.editor && editor !== this.commandEditor())) return false;
+    return this.lists.toggle(editor, kind, this.editor);
+  }
+  /** 功能：样式的列表资源由会话分配，不跨文档复用旧编号；时间：2026-11-11；作者：lq。 */
+  styleNumbering(kind: 'bullet' | 'ordered', numId?: string): string { this.assertEditable(); return this.lists.forStyle(this.editor, kind, numId); }
+  /** 功能：页面和页眉设置只暴露原生摘要，提交进入同一撤销栈；时间：2026-11-10；作者：lq。 */
+  sections() { return wordSections(this.editor.state.doc, this.parsed); }
+  pageLayout() { return wordPageLayoutOf(this.editor.state.doc); }
+  headerFooterState() { return wordHeaderFooterState(this.editor.state.doc, this.parsed); }
+  evenAndOddHeaders(): boolean { return this.pageLayout().evenAndOddHeaders ?? !!this.parsed.evenAndOddHeaders; }
+  commitPageLayout(next: WordPageLayout, historyGroup?: number, styles?: StyleCatalog, closeGroup = false): boolean { this.assertEditable(); return commitWordPageLayout(this.editor, this.parsed, next, historyGroup, styles, closeGroup); }
+  /** 功能：分页记录精确文档版本，保存时拒绝使用编辑前的旧标题位置；时间：2026-11-11；作者：lq。 */
+  recordHeadingPages(pages: WordHeadingPages): void { this.headingPages = { doc: this.editor.state.doc, pages: new Map(pages) }; }
+  /** 功能：真实分页总数仅用作动态域缓存，不产生编辑版本或撤销项；时间：2026-11-10；作者：lq。 */
+  recordPageCount(count: number): void { if (Number.isInteger(count) && count > 0) this.measuredPageCount = count; }
   /** 功能：页面、样式和页眉等非正文属性也进入同一保存版本；时间：2026-11-08；作者：lq。 */
   updateSaveOptions(patch: Partial<SaveOptions>): void {
     this.assertEditable();
@@ -105,22 +185,44 @@ export class WordCoreSession {
     this.revision++;
     this.emit();
   }
+  /** 功能：保存用户实际调整的邮件面板配置，挂载/预览不调用此方法；时间：2026-11-11；作者：lq。 */
+  updateMergeSettings(settings: WordMergeSettings): void { this.assertEditable(); this.mergeSettings = structuredClone(settings); }
+  /** 功能：邮件合并等内存生成文档在首次实际保存前保持未保存状态，撤销正文也不能误认为已有磁盘副本；时间：2026-11-11；作者：lq。 */
+  markUnsavedOrigin(): void { this.assertEditable(); if (this.savedRevision === 0) { this.savedRevision = -1; this.emit(); } }
   /** 功能：保存/快照只序列化当前不可变事务快照，不清除 dirty 或提前重置来源锚点；时间：2026-11-08；作者：lq。 */
   async prepareSave(): Promise<PreparedWordSave> {
     this.assertEditable();
-    if (this.preparing) throw new Error('Word 会话正在生成保存快照，请串行保存');
-    if (this.editor.view.composing) throw new Error('中文输入尚未确认，请在组合输入结束后保存');
-    this.preparing = true;
-    try {
-      const revision = this.revision;
-      const document = this.editor.getJSON() as PmNode;
-      const options = structuredClone(this.options);
-      const bytes = await serializeWordDocument(this.parsed, document, options);
+    // 功能：受控页眉页脚及活动文本框的未确认输入也不能进入保存快照；时间：2026-11-11；作者：lq。
+    if (this.editor.view.composing || [...this.regions].some(region => !region.isDestroyed && region.view.composing) || this.commandEditor().view.composing) throw new Error('中文输入尚未确认，请在组合输入结束后保存');
+    const revision = this.revision;
+    let document = this.editor.getJSON() as PmNode;
+    // 功能：原文未改时保留来源缓存及原始字节；编辑后仅采用本版本的真实分页；时间：2026-11-11；作者：lq。
+    if (!this.editor.state.doc.eq(this.initialDocument) && this.headingPages?.doc === this.editor.state.doc) {
+      document = wordTocSnapshot(document, wordHeadings(this.editor.state.doc, this.formattingSource().styles), this.headingPages.pages);
+    }
+    const options = structuredClone(this.options);
+    const mergeSettings = this.mergeSettings ? structuredClone(this.mergeSettings) : undefined;
+    // 功能：已测量的实际总页数进入本次保存快照，未挂载时沿用来源缓存；时间：2026-11-10；作者：lq。
+    if (this.measuredPageCount !== undefined) options.pageCount = this.measuredPageCount;
+    // 功能：捕获定义和正文同一版本；撤销后尚未引用的新定义不会泄露到保存包；时间：2026-11-10；作者：lq。
+    const styles = structuredClone(wordStyleCatalogOf(this.editor.state.doc));
+    if (styles.definitions.length) options.styleUpserts = [...options.styleUpserts ?? [], ...styles.definitions.map(item => item.upsert)];
+    // 功能：编号定义与本次正文快照配对，保存时继续编辑不会污染该版本；时间：2026-11-10；作者：lq。
+    const numbering = this.lists.saveOptions(this.editor.state.doc);
+    if (numbering.newDefs?.length) options.numbering = { ...options.numbering, newDefs: [...options.numbering?.newDefs ?? [], ...numbering.newDefs] };
+    // 功能：排队前已捕获正文/定义/配置，后续输入不污染旧请求；失败不阻断下一次请求；时间：2026-11-11；作者：lq。
+    const serialization = this.saveQueue.catch(() => {}).then(async () => {
       this.assertOpen();
-      const prepared = Object.freeze({ revision, bytes });
-      this.issued.add(prepared);
-      return prepared;
-    } finally { this.preparing = false; }
+      let bytes = await finishWordStyles(await serializeWordDocument(this.parsed, document, options), styles);
+      if (mergeSettings) bytes = await patchWordMergeSettings(bytes, mergeSettings);
+      return bytes;
+    });
+    this.saveQueue = serialization;
+    const bytes = await serialization;
+    this.assertOpen();
+    const prepared = Object.freeze({ revision, bytes });
+    this.issued.add(prepared);
+    return prepared;
   }
   /** 功能：外部确实写盘后确认版本；保存期间新输入仍然保持 dirty；时间：2026-11-08；作者：lq。 */
   acknowledgeSave(prepared: PreparedWordSave): void {
@@ -136,6 +238,8 @@ export class WordCoreSession {
     if (this.disposed) return;
     this.disposed = true;
     this.unsubscribeSubEditor();
+    for (const region of this.regions) { if (getActiveSubEditor() === region) setActiveSubEditor(null); if (!region.isDestroyed) region.destroy(); }
+    this.regions.clear();
     this.editor.view.dom.removeEventListener('focusin', this.focusMain);
     const active = getActiveSubEditor();
     if (active && this.editor.view.dom.contains(active.view.dom)) setActiveSubEditor(null);

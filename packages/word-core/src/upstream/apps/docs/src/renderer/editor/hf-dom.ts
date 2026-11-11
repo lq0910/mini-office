@@ -411,8 +411,11 @@ export function hfCellParaBox(
     style,
     effectivePPrStyle(
       {
+        spaceBeforeAuto: props.spaceBeforeAuto,
+        spaceAfterAuto: props.spaceAfterAuto,
         spaceBeforeTwips: props.spaceBefore || null,
         spaceAfterTwips: props.spaceAfter || null,
+        indentRightTwips: props.indentRight || null,
         indentLeftTwips: props.indentLeft || null,
         indentFirstLineTwips: props.indentFirstLine || null,
         additiveSpacing: row?.additiveSpacing === true,
@@ -420,6 +423,11 @@ export function hfCellParaBox(
       { length: px, indentLeftAsPadding: true, line },
     ),
   )
+  // 功能：多行制表位只在首尾绘制横边，左右边和底纹延续；时间：2026-11-11；作者：lq。
+  const border = hfParaBorderStyle({ ...props, runs: [] }, { suppressTop: !line.first, suppressBottom: !line.last })
+  Object.assign(style, border.style)
+  const fill = props.shadingDisplay ?? props.shadingFill
+  if (fill) style.backgroundColor = '#' + fill
   return { style, classes: box.classes }
 }
 
@@ -1761,6 +1769,11 @@ export function makeGapHfEl(opts: {
     const p = document.createElement('div')
     paraEls[index] = p
     p.className = 'page-hf-para'
+    if (para.listMarker) {
+      p.classList.add('doc-textbox-para')
+      p.dataset.marker = para.listMarker.text
+      p.style.setProperty('--li-hang', String((para.listMarker.hanging ?? 360) / 20) + 'pt')
+    }
     if (para.cells) {
       const lh = hfParaLineHeightCss(para)
       if (lh) p.style.lineHeight = lh

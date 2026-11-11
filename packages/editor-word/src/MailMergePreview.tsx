@@ -21,7 +21,7 @@ export function MailMergeCanvas({ controller: c, doc }: { controller: MailMergeC
     <div ref={ref} data-mail-merge-canvas className="mo-no-print relative min-w-0 flex-1 overflow-auto bg-[var(--mo-canvas)] p-6">
       <div className="mx-auto w-fit">
         <p className="mb-2 text-center text-xs text-[var(--mo-text-muted)]">合并预览 · 数据第 {c.current?.rowNumber ?? '—'} 行</p>
-        {c.previewDoc ? <MergeReport doc={c.previewDoc} renderBlocks={c.renderBlocks} scale={scale} /> : <p className="p-6 text-xs">请选择记录，并检查模板字段是否与数据列对应。</p>}
+        {c.previewDoc && c.renderBlocks ? <MergeReport doc={c.previewDoc} renderBlocks={c.renderBlocks} scale={scale} /> : <p className="p-6 text-xs">请选择记录，并检查模板字段是否与数据列对应。</p>}
       </div>
     </div>
   );

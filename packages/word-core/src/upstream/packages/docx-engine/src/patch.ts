@@ -1221,6 +1221,30 @@ export async function saveDocx(
     if (base && (hf.pictureOnly || hf.keepContent)) return base
     return headerFooterPartXml(kind, hf, undefined, base, options.pageCount)
   }
+  /** 功能：副本使用独立部件和独立关系，内部目标转包内绝对路径以兼容子目录；时间：2026-11-11；作者：lq。 */
+  const cloneHfSource = async (hf: HeaderFooter, destination: string): Promise<string | null> => {
+    if (!hf.miniOfficeSourceRid) return null
+    const target = relTargets.get(hf.miniOfficeSourceRid)
+    const path = target ? resolveRelationshipTargetPath(docPath, target) : null
+    const file = path ? zip.file(path) : null
+    if (!path || !file) throw new Error('无法定位页眉页脚来源部件，拒绝丢失内容')
+    const slash = path.lastIndexOf('/')
+    const relsPath = path.slice(0, slash + 1) + '_rels/' + path.slice(slash + 1) + '.rels'
+    const relationships = await zip.file(relsPath)?.async('string')
+    if (relationships) {
+      const rebased = relationships.replace(/<Relationship\b[^>]*\/>/g, tag => {
+        if (/TargetMode\s*=\s*['"]External['"]/.test(tag)) return tag
+        return tag.replace(/(\bTarget\s*=\s*)(['"])(.*?)\2/, (whole, prefix, quote, value) => {
+          const resolved = resolveRelationshipTargetPath(path, value)
+          if (!resolved) throw new Error('无效的页眉页脚关系目标')
+          return prefix + quote + '/' + resolved + quote
+        })
+      })
+      const destSlash = destination.lastIndexOf('/')
+      hfRelsOut.set(destination.slice(0, destSlash + 1) + '_rels/' + destination.slice(destSlash + 1) + '.rels', rebased)
+    }
+    return hfOriginalXml(hf, await file.async('string'))
+  }
   const planHeaderFooter = async (
     kind: 'header' | 'footer',
     hf: HeaderFooter | undefined,
@@ -1236,7 +1260,7 @@ export async function saveDocx(
           refs.find((r) => hfReferenceType(r) === undefined))
         : undefined)
     const rId = existing ? hfReferenceRId(existing) : undefined
-    const target = rId ? relTargets.get(rId) : undefined
+    const target = !hf.miniOfficeSourceRid && rId ? relTargets.get(rId) : undefined
     if (target) {
       const path = resolveRelationshipTargetPath(docPath, target)
       if (!path) return
@@ -1254,7 +1278,7 @@ export async function saveDocx(
       const filename = `${kind}${n}.xml`
       const partXml = await resolveHfNewPictures(
         `word/${filename}`,
-        headerFooterPartXml(kind, hf, undefined, null, options.pageCount),
+        editedHfPartXml(kind, hf, await cloneHfSource(hf, `word/${filename}`)),
         hf,
       )
       const newRId = `rId${nextRelNum++}`
@@ -1280,6 +1304,8 @@ export async function saveDocx(
   const sectionRefTags = new Map<number, string[]>()
   const unlinkSectionHf = (xml: string, docxIndex: number): string => {
     let out = xml
+    const copies = (options.sectionHf ?? []).filter(edit => edit.lastBlockIndex === docxIndex && edit.hf.miniOfficeSourceRid)
+    for (const edit of copies) out = removeHfReference(out, edit.kind, edit.variant ?? 'default')
     for (const u of options.sectionHfUnlink ?? []) {
       if (u.lastBlockIndex !== docxIndex) continue
       out = removeHfReference(out, u.kind, u.variant ?? 'default')
@@ -1300,7 +1326,7 @@ export async function saveDocx(
           refs.find((r) => hfReferenceType(r) === undefined))
         : undefined)
     const rId = existing ? hfReferenceRId(existing) : undefined
-    const target = rId ? relTargets.get(rId) : undefined
+    const target = !edit.hf.miniOfficeSourceRid && rId ? relTargets.get(rId) : undefined
     if (target) {
       const path = resolveRelationshipTargetPath(docPath, target)
       if (!path) continue
@@ -1324,7 +1350,7 @@ export async function saveDocx(
       const filename = `${edit.kind}${n}.xml`
       const partXml = await resolveHfNewPictures(
         `word/${filename}`,
-        headerFooterPartXml(edit.kind, edit.hf, undefined, null, options.pageCount),
+        editedHfPartXml(edit.kind, edit.hf, await cloneHfSource(edit.hf, `word/${filename}`)),
         edit.hf,
       )
       const newRId = `rId${nextRelNum++}`
@@ -1835,10 +1861,10 @@ export async function saveDocx(
     // Inject newly created per-section header/footer references into the section's sectPr
     // (the reference must be the first sectPr child)
     const refTags = fbDocxIndex !== undefined ? sectionRefTags.get(fbDocxIndex) : undefined
+    if (fbDocxIndex !== undefined) xml = unlinkSectionHf(xml, fbDocxIndex)
     if (refTags && refTags.length > 0) {
       xml = injectIntoSectPr(xml, refTags.join(''))
     }
-    if (fbDocxIndex !== undefined) xml = unlinkSectionHf(xml, fbDocxIndex)
     // The ink list is authoritative: old aidocs-ink runs go away, the desired
     // set is re-injected at its (possibly new) anchor paragraphs.
     if (options.inks !== undefined) xml = stripInkRuns(xml)
@@ -1901,10 +1927,15 @@ export async function saveDocx(
           xml = applyPageNumType(xml, options.pgNumType.fmt, options.pgNumType.start)
         if (options.titlePg !== undefined) xml = applyTitlePg(xml, options.titlePg)
         // headerReference/footerReference must be the first sectPr children
+        xml = unlinkSectionHf(xml, block.docxIndex!)
+        for (const [kind, hf, variant] of [
+          ['header', options.header, 'default'], ['footer', options.footer, 'default'],
+          ['header', options.headerFirst, 'first'], ['footer', options.footerFirst, 'first'],
+          ['header', options.headerEven, 'even'], ['footer', options.footerEven, 'even'],
+        ] as const) if (hf?.miniOfficeSourceRid) xml = removeHfReference(xml, kind, variant)
         if (hfRefTags.length > 0) {
           xml = injectIntoSectPr(xml, hfRefTags.join(''))
         }
-        xml = unlinkSectionHf(xml, block.docxIndex)
       }
       const index = block.docxIndex
       if (index !== null) {

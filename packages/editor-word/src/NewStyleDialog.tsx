@@ -15,6 +15,7 @@ export type NewStyleBase = 'current' | 'normal';
 export function NewStyleDialog({
   open,
   paragraph,
+  formatPreview,
   doc,
   existingNames,
   defaultName,
@@ -23,6 +24,8 @@ export function NewStyleDialog({
 }: {
   open: boolean;
   paragraph?: DocParagraph;
+  /** 功能：新核心只提供格式摘要，预览不需要伪造旧段落对象；时间：2026-11-10；作者：lq。 */
+  formatPreview?: { run: import('@mini-office/document-model').RunStyle; style: import('@mini-office/document-model').ParagraphStyle };
   doc: Pick<DocModel, 'defaultFont' | 'defaultFontSizePt'>;
   existingNames: string[];
   defaultName: string;
@@ -44,10 +47,10 @@ export function NewStyleDialog({
 
   // 预览使用当前段落的实际字体与段落格式；选择「正文」基准时回落到文档默认值。
   const preview = useMemo(() => {
-    const run = base === 'current' ? resolveStyleRun({ run: paragraph?.runs.find((item) => item.text)?.style ?? {} }, doc) : resolveStyleRun({ run: {} }, doc);
-    const style = base === 'current' ? paragraph?.style ?? {} : { alignment: 'left' as const, lineHeight: 1.5 };
+    const run = base === 'current' ? resolveStyleRun({ run: formatPreview?.run ?? paragraph?.runs.find((item) => item.text)?.style ?? {} }, doc) : resolveStyleRun({ run: {} }, doc);
+    const style = base === 'current' ? formatPreview?.style ?? paragraph?.style ?? {} : { alignment: 'left' as const, lineHeight: 1.5 };
     return { run, style };
-  }, [base, doc, paragraph]);
+  }, [base, doc, paragraph, formatPreview]);
 
   const submit = () => {
     if (invalid) return;

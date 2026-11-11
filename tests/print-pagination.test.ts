@@ -52,6 +52,13 @@ describe('打印纸张', () => {
 });
 
 describe('打印文档', () => {
+  // 功能：原生整纸输出保留底部内容高度，旧页面仍使用原安全余量；时间：2026-11-11；作者：lq。
+  it('原生完整纸张模式不裁减页脚且可按每页分别设置尺寸', () => {
+    const pages = [document.createElement('div'), document.createElement('div')];
+    const handle = createPrintRoot({ pages, widthPx: 794, heightPx: 1123, fullPaper: true, pageSizes: [{ widthPx: 794, heightPx: 1123 }, { widthPx: 1056, heightPx: 816 }] });
+    try { expect(pages[0].style.height).toBe('1122.52px'); expect(pages[1].style.height).toBe('816px'); expect(pages[1].style.width).toBe('1056px'); }
+    finally { handle.cleanup(); }
+  });
   it('页数严格等于页面数量，且最后一页不再分页', () => {
     const pages = Array.from({ length: 3 }, () => document.createElement('div'));
     const handle = createPrintRoot({ pages, widthPx: 794, heightPx: 1123 });

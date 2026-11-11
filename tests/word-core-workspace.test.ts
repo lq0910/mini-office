@@ -51,6 +51,18 @@ it('新建和打开持有真实完整核心，工作区保存不会调用旧模�
   expect(useWorkspaceStore.getState().sessions[id!].dirty).toBe(false);
 });
 
+// 功能：合并等内存生成文档在首次保存前保持新建/未保存，撤销正文不能冒充磁盘版本；时间：2026-11-11；作者：lq。
+it('原生生成文档从未保存状态开始，首次实际保存成功后才转为干净文档', async () => {
+  const { buildBlankDocx } = await import('../packages/word-core/src/index');
+  const id = (await useWorkspaceStore.getState().openBytes({ name: '合并结果.docx', bytes: await buildBlankDocx(), generated: true }))!;
+  const session = useWorkspaceStore.getState().sessions[id], core = session.wordCore!;
+  expect(session).toMatchObject({ isNew: true, dirty: true }); expect(core.state().dirty).toBe(true);
+  core.editor.commands.insertContent('生成文档编辑'); core.editor.commands.undo();
+  expect(core.state().dirty).toBe(true); expect(useWorkspaceStore.getState().sessions[id].dirty).toBe(true);
+  expect(await useWorkspaceStore.getState().saveSession(id)).toBe(true);
+  expect(core.state().dirty).toBe(false); expect(useWorkspaceStore.getState().sessions[id]).toMatchObject({ isNew: false, dirty: false });
+});
+
 it('保存期间同一对象继续编辑保持 dirty，拒绝重复保存和写盘时强制关闭', async () => {
   const id = await open();
   const session = useWorkspaceStore.getState().sessions[id];

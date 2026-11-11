@@ -49,8 +49,10 @@ describe('定制 Word 核心的会话和来源保留', () => {
     const bytes = await sample();
     const session = await open(bytes);
     expect(session.editor.schema.nodes.docTable).toBeTruthy();
-    expect(session.parsed.internal.originalBytes).toEqual(bytes);
-    expect((await session.prepareSave()).bytes).toEqual(bytes);
+    // 功能：逐字节比较来源包，避免测试框架为大型二进制差异构建巨型结构；时间：2026-11-11；作者：lq。
+    expect(session.parsed.internal.originalBytes.length === bytes.length && session.parsed.internal.originalBytes.every((value, index) => value === bytes[index])).toBe(true);
+    const saved = (await session.prepareSave()).bytes;
+    expect(saved.length === bytes.length && saved.every((value, index) => value === bytes[index])).toBe(true);
     expect(session.state().dirty).toBe(false);
   });
 
@@ -89,7 +91,8 @@ describe('定制 Word 核心的会话和来源保留', () => {
     const second = await session.prepareSave();
     session.acknowledgeSave(second);
     expect(session.state().dirty).toBe(false);
-    expect(session.parsed.internal.originalBytes).toEqual(bytes);
+    // 功能：逐字节比较来源包，避免测试框架为大型二进制差异构建巨型结构；时间：2026-11-11；作者：lq。
+    expect(session.parsed.internal.originalBytes.length === bytes.length && session.parsed.internal.originalBytes.every((value, index) => value === bytes[index])).toBe(true);
     const reopened = await open(second.bytes);
     replace(reopened, '重开后编辑');
     const third = await reopened.prepareSave();

@@ -1,7 +1,13 @@
 /** 功能：将定制核心挂到 Mini Office 提供的正文容器，管理异步打开与写盘确认；时间：2026-11-08；作者：lq。 */
 import { WordCoreSession, type PreparedWordSave, type WordSessionState } from '../../word-core/src/index';
-import { readSections } from '../../word-core/src/index';
 import { WordSurfaceLayout, type WordSurfaceLayoutOptions } from './core-layout';
+// 功能：只在样式目录事务变化时更新 CSS，避免每次选区移动重新生成；时间：2026-11-10；作者：lq。
+import { wordStyleCatalogOf } from '../../word-core/src/editing/styles';
+// 功能：富文本页眉页脚使用稳定投影宿主，保留会话统一历史；时间：2026-11-11；作者：lq。
+import { WordHeaderFooterRegions } from './core-header-footer';
+import './core-header-footer.css';
+// 功能：页边距拖动由当前分节和实际分页驱动；时间：2026-11-11；作者：lq。
+import { WordPageMarginGuides } from './core-page-margins';
 
 /** 功能：宿主继续负责文件选择、写盘和现有 UI，正文保持完整核心模型；时间：2026-11-08；作者：lq。 */
 export interface WordCoreSurfaceOptions extends WordSurfaceLayoutOptions {
@@ -18,6 +24,8 @@ export class WordCoreSurface {
   private disposed = false;
   private saving = false;
   private readonly unsubscribe: () => void;
+  private readonly regions?: WordHeaderFooterRegions;
+  private readonly margins: WordPageMarginGuides;
   private constructor(
     readonly root: HTMLElement,
     private readonly content: HTMLElement,
@@ -28,15 +36,24 @@ export class WordCoreSurface {
     private readonly ownsSession: boolean,
   ) {
     this.session = session;
+    this.margins = new WordPageMarginGuides(session, session.editor.view.dom.closest<HTMLElement>('.page-wrap')!, error => options.onLayoutError?.(error));
+    if (session.editor.isEditable) this.regions = new WordHeaderFooterRegions(session, session.editor.view.dom.closest<HTMLElement>('.page-wrap')!, error => options.onLayoutError?.(error));
     this.layout = new WordSurfaceLayout(session, { ...options, onLayout: state => {
       // 功能：后续真实重排成功才清除旧错误，避免界面永久保留过期提示；时间：2026-11-09；作者：lq。
       this.layoutError = undefined;
+      this.regions?.refresh();
+      this.margins.refresh(state.frames);
       options.onLayout?.(state);
     }, onLayoutError: error => {
       this.layoutError = error;
       options.onLayoutError?.(error);
     } });
-    this.unsubscribe = session.subscribe(state => options.onState?.(state));
+    let catalog = wordStyleCatalogOf(session.editor.state.doc);
+    this.unsubscribe = session.subscribe(state => {
+      const next = wordStyleCatalogOf(session.editor.state.doc);
+      if (next !== catalog) { catalog = next; style.textContent = session.styleCss(); }
+      options.onState?.(state);
+    });
     options.onState?.(session.state());
   }
 
@@ -74,7 +91,7 @@ export class WordCoreSurface {
       style.textContent = await session.activate();
       signal?.throwIfAborted();
       // 功能：页面尺寸从真实分节设置取得，不沿用旧编辑器页面或默认美式纸张；时间：2026-11-09；作者：lq。
-      const settings = readSections(session.parsed)[0]?.settings;
+      const settings = session.sections()[0]?.settings;
       if (!settings) throw new Error('Word 文档缺少有效分节设置');
       const paper = session.editor.view.dom;
       paper.style.boxSizing = 'border-box';
@@ -110,6 +127,8 @@ export class WordCoreSurface {
     if (this.disposed) return;
     this.disposed = true;
     this.layout.dispose();
+    this.regions?.dispose();
+    this.margins.dispose();
     this.unsubscribe();
     if (this.ownsSession) this.session.dispose();
     this.content.remove();

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import type { ParagraphStyle, TabStop } from '@mini-office/document-model';
 import { DEFAULT_TAB_STOP_PX, nextTabStop } from './tab-stops';
 
@@ -22,6 +22,9 @@ export interface WordRulerProps {
   style: ParagraphStyle;
   defaultTabStopPx?: number;
   readonly: boolean;
+  /** 功能：新核心拖动期间预览草稿，结束一次提交，取消/卸载丢弃；时间：2026-11-11；作者：lq。 */
+  onDragStart?: () => void;
+  onDragEnd?: (cancelled: boolean) => void;
   onChangeIndent: (patch: Partial<ParagraphStyle>, key: string) => void;
   onChangeTabStops: (stops: TabStop[], key: string) => void;
 }
@@ -46,7 +49,12 @@ export function WordRuler({
   readonly,
   onChangeIndent,
   onChangeTabStops,
+  onDragStart,
+  onDragEnd,
 }: WordRulerProps) {
+  // 功能：拖动使用开始时的回调，组件卸载时释放全局监听并取消草稿；时间：2026-11-11；作者：lq。
+  const cleanupDrag = useRef<() => void>();
+  useEffect(() => () => cleanupDrag.current?.(), []);
   const indentLeft = style.indentLeftPx ?? 0;
   const indentRight = style.indentRightPx ?? 0;
   const firstLine = style.firstLineIndentPx ?? 0;
@@ -74,6 +82,8 @@ export function WordRuler({
       if (readonly || event.button !== 0) return;
       event.preventDefault();
       event.stopPropagation();
+      cleanupDrag.current?.();
+      onDragStart?.();
       const state: DragState = { startX: event.clientX, initial: 0 };
       if (kind === 'left') state.initial = indentLeft;
       else if (kind === 'right') state.initial = indentRight;
@@ -101,22 +111,26 @@ export function WordRuler({
         const next = tabStops.map((stop, index) => (index === tabIndex ? { ...stop, posPx: nextPos } : stop));
         onChangeTabStops(next, 'ruler-tab-move');
       };
-      const finish = (pointer: PointerEvent) => {
+      const cleanup = () => {
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', finish);
         window.removeEventListener('pointercancel', finish);
-        if (kind !== 'tab' || tabIndex < 0 || pointer.type === 'pointercancel') return;
-        // 功能：把制表位拖到正文左侧即视为删除，与 Word 的拖出行为一致；时间：2026-10-30；作者：lq。
-        const delta = (pointer.clientX - state.startX) / (zoom || 1);
-        if (state.initial + delta < -8) {
-          onChangeTabStops(tabStops.filter((_, index) => index !== tabIndex), 'ruler-tab-remove');
-        }
+        cleanupDrag.current = undefined;
       };
+      const finish = (pointer: PointerEvent) => {
+        cleanup();
+        if (kind === 'tab' && tabIndex >= 0 && pointer.type !== 'pointercancel') {
+          const delta = (pointer.clientX - state.startX) / (zoom || 1);
+          if (state.initial + delta < -8) onChangeTabStops(tabStops.filter((_, index) => index !== tabIndex), 'ruler-tab-remove');
+        }
+        onDragEnd?.(pointer.type === 'pointercancel');
+      };
+      cleanupDrag.current = () => { cleanup(); onDragEnd?.(true); };
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', finish);
       window.addEventListener('pointercancel', finish);
     },
-    [contentWidthPx, firstLine, indentLeft, indentRight, onChangeIndent, onChangeTabStops, readonly, tabStops, zoom],
+    [contentWidthPx, firstLine, indentLeft, indentRight, onChangeIndent, onChangeTabStops, onDragStart, onDragEnd, readonly, tabStops, zoom],
   );
 
   /** 功能：在标尺空白处单击新增一个左对齐制表位，落在最近的默认制表位网格上；时间：2026-10-30；作者：lq。 */

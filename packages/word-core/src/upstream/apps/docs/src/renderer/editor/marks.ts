@@ -546,7 +546,8 @@ const CLIPBOARD_TEXT_STYLE_TYPES: Record<string, 'string' | 'number' | 'boolean'
   vertAlign: 'string',
   em: 'string',
   boldOff: 'boolean',
-  italicOff: 'boolean',
+  miniOfficeEffectXml: 'string',
+  italicOff: 'boolean', underlineOff: 'boolean', strikeOff: 'boolean',
   caps: 'string',
   vanish: 'boolean',
   vanishOwn: 'boolean',
@@ -663,7 +664,9 @@ export const TextStyleMark = Mark.create({
       em: { default: null as string | null },
       // run-level explicit off (w:b/w:i w:val="0"): counters style-inherited bold/italic CSS
       boldOff: { default: null as boolean | null },
+      miniOfficeEffectXml: { default: null as string | null, rendered: false },
       italicOff: { default: null as boolean | null },
+      underlineOff: { default: null as boolean | null }, strikeOff: { default: null as boolean | null },
       // w:caps ('all') / w:smallCaps ('small'), 'none' = explicit off
       caps: { default: null as 'all' | 'small' | 'none' | null },
       // w:vanish hidden text (style chain resolved at parse); Word print hides it
@@ -801,6 +804,7 @@ export const TextStyleMark = Mark.create({
     }
     if (mark.attrs.boldOff) styles.push('font-weight:normal')
     if (mark.attrs.italicOff) styles.push('font-style:normal')
+    if (mark.attrs.underlineOff || mark.attrs.strikeOff) styles.push('text-decoration:none')
     if (mark.attrs.vanish) styles.push('display:none')
     const caps = mark.attrs.caps ?? tbl?.caps
     if (caps === 'all') styles.push('text-transform:uppercase')
@@ -872,6 +876,7 @@ function tblRunOf(attrs: Record<string, unknown>): TblRunProps | undefined {
 const FORMAT_OFF_PAIRS = [
   { mark: 'bold', off: 'boldOff' },
   { mark: 'italic', off: 'italicOff' },
+  { mark: 'underline', off: 'underlineOff' }, { mark: 'strike', off: 'strikeOff' },
 ] as const
 
 export const FormatOffClearExtension = Extension.create({

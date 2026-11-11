@@ -432,6 +432,8 @@ export interface TabStop {
 
 /** Declared look of one w:pBdr side. */
 export interface ParaBorderLine {
+  /** 功能：段落样式/格式刷保留双线、虚线和点线类型；时间：2026-11-11；作者：lq。 */
+  val?: string
   /** hex without '#' (w:color); undefined = auto */
   color?: string
   /** line width in pt (w:sz eighth-points / 8) */
@@ -529,6 +531,10 @@ export interface CharIndents {
 export type AutoSpace = boolean | 'latin' | 'digits'
 
 export interface ParaFormat {
+  /** 功能：区域原生样式引用参与保存；时间：2026-11-11；作者：lq。 */
+  styleId?: string
+  listMarker?: TextboxListMarker
+
   /** w:jc */
   align?: ParaAlign
   /** line spacing as a multiple of single (w:spacing w:line / 240, lineRule="auto") */
@@ -876,8 +882,9 @@ export interface HfTableFloat {
 }
 
 /** display props of one paragraph inside a layout-table cell */
-export type HfCellParaProps = Pick<
+export type HfCellParaProps = ParaFormat & { indentFirstLineChars?: number } & Pick<
   ParaFormat,
+  | 'listMarker'
   | 'align'
   | 'indentLeft'
   | 'indentFirstLine'
@@ -1023,6 +1030,8 @@ export interface NumberingDef {
 
 /** Content for the default page header / footer. */
 export interface HeaderFooter {
+  /** 功能：解除继承时从来源部件克隆 XML/关系，不重建图片或未知内容；时间：2026-11-11；作者：lq。 */
+  miniOfficeSourceRid?: string
   text: string
   /** append an automatic page number (PAGE field), footer only */
   pageNumber?: boolean
@@ -1427,6 +1436,8 @@ export interface NewChart {
 
 /** Editable interchange model of one table cell (type === 'table' blocks). */
 export interface TableParagraph extends ParaFormat {
+  /** 功能：结构回写时复用未编辑的格内段落 XML；时间：2026-11-11；作者：lq。 */
+  sourceXml?: string
   runs: Run[]
   /** w:pStyle of the cell paragraph (style CSS: fonts/spacing reach cell content) */
   styleId?: string

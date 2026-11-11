@@ -1169,6 +1169,7 @@ export function paraBorderSidesOf(
     const a = attrsOf(el)
     const val = a['w:val']
     const line: ParaBorderLine = {}
+    if (val && val !== 'single') line.val = val
     if (val === 'none' || val === 'nil') {
       const space = parseInt(a['w:space'] ?? '', 10)
       sides[ch] = Number.isFinite(space) && space > 0 ? { none: true, spacePt: space } : null
@@ -1205,7 +1206,7 @@ export function paraBordersOf(sides: ParaBorderSides): ParaBorderModel {
       continue
     }
     borders += ch
-    if (line.color !== undefined || line.szPt !== undefined || line.spacePt !== undefined)
+    if (line.val !== undefined || line.color !== undefined || line.szPt !== undefined || line.spacePt !== undefined)
       lines[ch] = line
   }
   if (borders) out.borders = borders
