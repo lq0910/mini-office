@@ -10,6 +10,8 @@ import './core-header-footer.css';
 import './core-paper.css';
 // 功能：页边距拖动由当前分节和实际分页驱动；时间：2026-11-11；作者：lq。
 import { WordPageMarginGuides } from './core-page-margins';
+// 功能：采用活动编辑页和邻页快照分离的显示层，禁止 CSS 跳绘反复改变正文排版；时间：2026-11-14；作者：lq。
+import { WordPageRenderer } from './core-page-renderer';
 // 功能：预览复用当前已排版宿主，避免为打印再解析、加载字体和创建整篇编辑器；时间：2026-11-11；作者：lq。
 const mountedSurfaces = new WeakMap<WordCoreSession, WordCoreSurface>();
 
@@ -32,6 +34,7 @@ export class WordCoreSurface {
   private readonly unsubscribe: () => void;
   private readonly regions?: WordHeaderFooterRegions;
   private readonly margins: WordPageMarginGuides;
+  private readonly pages: WordPageRenderer;
   private readonly themeObserver?: MutationObserver;
   private constructor(
     readonly root: HTMLElement,
@@ -58,16 +61,18 @@ export class WordCoreSurface {
     }
     this.margins = new WordPageMarginGuides(session, session.editor.view.dom.closest<HTMLElement>('.page-wrap')!, error => options.onLayoutError?.(error));
     if (session.editor.isEditable) this.regions = new WordHeaderFooterRegions(session, session.editor.view.dom.closest<HTMLElement>('.page-wrap')!, error => options.onLayoutError?.(error));
-    this.layout = new WordSurfaceLayout(session, { ...options, onLayout: state => {
+    this.layout = new WordSurfaceLayout(session, { ...options, onBeforeMeasure: () => { this.pages?.suspend(); options.onBeforeMeasure?.(); }, onLayout: state => {
       // 功能：后续真实重排成功才清除旧错误，避免界面永久保留过期提示；时间：2026-11-09；作者：lq。
       this.layoutError = undefined;
       this.regions?.refresh();
       this.margins.refresh(state.frames);
+      this.pages?.refresh();
       options.onLayout?.(state);
     }, onLayoutError: error => {
       this.layoutError = error;
       options.onLayoutError?.(error);
     } });
+    this.pages = new WordPageRenderer(session, this.layout);
     let catalog = wordStyleCatalogOf(session.editor.state.doc);
     this.unsubscribe = session.subscribe(state => {
       const next = wordStyleCatalogOf(session.editor.state.doc);
@@ -144,11 +149,15 @@ export class WordCoreSurface {
     } finally { this.saving = false; }
   }
 
+  /** 功能：输出持有完整编辑层，页面快照不得成为保存或打印来源；时间：2026-11-14；作者：lq。 */
+  acquireFullRendering(): () => void { return this.pages.hold(); }
+
   /** 功能：标签卸载只移除本容器创建的节点，允许安全重复清理；时间：2026-11-08；作者：lq。 */
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.themeObserver?.disconnect();
+    this.pages.dispose();
     if (mountedSurfaces.get(this.session) === this) mountedSurfaces.delete(this.session);
     this.layout.dispose();
     this.regions?.dispose();

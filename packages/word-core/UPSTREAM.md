@@ -107,3 +107,36 @@ M0 阶段没有安装依赖。M1 已将 Tiptap 三个配套包、JSZip、fast-xm
 - 本地目录命令优先使用隐藏书签，缺失时采用标题级别/文字与唯一短标题匹配；Ctrl+滚轮使用产品 40%–250% 视图比例，不缩放浏览器整窗。
 
 详细样本、性能数据、包及验收范围见 [修复记录](../../docs/word-pagination-fix-20261111.md)。
+
+## 2026-11-13 至 2026-11-14 长文档调度与 DOM 提交
+
+功能：接通固定版本 GenOffice 已有的分批正文、等高段落快速分页和脏块前缀续排，并补充多标签及 WebKit 适配；时间：2026-11-14；作者：lq。
+
+- `phased-content.ts` 的 64 块首屏、128 块分帧尾部、192 块阈值继续沿用上游；状态、取消和保存等待改为按编辑器 DOM 隔离。字体压缩、制表位及尾部输入保护读取自己的加载状态，组合输入期间暂停追加，加载失败禁止保存半份正文。
+- 新提取 `editor/pagination-fast-path.ts`，其同源算法和脏块定位保持不变。`layout/incremental.ts` 承接上游 App 的自然流前缀、分节签名和上一页安全边界；外部字体、纸张及样式变化走完整重排。
+- 自有 `layout/dom-batch.ts` 将 ProseMirror 同一轮连续尾部插入合并为 `DocumentFragment`，缓解 WKWebView 反复执行关系选择器失效。保留全部排版规则，不删除 `:has()`，不创建第二份文档或正文 DOM。
+- 分节宽度统一时由根节点继承，混合宽度仍按原生装饰分配；取消页缝及分栏块的常驻 GPU 提示。
+
+验证数据、复现命令及保留边界见 [长文档性能记录](../../docs/word-large-document-performance-20261114.md)。本次不代表已完成页级虚拟化、所有业务文档的前台滚动验收或重新打包安装。
+
+## 2026-11-14 分页显示层
+
+功能：记录参考固定版本 MultipageGrid 的产品显示接线；时间：2026-11-14；作者：lq。
+
+自有 `packages/editor-word/src/core-page-renderer.ts` 参考 `apps/docs/src/renderer/components/MultipageGrid.tsx` 的 snapshotCanvas、绝对定位块快照、活动编辑窗口及邻页惰性显示。保持唯一原始正文模型，最多缓存六页（优先完整覆盖可视窗口）；测量、选区、输入法和打印临时恢复完整编辑层。删除失败的 content-visibility 跳绘方案；当前页统计改为滚动读取缓存几何。构建溯源与验收边界见长文档性能记录，本次不沿用旧性能测试作为新显示层验收。
+
+## 2026-11-14 目录导航和纸张显示对齐
+
+功能：统一同源内核到产品显示的最后一段接线；时间：2026-11-14；作者：lq。
+
+- TOC 的 `parse-fields.ts`、`protected-render.ts`、制表位布局、正文解析和分页继续使用固定版本；本轮没有另写替代解析器或分页算法。
+- `scripts/sync-word-navigation.mjs` 校验固定 App.tsx 指纹，提取 `jumpToAnchor` 原函数体，显式传入当前解析文档和真实正文根，保留书签优先、标题回退及原生 scrollIntoView。宿主普通单击策略继续保留；旧 DOC 丢失书签和标题样式时仅保留已有兼容兜底。独立同步脚本不覆盖其他已接线模块。
+- 目录多余下划线来自 DOC 写入器自动加上的模板 Hyperlink 样式，现使用同源 `Run.link.plain` 语义保留原字符格式，并已重新生成浏览器转换模块。
+- 活动窗口和快照页同步上游 doc-live/mp-slot 的纸面底色与阴影归属；快照不再复制整篇 page-sheets 底纸层。
+- 本轮只执行类型检查、编译和本地打包，不重复性能或业务回归；真实文件效果仍由用户验收。
+
+## 2026-11-14 旧缓存的显示适配
+
+功能：保留 GenOffice 原始解析和字段渲染，修正旧转换缓存丢失目录语义的接线；时间：2026-11-14；作者：lq。
+
+`editing/legacy-toc.ts` 在主线程收到解析结果后，仅为 GenOffice 模板中连续的 _Toc 内链、右对齐点引导 Tab 和数字页码组合补充 FieldDisplay。复用同源 fieldDisplayOf/resolveCtxOf，而非改写上游字段解析或保存 XML。来源目录中的显式下划线继续保留在 originalXml；显示采用目录的 plain 链接语义。WordCoreSession 的所有入口统一调用，开发页面和正式应用一致。

@@ -31,9 +31,10 @@ export function WordCoreFindBar({ core, readonly, onClose }: { core: WordCoreSes
   };
   /** 功能：替换遵守只读/组合输入并读取最新结果；整批替换保持一步撤销；时间：2026-11-10；作者：lq。 */
   const replace = (all = false) => {
-    if (!readonly) replaceWordText(editor, results, replacement, all ? undefined : active);
+    // 功能：全文替换等待来源加载完整，避免仅替换首屏后错误报告完成；时间：2026-11-13；作者：lq。
+    if (!readonly && !core.contentPending()) replaceWordText(editor, results, replacement, all ? undefined : active);
   };
-  return <FindBar query={query} replacement={replacement} caseSensitive={matchCase} count={results.matches.length} active={active} readonly={readonly}
+  return <FindBar query={query} replacement={replacement} caseSensitive={matchCase} count={results.matches.length} active={active} readonly={readonly || core.contentPending()}
     onQuery={value => { setQuery(value); setIndex(0); }} onReplacement={setReplacement}
     onCaseSensitive={value => { setMatchCase(value); setIndex(0); }} onNext={() => navigate(1)} onPrev={() => navigate(-1)}
     onReplace={() => replace()} onReplaceAll={() => replace(true)} onClose={() => { onClose(); editor.view.focus(); }} />;

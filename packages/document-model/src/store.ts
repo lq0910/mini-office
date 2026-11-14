@@ -278,6 +278,26 @@ function severityRank(severity: WarningSeverity): number {
   return severity === 'blocking' ? 2 : severity === 'warning' ? 1 : 0;
 }
 
+/** 功能：将 doc 转换层产生的英文技术警告翻译为用户可读的中文；时间：2026-11-13；作者：lq。 */
+function translateLegacyWarning(detail: string): string {
+  // 精确匹配常见已知消息
+  const known: Record<string, string> = {
+    'the PAGEREF field is not supported yet; its result text is imported as plain text':
+      'PAGEREF 交叉引用域尚不支持，已按纯文本导入显示文字',
+    'a floating shape has no size and was omitted':
+      '文档中有一个无尺寸的浮动图形，已跳过',
+  };
+  if (known[detail]) return known[detail];
+  // 模糊翻译：常见模式
+  if (/PAGEREF.*not supported/i.test(detail)) return 'PAGEREF 交叉引用域尚不支持，已按纯文本导入';
+  if (/floating shape.*no size/i.test(detail)) return '无尺寸的浮动图形已跳过';
+  if (/field.*not supported/i.test(detail)) return `域功能暂不支持：${detail.replace(/the |field is not supported.*$/gi, '').trim()}`;
+  if (/was omitted/i.test(detail)) return detail.replace('was omitted', '已跳过').replace('a floating shape has no size and', '无尺寸的浮动图形');
+  if (/imported as plain text/i.test(detail)) return detail.replace('imported as plain text', '已按纯文本导入');
+  // 返回原文
+  return detail;
+}
+
 export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
   // 功能：合并 StrictMode 重挂载和并发打开触发的初始化、字体扫描；时间：2026-10-24；作者：lq。
   let initializing: Promise<void> | undefined;
@@ -586,7 +606,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
                   message: input.conversionPerformed === false ? `${legacySource} 按实际 Word 格式打开` : `${legacySource} 以兼容模式打开`,
                   detail: input.conversionPerformed === false ? '文件内容已是 DOCX，无需转换；保存副本使用 .docx 扩展名。' : '二进制 DOC 经兼容通道转换，复杂版式可能与原文件不同；保存时另存为 DOCX。',
                 },
-                ...(input.conversionWarnings ?? []).map((detail) => ({ code: 'legacy.loss', severity: 'warning' as const, message: '旧格式转换存在兼容限制', detail })),
+                ...(input.conversionWarnings ?? []).map((detail) => ({ code: 'legacy.loss', severity: 'warning' as const, message: '旧格式转换存在兼容限制', detail: translateLegacyWarning(detail) })),
                 ...result.capability.warnings,
               ],
             }

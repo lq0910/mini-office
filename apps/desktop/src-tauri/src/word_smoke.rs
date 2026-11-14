@@ -13,6 +13,19 @@ pub fn plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
         .on_page_load(|webview, payload| {
             eprintln!("Word smoke page: {:?} {}", payload.event(), payload.url());
             if payload.event() != tauri::webview::PageLoadEvent::Finished { return; }
+            // 功能：显式性能验收可激活测试窗口，避免把后台 WebKit 的限帧误判为滚动耗时；时间：2026-11-14；作者：lq。
+            if std::env::var_os("MINI_OFFICE_WORD_SMOKE_FOCUS").is_some() {
+                // 功能：macOS 命令行测试进程需先激活应用，单独窗口聚焦仍会被当作后台 WebView 限帧；时间：2026-11-14；作者：lq。
+                #[cfg(target_os = "macos")]
+                {
+                    use objc2_app_kit::{NSApplicationActivationOptions, NSRunningApplication};
+                    #[allow(deprecated)]
+                    let _ = NSRunningApplication::currentApplication().activateWithOptions(
+                        NSApplicationActivationOptions::ActivateAllWindows | NSApplicationActivationOptions::ActivateIgnoringOtherApps,
+                    );
+                }
+                let _ = webview.window().set_focus();
+            }
             if let Ok(path) = std::env::var("MINI_OFFICE_WORD_SMOKE_SCRIPT") {
                 if let Ok(script) = std::fs::read_to_string(path) { eprintln!("Word smoke eval: {:?}", webview.eval(script)); }
             }

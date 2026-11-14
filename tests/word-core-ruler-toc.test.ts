@@ -76,6 +76,21 @@ describe('M3 标尺和目录', () => {
     expect(() => insertWordToc(saved.editor, saved.parsed)).toThrow('已有目录');
     expect(insertWordToc(saved.editor, saved.parsed, true)).toBe(true);
   });
+  /** 功能：复现旧恢复快照丢失 TOC 域/样式并带显式下划线，显示接入同源目录且未编辑保存保持原字节；时间：2026-11-14；作者：lq。 */
+  it('旧转换的连续目录链接补充显示模型并可跳转，不改来源 XML', async () => {
+    const entry = (anchor: string, title: string, page: string) => `<w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9000" w:leader="dot"/></w:tabs></w:pPr><w:hyperlink w:anchor="${anchor}"><w:r><w:rPr><w:rStyle w:val="Hyperlink"/><w:rFonts w:eastAsia="仿宋"/><w:sz w:val="28"/><w:b/><w:u w:val="single"/></w:rPr><w:t>${title}</w:t><w:tab/><w:t>${page}</w:t></w:r></w:hyperlink></w:p>`;
+    const prefix = entry('_TocOld1', '重复标题', '3') + entry('_TocOld2', '末级标题', '9');
+    const core = await open(false, prefix);
+    expect(core.editor.state.doc.firstChild!.type.name).toBe('docProtected');
+    expect(core.editor.state.doc.firstChild!.attrs.fieldDisplay).toMatchObject({ kind: 'tocLine', left: '重复标题', right: '3', anchor: '_TocOld1' });
+    expect(core.editor.state.doc.firstChild!.attrs.fieldDisplay.runStyleId).toBeUndefined();
+    expect(followWordToc(core.editor, core.parsed, 0)).toBe(true);
+    expect(core.state().dirty).toBe(false);
+    expect((await core.prepareSave()).bytes).toEqual(core.parsed.internal.originalBytes);
+    expect(await xml(core)).toContain(prefix);
+    const single = await open(false, entry('_TocOnly', '普通书签链接', '3'));
+    expect(single.editor.state.doc.firstChild!.type.name).toBe('docParagraph');
+  });
   it('实际分页缓存按重复标题各自的位置进入快照，不增加 revision/dirty 或污染并发保存', async () => {
     const core = await open(); insertWordToc(core.editor, core.parsed); const revision = core.state().revision;
     const headings = wordHeadings(core.editor.state.doc, core.parsed.styles);

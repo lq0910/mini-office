@@ -35,6 +35,7 @@ import {
 } from '@mini-office/ui';
 import {
   APP_VERSION,
+  APP_BUILD_ID,
   DEFAULT_ACCENT_HEX,
   MOD_KEY,
   decodeDisplayName,
@@ -719,7 +720,7 @@ function SettingsContent({ onClose }: { onClose: () => void }) {
                 <div className="min-w-0">
                   <div className="text-[13px] font-semibold text-[var(--mo-text-primary)]">Mini Office</div>
                   <div className="mt-0.5 text-[10.5px] text-[var(--mo-text-muted)]">
-                    版本 {APP_VERSION} · 本地优先 · 离线可用
+                    版本 {APP_VERSION} · 本地优先 · 离线可用 · 构建 {APP_BUILD_ID}
                   </div>
                 </div>
               </div>
@@ -1297,7 +1298,7 @@ function AboutContent() {
           <div className="mt-0.5 text-[12px] font-medium text-[var(--mo-accent)]">非人类程序员出品</div>
           {/* 功能：关于页展示统一版本；时间：2026-10-24；作者：lq。 */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--mo-text-muted)]">
-            <span>版本 {APP_VERSION} · 离线优先的轻量办公套件</span>
+            <span>版本 {APP_VERSION} · 构建 {APP_BUILD_ID}</span>
             <a
               href={latestRelease?.url ?? RELEASES_URL}
               target="_blank"

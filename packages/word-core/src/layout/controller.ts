@@ -6,6 +6,8 @@ import type { SectionGeom, SliceOutputs, PageNoteItem } from '../upstream/apps/d
 import { FOOTNOTE_SEPARATOR_H } from '../upstream/apps/docs/src/renderer/line-metrics';
 import { assignSections, liveSections, sectionGeoms, sectionVertical } from '../upstream/apps/docs/src/renderer/pagination-sections';
 import type { SectionInfo } from '../upstream/packages/docx-engine/src/index';
+// 功能：复用上游前缀续排，普通编辑只重采样受影响页面及其后续；时间：2026-11-13；作者：lq。
+import { wordLayoutResume, type WordLayoutPrefix } from './incremental';
 
 /** 功能：调用方显式传入当前文档几何与映射，禁止猜测页面尺寸或返回伪造页数；时间：2026-11-08；作者：lq。 */
 export interface WordLayoutInput {
@@ -24,6 +26,8 @@ export interface WordLayoutInput {
   composing?: boolean;
   /** 功能：尾注区参与同源分页，不在排版结束后盖到正文上；时间：2026-11-09；作者：lq。 */
   endnotes?: PageNoteItem[];
+  /** 功能：只有可定位的正文编辑才允许复用旧自然流前缀；时间：2026-11-13；作者：lq。 */
+  previous?: WordLayoutPrefix;
 }
 
 /** 功能：执行同源 DOM 测量、行盒补采样与分节切片，结果供我们的页面 UI 应用；时间：2026-11-08；作者：lq。 */
@@ -49,8 +53,11 @@ export function measureWordLayout(input: WordLayoutInput) {
     if (geometries.some(section => !(section.contentHeight > 0))) throw new Error('Word 排版包含无效的分节几何');
     // 功能：开启上游表格行高、分行和浮动对象输出，供正文宿主统一应用；时间：2026-11-09；作者：lq。
     const outputs: SliceOutputs = { rowFills: [], rowSplits: [], floatVShifts: [], floatFlows: [], floatSplits: [], oversizeClips: [] };
-    const slices = sliceWithLineSplit(measured.blocks, geometries, totalHeight, input.zoomFactor, input.blockMetaOf, outputs);
-    return { ...measured, totalHeight, slices, outputs, effectiveSections, geometries, endnotesTop: endnotes?.top };
+    // 功能：沿用上游分节范围签名；删除分节符后不能沿用旧页面前缀；时间：2026-11-13；作者：lq。
+    const sectionSignature = effectiveSections?.map(section => `${section.firstBlockIndex}:${section.lastBlockIndex}:${section.startType ?? ''}`).join('|') ?? '';
+    const resume = wordLayoutResume(measured.blocks, geometries, input.previous, sectionSignature);
+    const slices = sliceWithLineSplit(measured.blocks, geometries, totalHeight, input.zoomFactor, input.blockMetaOf, outputs, resume);
+    return { ...measured, totalHeight, slices, outputs, effectiveSections, geometries, endnotesTop: endnotes?.top, resumePage: resume?.page };
   } finally {
     if (!hadNatural) input.root.classList.remove('measuring-natural');
     if (!hadMeasuring) input.root.classList.remove('measuring-columns');
@@ -68,7 +75,9 @@ export class WordLayoutController {
   private readonly chain = new FollowUpChain();
   constructor(private readonly read: () => WordLayoutInput, private readonly apply: (result: WordLayoutResult) => void, private readonly onError: (error: unknown) => void,
     // 功能：宿主在同一未缩放自然流窗口内完成测量与锚点解析，最后恢复显示；时间：2026-11-11；作者：lq。
-    private readonly inMeasure: (run: () => WordLayoutResult | undefined) => WordLayoutResult | undefined = run => run()) {}
+    private readonly inMeasure: (run: () => WordLayoutResult | undefined) => WordLayoutResult | undefined = run => run(),
+    // 功能：等高段落快速检查在任何测量样式切换前执行，避免先触发整篇布局才跳过；时间：2026-11-13；作者：lq。
+    private readonly tryReuse?: () => WordLayoutResult | undefined) {}
   /** 功能：文档、字体或页面设置变化开启新排版链；时间：2026-11-08；作者：lq。 */
   request(): void { this.chain.reset(); this.enqueue(this.measured ? Math.min(2000, Math.max(300, this.lastPassMs * 3)) : 0, true); }
   /** 功能：装饰或尺寸补偿请求有界的后续测量，拒绝同因循环；时间：2026-11-08；作者：lq。 */
@@ -83,7 +92,10 @@ export class WordLayoutController {
     if (this.timer !== undefined) clearTimeout(this.timer);
     this.timer = undefined;
     const started = performance.now();
-    try { return this.inMeasure(() => {
+    try {
+      const reused = this.tryReuse?.();
+      if (reused) { this.measured = true; return reused; }
+      return this.inMeasure(() => {
       const input = this.read();
       if (input.composing) return;
       this.chain.beginPass();
@@ -95,6 +107,7 @@ export class WordLayoutController {
     }); } finally { this.lastPassMs = performance.now() - started; }
   }
   /** 功能：会话隐藏/关闭时清理迟到的回调；时间：2026-11-08；作者：lq。 */
+  hasPendingPass(): boolean { return this.timer !== undefined; }
   dispose(): void { this.disposed = true; if (this.timer !== undefined) clearTimeout(this.timer); this.timer = undefined; }
   /** 功能：同一轮事务只安排一次测量，并把异常交给宿主明确处理；时间：2026-11-08；作者：lq。 */
   private enqueue(delay: number, restart = false): void {

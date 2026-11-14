@@ -1,12 +1,15 @@
-/* 功能：页间留白使用产品画布色，纸张去掉外沿及接缝阴影；保留真实文档边框和分页尺寸；时间：2026-11-11；作者：lq。 */
+/* 功能：只接入产品画布色，纸张和页缝阴影直接继承 GenOffice，禁止本地覆盖造成连续纸带；时间：2026-11-14；作者：lq。 */
 .mo-word-core .editor-scroll {
-  --canvas: var(--mo-word-canvas, var(--mo-bg, #f6f8fc));
-  --docs-page-shadow: none;
-  --docs-gap-inset: none;
+  --canvas: var(--mo-word-canvas, var(--mo-bg, #e8edf2));
 }
 
 /* 功能：毛玻璃界面的正文区域使用同色不透明画布，与白纸之上的页缝保持一致；时间：2026-11-11；作者：lq。 */
 .mo-word-canvas { background-color: var(--mo-word-canvas, var(--mo-bg)) !important; }
+
+/* 功能：外层滚动容器（.mo-scroll）加 scrollbar-gutter:stable，防止滚动条出现/消失时
+   引起内容宽度跳动进而触发分页重算；同时确保它是唯一的滚动轴，
+   内层 editor-scroll overflow 由 document.css 维持；时间：2026-11-13；作者：lq。 */
+.mo-scroll { scrollbar-gutter: stable; }
 /* 功能：段首缩进、居中与单元格定位不会再把灰带向内推，背景按真实纸边绘制；时间：2026-11-11；作者：lq。 */
 .mo-word-core .page-gap:not(.page-gap-table)::before { left: var(--mo-gap-left, 0px); width: var(--mo-gap-width, auto); }
 
@@ -15,10 +18,17 @@
   isolation: isolate;
 }
 
+/* 功能：统一使用 GenOffice page-sheets 独立纸面，全文编辑/拖选时纸缝两侧不再被整篇外框连接；时间：2026-11-14；作者：lq。 */
+.mo-word-core .page-wrap.mo-word-separate-sheets { isolation: isolate; }
+.mo-word-core .page-wrap.mo-word-separate-sheets > .doc-page { background: transparent; box-shadow: none; }
+.mo-word-core .page-wrap.mo-word-separate-sheets .page-gap::before { box-shadow: none; }
+
 /* 功能：合并单元格边框在 WebKit 的折叠表格绘制中可能盖住页缝，独立提升填充层使整条页缝保持画布色；时间：2026-11-11；作者：lq。 */
 .mo-word-core .page-gap-table-fill {
   z-index: 1;
 }
+
+/* 功能：页缝 before/after 由 GenOffice 专门绘制画布及裁切标记，不叠加本地页码或表格横线；时间：2026-11-14；作者：lq。 */
 
 /* 功能：跨列续行只增加一次共享页缝高度；自然流测量隐藏伴随占位，禁止表格逐轮膨胀；时间：2026-11-11；作者：lq。 */
 .mo-word-core .mo-word-cell-gap { display: inline-block; width: 100%; vertical-align: top; pointer-events: none; text-indent: 0; }
@@ -35,4 +45,21 @@
 .mo-word-core .editor-scroll .doc-page.measuring-natural tr.page-gap-inline:is(.page-gap-table, .mo-word-repeat-header) { display: none !important; visibility: hidden; }
 /* 功能：目录条目显示可点击的指针及悬停提示；时间：2026-11-11；作者：lq。 */
 .mo-word-core .doc-toc-line { cursor: pointer; }
-.mo-word-core .doc-toc-line:hover .doc-toc-title { text-decoration: underline; }
+
+/* 功能：分页显示层固定整篇滚动高度，原编辑器仅露出活动页；快照层只挂载窗口邻页，布局和保存仍使用唯一原模型；时间：2026-11-14；作者：lq。 */
+.mo-word-page-stage { position: relative; margin-inline: auto; overflow-anchor: none; }
+.mo-word-live-window { position: absolute; left: 0; width: 100%; overflow: clip; z-index: 1; }
+.mo-word-live-window.mo-word-live-full { overflow: visible; }
+.mo-word-page-layer { position: absolute; inset: 0; pointer-events: none; }
+.mo-word-cached-page { position: absolute; overflow: clip; pointer-events: auto; cursor: text; user-select: none; }
+/* 功能：同步 GenOffice doc-live/mp-slot 的同一纸面、阴影归属，活动页和快照页不再一页有边一页无边；时间：2026-11-14；作者：lq。 */
+.mo-word-live-window:not(.mo-word-live-full), .mo-word-cached-page {
+  background: var(--page-bg, var(--docs-paper));
+  box-shadow: var(--docs-page-shadow);
+}
+.mo-word-live-window:not(.mo-word-live-full) .doc-page { box-shadow: none; }
+.mo-word-cached-page > .mo-word-cached-wrap { overflow: hidden; pointer-events: none; }
+.mo-word-core .doc-page.mo-word-cached-body { box-shadow: none !important; border-radius: 0; outline: none; min-height: 0 !important; padding: 0 !important; }
+.mo-word-cached-block { position: absolute; }
+/* 功能：隐藏状态必须压过分页层的绝对定位样式；时间：2026-11-14；作者：lq。 */
+.mo-word-page-layer[hidden], .mo-word-cached-page[hidden] { display: none !important; }

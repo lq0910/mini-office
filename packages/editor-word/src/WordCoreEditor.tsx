@@ -17,6 +17,8 @@ import { useWordCoreStyles } from './WordCoreStyles';
 // 功能：标尺和目录接入现有视图/引用入口，不经过旧文档模型；时间：2026-11-11；作者：lq。
 import { WordCoreRuler } from './WordCoreRuler';
 import { insertWordToc, followWordToc } from '../../word-core/src/editing/toc';
+// 功能：目录优先走固定版本 GenOffice 的原生书签/标题跳转函数；时间：2026-11-14；作者：lq。
+import { jumpToWordAnchor } from '../../word-core/src/upstream/apps/docs/src/renderer/anchor-navigation';
 import { WordCorePagePanel } from './WordCorePagePanel';
 import { WordCoreHeaderFooterDialog } from './WordCoreHeaderFooterDialog';
 // 功能：图片与表格菜单、属性和原生结构命令接入当前核心；时间：2026-11-11；作者：lq。
@@ -56,6 +58,8 @@ export function WordCoreEditor({ session }: { session: DocumentSession }) {
   const surface = useRef<WordCoreSurface>();
   // 功能：一帧只读取一次当前页几何，快速拖动滚动条不逐事件强制布局；时间：2026-11-11；作者：lq。
   const pageFrame = useRef<number>();
+  // 功能：滚动只读 scrollTop 和已缓存页界，禁止每帧读取 clientHeight/正文矩形强制整篇布局；时间：2026-11-14；作者：lq。
+  const pageGeometry = useRef<{ origin: number; probe: number; factor: number; tops: number[] }>();
   const rulerOpen = useWorkspaceStore(state => state.settings.wordRuler === true);
   const zoom = session.view.zoom ?? 1;
   useWordCoreWheelZoom(scroll, session.id);
@@ -64,25 +68,31 @@ export function WordCoreEditor({ session }: { session: DocumentSession }) {
     // 功能：工作区先移除会话后 React 才清理订阅，关闭期间拒绝迟到测量；时间：2026-11-11；作者：lq。
     if (core.editor.isDestroyed) return;
     const viewport = scroll.current, layout = surface.current?.layout.current();
-    const paper = core.editor.view.dom.closest<HTMLElement>('.page-wrap');
-    if (!viewport || !layout?.frames.length || !paper || !viewport.clientHeight) return;
-    const box = paper.getBoundingClientRect(), factor = box.width / paper.offsetWidth || 1;
-    const y = (viewport.getBoundingClientRect().top + Math.min(160, viewport.clientHeight / 3) - box.top) / factor;
-    let page = 0;
-    layout.frames.forEach((frame, index) => { if (frame.top <= y) page = index; });
+    if (!viewport || !layout?.frames.length) return;
+    if (!pageGeometry.current) {
+      const paper = core.editor.view.dom.closest<HTMLElement>('.page-wrap');
+      if (!paper || !viewport.clientHeight) return;
+      pageGeometry.current = { origin: paper.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop, probe: Math.min(160, viewport.clientHeight / 3), factor: zoom, tops: layout.frames.map(frame => frame.top) };
+    }
+    const geometry = pageGeometry.current;
+    const y = (viewport.scrollTop + geometry.probe - geometry.origin) / geometry.factor;
+    let page = 0, high = geometry.tops.length;
+    while (page + 1 < high) { const mid = (page + high) >>> 1; if (geometry.tops[mid] <= y) page = mid; else high = mid; }
     const store = useWorkspaceStore.getState();
     if (store.sessions[session.id]?.view.page !== page) store.updateView(session.id, { page });
-  }, [core, session.id]);
+  }, [core, session.id, zoom]);
   const scheduleCurrentPage = useCallback(() => {
     if (pageFrame.current != null) return;
     pageFrame.current = requestAnimationFrame(() => { pageFrame.current = undefined; updateCurrentPage(); });
   }, [updateCurrentPage]);
+  /** 功能：只有布局、缩放、标尺和窗口大小变化才使页界缓存失效；时间：2026-11-14；作者：lq。 */
+  const refreshPageGeometry = useCallback(() => { pageGeometry.current = undefined; scheduleCurrentPage(); }, [scheduleCurrentPage]);
   // 功能：缩放和窗口尺寸改变后使用新几何同步当前页，卸载取消尚未执行的测量；时间：2026-11-11；作者：lq。
   useEffect(() => {
-    scheduleCurrentPage(); const observer = new ResizeObserver(scheduleCurrentPage);
+    refreshPageGeometry(); const observer = new ResizeObserver(refreshPageGeometry);
     if (scroll.current) observer.observe(scroll.current);
     return () => { if (pageFrame.current != null) cancelAnimationFrame(pageFrame.current); pageFrame.current = undefined; observer.disconnect(); };
-  }, [zoom, scheduleCurrentPage]);
+  }, [zoom, rulerOpen, refreshPageGeometry]);
   const save = (asNew = false) => { void useWorkspaceStore.getState().saveSession(session.id, { asNew }); };
   useEffect(() => core.subscribe(() => refresh(revision => revision + 1)), [core]);
   // 功能：异步剪贴板图片失败沿用编辑器错误入口，不能静默丢失截图或覆盖新正文；时间：2026-11-11；作者：lq。
@@ -139,7 +149,33 @@ export function WordCoreEditor({ session }: { session: DocumentSession }) {
       const line = (event.target as HTMLElement).closest<HTMLElement>('.doc-toc-line');
       if (!line || !core.editor.view.dom.contains(line)) return;
       event.preventDefault(); event.stopPropagation(); selection.current = undefined;
-      if (!followWordToc(core.editor, core.formattingSource(), Array.from(core.editor.view.dom.querySelectorAll('.doc-toc-line')).indexOf(line))) setError('此目录条目未找到对应标题或书签，请更新目录后重试。');
+      // 功能：同步 GenOffice jumpToAnchor，查询仅限真实正文；快照裁剪暂时释放以让原生滚动到目标页；时间：2026-11-14；作者：lq。
+      const release = surface.current?.acquireFullRendering();
+      try {
+        const target = jumpToWordAnchor(core.editor.view.dom, core.formattingSource(), line.dataset.tocAnchor ?? '', line.dataset.tocTitle ?? '');
+        if (target) { setError(undefined); return; }
+      } finally { release?.(); }
+      // 功能：旧 DOC 转换丢失书签和标题样式时保留既有兼容兜底，不修改上游渲染和正常目录导航；时间：2026-11-14；作者：lq。
+      const tocIndex = Array.from(core.editor.view.dom.querySelectorAll('.doc-toc-line')).indexOf(line);
+      if (followWordToc(core.editor, core.formattingSource(), tocIndex)) {
+        // 功能：PM 的 scrollIntoView 只滚动内层 editor-scroll（无溢出时无效），
+        // 须在下一帧额外滚动外层真实滚动容器 scroll.current 到选区位置；时间：2026-11-13；作者：lq。
+        requestAnimationFrame(() => {
+          const outerScroll = scroll.current;
+          if (!outerScroll) return;
+          const sel = core.editor.state.selection;
+          const domNode = core.editor.view.nodeDOM(sel.from);
+          const targetEl = (domNode instanceof Element ? domNode : (domNode as Node | null)?.parentElement) as HTMLElement | null;
+          if (!targetEl) return;
+          const rect = targetEl.getBoundingClientRect();
+          const scrollRect = outerScroll.getBoundingClientRect();
+          // 滚动使目标段落位于视口上方1/3处，兼容任意缩放比
+          const desired = outerScroll.scrollTop + (rect.top - scrollRect.top) - outerScroll.clientHeight / 3;
+          outerScroll.scrollTo({ top: Math.max(0, desired), behavior: 'smooth' });
+        });
+      } else {
+        setError('此目录条目未找到对应标题或书签，请更新目录后重试。');
+      }
     }}
     onKeyDownCapture={event => {
       // 功能：沿用字符/对齐/段落快捷键，仅在编辑区执行且优先保护中文组合输入；时间：2026-11-10；作者：lq。
@@ -196,6 +232,7 @@ export function WordCoreEditor({ session }: { session: DocumentSession }) {
       onClose={() => { setParagraphOpen(false); selection.current = undefined; }}
       onApply={patch => run(editor => coreParagraphFormat(editor, patch))} />
     {error ? <div role="alert" className="shrink-0 px-4 py-2 text-sm text-[var(--mo-danger)]">{error}</div> : null}
+    {/* 功能：后台继续分批装载，按用户要求移除后续页面提示，不占用正文高度；时间：2026-11-14；作者：lq。 */}
     <div className="flex min-h-0 flex-1"><div className="relative min-w-0 flex-1">
     {findOpen ? <WordCoreFindBar core={core} readonly={session.readonly} onClose={() => { selection.current = undefined; setFindOpen(false); }} /> : null}
     {mail.previewOn ? mail.canvas : null}
@@ -213,9 +250,9 @@ export function WordCoreEditor({ session }: { session: DocumentSession }) {
       }}>
       {rulerOpen ? <WordCoreRuler core={core} zoom={zoom} readonly={session.readonly} /> : null}
       <div className={`doc-zoom ${marks ? 'show-marks' : ''}`} style={{ zoom }}>
-        <WordCoreSurfaceView session={core} onReady={ready => { surface.current = ready; setError(undefined); updateCurrentPage(); }} onError={caught => setError(String(caught))}
+        <WordCoreSurfaceView session={core} onReady={ready => { surface.current = ready; setError(undefined); refreshPageGeometry(); }} onError={caught => setError(String(caught))}
           onLayoutError={caught => setError(String(caught))}
-          onLayout={layout => { setError(undefined); const current = useWorkspaceStore.getState().sessions[session.id]; if (current && current.view.pageCount !== layout.pageCount) useWorkspaceStore.getState().updateView(session.id, { pageCount: layout.pageCount }); updateCurrentPage(); }} />
+          onLayout={layout => { setError(undefined); const current = useWorkspaceStore.getState().sessions[session.id]; if (current && current.view.pageCount !== layout.pageCount) useWorkspaceStore.getState().updateView(session.id, { pageCount: layout.pageCount }); refreshPageGeometry(); }} />
       </div>
     </div>
     </div>

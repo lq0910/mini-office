@@ -34,6 +34,9 @@ import { bumpLineSampleFontEpoch } from '../../word-core/src/upstream/apps/docs/
 import { bumpHfProbeFontEpoch } from '../../word-core/src/upstream/apps/docs/src/renderer/editor/hf-dom';
 import { cjkPunctShrinkPluginKey } from '../../word-core/src/upstream/apps/docs/src/renderer/editor/cjk-punct-shrink';
 import { justifyShrinkPluginKey } from '../../word-core/src/upstream/apps/docs/src/renderer/editor/justify-shrink';
+// 功能：复用固定版本 GenOffice 的等高段落快速检查与首个脏块定位；时间：2026-11-13；作者：lq。
+import { blocksKeepSlicing, singleInlineEditIndex, firstChangedTopLevelIndex } from '../../word-core/src/upstream/apps/docs/src/renderer/editor/pagination-fast-path';
+import { PHASED_APPEND } from '../../word-core/src/upstream/apps/docs/src/renderer/editor/streaming-tail-guard';
 
 /** 功能：分页摘要只暴露真实测量的页数与切点，不把无几何的测试环境伪装为完成排版；时间：2026-11-09；作者：lq。 */
 /** 功能：显示、打印与 PDF 使用同一实际纸张原点及分节尺寸；时间：2026-11-11；作者：lq。 */
@@ -43,6 +46,8 @@ export interface WordSurfaceLayoutState { pageCount: number; cuts: readonly Page
 export interface WordSurfaceLayoutOptions {
   onLayout?: (state: WordSurfaceLayoutState) => void;
   onLayoutError?: (error: unknown) => void;
+  /** 功能：实际测量前恢复完整显示，屏幕渲染优化不得改变分页输入；时间：2026-11-14；作者：lq。 */
+  onBeforeMeasure?: () => void;
 }
 
 /** 功能：承接上游自然流测量及页间装饰，首轮落实单栏正文和普通表格分页；时间：2026-11-09；作者：lq。 */
@@ -59,17 +64,35 @@ export class WordSurfaceLayout {
   private widthSignature = '';
   private context!: WordLayoutContext;
   private contextRevision = -1;
+  // 功能：与上游相同维护已排版版本、可快速复用的编辑集合及脏块前沿；时间：2026-11-13；作者：lq。
+  private lastResult?: WordLayoutResult;
+  private lastDocument?: WordCoreSession['editor']['state']['doc'];
+  private fastEdits: Set<number> | null = null;
+  private dirtyFrom: number | null = null;
+  readonly performanceStats = { fullPasses: 0, fastPasses: 0, resumedPasses: 0 };
   private readonly fontRefresh = () => {
     // 功能：字体加载后同时清除行框与页眉高度缓存，防止固定行高下沿用替代字体的旧换行；时间：2026-11-11；作者：lq。
     bumpLineSampleFontEpoch(); bumpHfProbeFontEpoch(); this.contextRevision = -1; this.refresh();
   };
   private readonly shrinkRefresh = ({ transaction }: { transaction: WordCoreSession['editor']['state']['tr'] }) => {
-    if (transaction.getMeta(cjkPunctShrinkPluginKey) || transaction.getMeta(justifyShrinkPluginKey)) this.controller.followUp('text-wrap');
+    if (transaction.getMeta(PHASED_APPEND)) return;
+    if (transaction.docChanged) {
+      const index = singleInlineEditIndex(transaction), dirty = firstChangedTopLevelIndex(transaction);
+      if (index === null) this.fastEdits = null;
+      else this.fastEdits?.add(index);
+      this.dirtyFrom = dirty === null || this.dirtyFrom === null ? null : Math.min(this.dirtyFrom, dirty);
+    }
+    if (transaction.getMeta(cjkPunctShrinkPluginKey) || transaction.getMeta(justifyShrinkPluginKey)) {
+      this.fastEdits = null; this.dirtyFrom = null;
+      this.controller.followUp('text-wrap');
+    }
   };
   // 功能：相同版面不重建整篇页眉页脚，避免每轮字体/宽度补偿重复创建 116 个区域；时间：2026-11-11；作者：lq。
   private regionsSignature = '';
   private readonly widthPass = newWidthPassState();
   private readonly refresh = () => {
+    // 功能：字体、加载完成及外部尺寸触发必须完整重排，不能借用编辑前缀；时间：2026-11-13；作者：lq。
+    this.fastEdits = null; this.dirtyFrom = null;
     // 功能：隐藏容器没有可测行盒，等尺寸恢复再排版，不捏造页数或反复轮询；时间：2026-11-09；作者：lq。
     if (!this.disposed && !this.session.editor.isDestroyed && this.editorDom.getBoundingClientRect().width > 0) this.controller.request();
   };
@@ -83,6 +106,8 @@ export class WordSurfaceLayout {
       const root = session.editor.view.dom;
       // 功能：组合输入期间连字体探测及页面样式写入也跳过，DOM 继续归输入法管理；时间：2026-11-09；作者：lq。
       if (session.editor.view.composing) return { root, origin: 0, zoomFactor: this.factor(), sections: [], composing: true };
+      // 功能：分批装载只测首屏和完整正文，尾部追加不会反复启动全篇测量；时间：2026-11-13；作者：lq。
+      if (session.contentPending() && this.lastResult) return { root, origin: 0, zoomFactor: this.factor(), sections: [], composing: true };
       const sections = session.sections();
       const settings = sections[0]?.settings;
       if (!settings) throw new Error('Word 文档缺少页面设置');
@@ -109,8 +134,10 @@ export class WordSurfaceLayout {
         composing: session.editor.view.composing,
         planOf,
         carryOf: floatCarriesOf(session.editor.state),
+        previous: this.previousPrefix(),
       };
     }, result => this.apply(result), error => options.onLayoutError?.(error), run => {
+      options.onBeforeMeasure?.();
       // 功能：同 GenOffice 在 100% 下度量，消除缩放取整导致的页数/文字锚点漂移；时间：2026-11-11；作者：lq。
       const zoom = this.editorDom.closest<HTMLElement>('.doc-zoom');
       const previous = zoom?.style.zoom;
@@ -125,12 +152,13 @@ export class WordSurfaceLayout {
         observer?.stop(); syncPhantomRowspans(this.editorDom); observer?.start();
         if (zoom && previous !== undefined && zoom.style.zoom !== previous) zoom.style.zoom = previous;
       }
-    });
+    }, () => this.tryFastPass());
     this.unsubscribe = session.subscribe(state => {
       if (state.revision === this.lastRevision) return;
       this.lastRevision = state.revision;
       resetWidthPassHistory(this.widthPass);
-      this.refresh();
+      // 功能：事务细节随后由 transaction 监听补齐；此处不把普通编辑误标为外部失效；时间：2026-11-13；作者：lq。
+      if (!this.disposed && this.editorDom.getBoundingClientRect().width > 0) this.controller.request();
     });
     session.editor.view.dom.addEventListener('compositionend', this.refresh);
     session.editor.view.dom.addEventListener('load', this.refresh, true);
@@ -150,10 +178,71 @@ export class WordSurfaceLayout {
       this.observer.observe(session.editor.view.dom);
     }
     this.refresh();
+    if (session.contentPending()) void session.whenContentReady().then(() => {
+      if (this.disposed) return;
+      this.contextRevision = -1; this.lastResult = undefined; this.refresh();
+    }).catch(error => { if (!this.disposed) options.onLayoutError?.(error); });
+  }
+
+  /** 功能：保存脏块的真实 DOM 身份，布局输入只向同源切片器交付安全的旧前缀；时间：2026-11-13；作者：lq。 */
+  private previousPrefix() {
+    const result = this.lastResult, dirty = this.dirtyFrom;
+    if (!result || dirty === null || !Number.isFinite(dirty) || this.session.sections().some(section => !!section.settings.textDirection && section.settings.textDirection !== 'lrTb')) return;
+    const doc = this.session.editor.state.doc;
+    if (dirty >= doc.childCount) return;
+    let pos = 0;
+    for (let index = 0; index < dirty; index++) pos += doc.child(index).nodeSize;
+    return { blocks: result.blocks, slices: result.outputs.preParity ?? result.slices, outputs: result.outputs, geometries: result.geometries,
+      sectionSignature: result.effectiveSections?.map(section => `${section.firstBlockIndex}:${section.lastBlockIndex}:${section.startType ?? ''}`).join('|') ?? '',
+      dirtyElement: this.session.editor.view.nodeDOM(pos) as Element | null };
+  }
+
+  /** 功能：逐一核对编辑段落高度，满足上游条件时完全跳过整篇测量与装饰重建；时间：2026-11-13；作者：lq。 */
+  private tryFastPass(): WordLayoutResult | undefined {
+    const result = this.lastResult, edited = this.fastEdits;
+    if (!result || !edited?.size || this.disposed || this.session.editor.isDestroyed || this.session.editor.view.composing || this.session.contentPending()) return;
+    if (this.session.sections().some(section => !!section.settings.textDirection && section.settings.textDirection !== 'lrTb')) return;
+    const view = this.session.editor.view, doc = view.state.doc;
+    const previous = new Map(result.blocks.map(block => [block.el, block]));
+    const items = [];
+    let index = 0, pos = 0;
+    for (const target of [...edited].sort((a, b) => a - b)) {
+      if (target >= doc.childCount) return;
+      for (; index < target; index++) pos += doc.child(index).nodeSize;
+      const element = view.nodeDOM(pos);
+      if (!(element instanceof HTMLElement)) return;
+      const block = previous.get(element);
+      if (!block || element.classList.contains('doc-para-join-head') || element.classList.contains('doc-para-join-tail')) return;
+      items.push({ el: element, prev: block });
+    }
+    if (!blocksKeepSlicing(items, result.slices, this.factor())) return;
+    this.fastEdits = new Set(); this.dirtyFrom = Infinity;
+    this.lastDocument = doc;
+    this.performanceStats.fastPasses++;
+    this.recordHeadingPages(result);
+    return result;
+  }
+
+  /** 功能：等高编辑后重新绑定标题位置与原切片，保存时目录缓存对应当前版本；时间：2026-11-13；作者：lq。 */
+  private recordHeadingPages(result: WordLayoutResult) {
+    const sections = result.effectiveSections ?? this.session.sections(), cuts = this.state!.cuts;
+    const headings = wordHeadings(this.session.editor.state.doc, this.session.formattingSource().styles);
+    const byElement = new Map(result.blocks.filter(block => block.el).map(block => [block.el, block.top]));
+    const pages = new Map<number, string>();
+    for (const heading of headings) {
+      const element = this.session.editor.view.nodeDOM(heading.pos) as HTMLElement | null;
+      const top = element ? byElement.get(element) : undefined;
+      const cut = top === undefined ? undefined : cuts[pageOfY(cuts, top)];
+      if (cut) pages.set(heading.pos, formatPageNumber(cut.pageNo, sections[cut.section]?.pageNumberFmt));
+    }
+    if (!this.session.contentPending()) this.session.recordHeadingPages(pages);
+    return { headings, pages };
   }
 
   /** 功能：供正文宿主和验收读取最后一次成功排版，不将装饰事务计为正文修改；时间：2026-11-09；作者：lq。 */
   current(): WordSurfaceLayoutState | undefined { return this.state; }
+  /** 功能：验收和输出以完整正文版本及待执行补偿判断稳定，不能用暂时的首屏页数冒充完成；时间：2026-11-13；作者：lq。 */
+  isSettled(): boolean { return !this.disposed && !this.session.editor.isDestroyed && !this.session.contentPending() && !!this.lastResult && this.lastDocument === this.session.editor.state.doc && !this.controller.hasPendingPass(); }
   /** 功能：同步重排使用实际浏览器几何，组合输入期间不修改输入法管理的 DOM；时间：2026-11-09；作者：lq。 */
   flush(): WordLayoutResult | undefined {
     if (this.disposed || this.session.editor.isDestroyed || this.editorDom.getBoundingClientRect().width <= 0) return;
@@ -175,6 +264,8 @@ export class WordSurfaceLayout {
 
   /** 功能：沿用上游切点与 ProseMirror 装饰，页间空白不进入序列化和撤销历史；时间：2026-11-09；作者：lq。 */
   private apply(result: WordLayoutResult): void {
+    this.performanceStats.fullPasses++;
+    if (result.resumePage !== undefined) this.performanceStats.resumedPasses++;
     const sections = result.effectiveSections ?? this.session.sections();
     // 功能：复用本轮页眉/脚注度量，分节变体由同一来源列表解析；时间：2026-11-11；作者：lq。
     const context = this.context;
@@ -381,7 +472,9 @@ export class WordSurfaceLayout {
     const firstFrame = { left: pageLeftPx(sections[0].settings, paperWidth), width: sections[0].settings.pageWidth / 15 };
     const mixedPaper = sections.some(section => section.settings.pageWidth !== sections[0].settings.pageWidth);
     wrap.classList.toggle('paper-mixed', mixedPaper);
-    syncPageSheets(wrap, factor, mixedPaper ? firstFrame : null, cuts);
+    // 功能：所有文档复用 GenOffice 的逐页底纸层，展开原生选区时也不退回带连续外框的整篇纸面；时间：2026-11-14；作者：lq。
+    wrap.classList.add('mo-word-separate-sheets');
+    syncPageSheets(wrap, factor, firstFrame, cuts);
     syncPageBorders(wrap, pageBorderStyleOf(sections[0].settings), factor, firstFrame, cuts);
     const paperTops = new Map(pagePaperEdges(cuts, context.top).map(edge => [edge.page, edge.top]));
     const frames: WordPageFrame[] = [];
@@ -408,18 +501,9 @@ export class WordSurfaceLayout {
       this.controller.followUp('rowFills');
     }
     this.state = { pageCount: cuts.length, cuts, frames };
-    this.session.recordPageCount(cuts.length);
+    if (!this.session.contentPending()) this.session.recordPageCount(cuts.length);
     // 功能：按元素身份映射自然流位置，缺少测量时不伪造页数；只刷新 DOM/快照缓存；时间：2026-11-11；作者：lq。
-    const headings = wordHeadings(this.session.editor.state.doc, this.session.formattingSource().styles);
-    const byElement = new Map(result.blocks.filter(block => block.el).map(block => [block.el, block.top]));
-    const pages = new Map<number, string>();
-    for (const heading of headings) {
-      const element = view.nodeDOM(heading.pos) as HTMLElement | null;
-      const top = element ? byElement.get(element) : undefined;
-      const cut = top === undefined ? undefined : cuts[pageOfY(cuts, top)];
-      if (cut) pages.set(heading.pos, formatPageNumber(cut.pageNo, sections[cut.section]?.pageNumberFmt));
-    }
-    this.session.recordHeadingPages(pages);
+    const { headings, pages } = this.recordHeadingPages(result);
     // 功能：布局只生成顶层属性摘要，避免每轮分页复制整份文字/表格 JSON；时间：2026-11-11；作者：lq。
     const content: PmNode[] = [];
     this.session.editor.state.doc.forEach(node => content.push({ type: node.type.name, attrs: node.attrs }));
@@ -441,6 +525,8 @@ export class WordSurfaceLayout {
       document.dispatchEvent(new Event(WRAP_WIDTHS_COMMITTED_EVENT));
       this.controller.followUp('toc-pages');
     }
+    this.lastResult = result; this.fastEdits = new Set(); this.dirtyFrom = Infinity;
+    this.lastDocument = view.state.doc;
     this.options.onLayout?.(this.state);
   }
 

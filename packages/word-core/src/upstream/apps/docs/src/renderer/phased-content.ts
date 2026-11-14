@@ -26,6 +26,8 @@ export interface PhasedContentHost {
   /** append top-level nodes at the document end, outside undo history */
   appendNodes(nodes: PmNode[]): void
   isDestroyed(): boolean
+  /** 功能：组合输入期间不批量改变同一正文 DOM，下一帧继续；时间：2026-11-14；作者：lq。 */
+  isComposing?(): boolean
   resetHistory(): void
   /** read-only + save-gate flag while the tail streams */
   setLoading(loading: boolean): void
@@ -45,26 +47,41 @@ export const PHASE_CHUNK_BLOCKS = 128
 export const PHASED_MIN_BLOCKS = 192
 
 /** bumping the token cancels the pending tail (its chunks become no-ops) */
-let token = 0
-let settled: Promise<void> = Promise.resolve()
-/** clears the loading flag / resolves settled when a load is cancelled mid-stream */
-let cancelPending: (() => void) | null = null
+// 功能：按编辑器隔离上游加载状态，多标签并行打开/关闭不会取消另一份正文；时间：2026-11-13；作者：lq。
+const defaultScope = {}
+interface PhasedState { token: number; settled: Promise<void>; cancelPending: (() => void) | null; error?: unknown }
+const states = new WeakMap<object, PhasedState>()
+function stateOf(scope: object = defaultScope): PhasedState {
+  let state = states.get(scope)
+  if (!state) { state = { token: 0, settled: Promise.resolve(), cancelPending: null }; states.set(scope, state) }
+  return state
+}
 
 /** Resolves when the streaming tail has fully landed (immediately when none is pending). */
-export function waitForFullContent(): Promise<void> {
-  return settled
+export function waitForFullContent(scope: object = defaultScope): Promise<void> {
+  const state = stateOf(scope)
+  return state.settled.then(() => { if (state.error) throw state.error })
 }
 
 /** true while a phased open still has tail chunks to append */
-export function isPhasedContentPending(): boolean {
-  return cancelPending !== null
+export function isPhasedContentPending(scope: object = defaultScope): boolean {
+  return stateOf(scope).cancelPending !== null
+}
+
+/** 功能：加载失败后明确阻止保存半份正文，检查不引入异步快照时序变化；时间：2026-11-13；作者：lq。 */
+export function assertPhasedContentComplete(scope: object = defaultScope): void {
+  const state = stateOf(scope)
+  if (state.error) throw state.error
+  if (state.cancelPending) throw new Error('Word 正文仍在加载')
 }
 
 /** Any full content replacement outside the phased path must drop a pending tail. */
-export function cancelPhasedContent(): void {
-  token++
-  cancelPending?.()
-  cancelPending = null
+export function cancelPhasedContent(scope: object = defaultScope): void {
+  const state = stateOf(scope)
+  state.error = undefined
+  state.token++
+  state.cancelPending?.()
+  state.cancelPending = null
 }
 
 /**
@@ -95,54 +112,60 @@ export function setContentPhased(
   host: PhasedContentHost,
   pmDoc: PmNode,
   schedule: (cb: () => void) => void = nextPaintedFrame,
+  // 功能：默认作用域兼容上游调用，产品会话传入自己的正文 DOM；时间：2026-11-13；作者：lq。
+  scope: object = defaultScope,
 ): void {
-  cancelPhasedContent()
+  cancelPhasedContent(scope)
+  const state = stateOf(scope)
   const content = pmDoc.content ?? []
-  const my = ++token
+  const my = ++state.token
   if (content.length <= PHASED_MIN_BLOCKS) {
     host.setContent(pmDoc)
     return
   }
   host.setContent({ ...pmDoc, content: content.slice(0, PHASE1_BLOCKS) })
   let settle!: () => void
-  settled = new Promise<void>((resolve) => (settle = resolve))
-  host.setLoading(true)
-  cancelPending = () => {
+  state.settled = new Promise<void>((resolve) => (settle = resolve))
+  state.cancelPending = () => {
     host.setLoading(false)
     settle()
   }
+  host.setLoading(true)
   let index = PHASE1_BLOCKS
   // a refused chunk remounted the whole document: whatever the user typed
   // before is gone with it, and an undo must not bring the truncated
   // pre-remount document back
   let remounted = false
   const finish = () => {
-    if (my !== token) return
+    if (my !== state.token) return
     // still "pending" through the history reset: it re-creates the plugin
     // views, whose constructors would otherwise measure the whole document
     // once before the settled event asks for the same pass again
     if (!host.isDestroyed() && (remounted || !host.getDirty())) host.resetHistory()
-    cancelPending = null
+    state.cancelPending = null
     host.setLoading(false)
     settle()
     if (typeof document !== 'undefined')
-      document.dispatchEvent(new Event(PHASED_CONTENT_SETTLED_EVENT))
+      document.dispatchEvent(new CustomEvent(PHASED_CONTENT_SETTLED_EVENT, { detail: scope }))
   }
   const appendChunk = () => {
-    if (my !== token) return
+    if (my !== state.token) return
     if (host.isDestroyed()) return finish()
+    if (host.isComposing?.()) { schedule(appendChunk); return }
     const chunk = content.slice(index, index + PHASE_CHUNK_BLOCKS)
     index += chunk.length
     const wasDirty = host.getDirty()
     try {
       host.appendNodes(chunk)
-    } catch {
+    } catch (error) {
+      // 功能：加载中已有用户输入时禁止整篇回退覆盖；失败状态阻止保存截断正文；时间：2026-11-13；作者：lq。
+      if (wasDirty) { state.error = error; return finish() }
       // a refused chunk falls back to the one-pass mount instead of leaving the file truncated
       remounted = true
       try {
         host.setContent(pmDoc)
-      } catch {
-        /* same failure as the one-pass path */
+      } catch (fallbackError) {
+        state.error = fallbackError
       }
       host.setDirty(wasDirty)
       return finish()

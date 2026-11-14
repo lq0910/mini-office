@@ -142,6 +142,8 @@ export function toDocxRun(run: FormattedRun): Run {
   if (run.link) {
     out.link = {
       href: run.link.href,
+      // 功能：目录等书签链接使用 GenOffice 的 plain 语义，保留已解析的原格式，避免凭空套用 Hyperlink 下划线；时间：2026-11-14；作者：lq。
+      ...(run.link.href.startsWith('#') ? { plain: true } : {}),
       ...(run.link.tooltip ? { tooltip: run.link.tooltip } : {}),
     }
   }

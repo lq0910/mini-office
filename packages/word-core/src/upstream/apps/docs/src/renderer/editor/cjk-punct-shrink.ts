@@ -503,7 +503,8 @@ class CjkPunctShrinkView {
     }
     const { view } = this
     // a streamed tail is still landing: measured once, when it has (settled event)
-    if (isPhasedContentPending()) return
+    // 功能：分批加载按正文隔离，其他标签的加载不阻塞当前测量；时间：2026-11-13；作者：lq。
+    if (isPhasedContentPending(view.dom)) return
     // PDF export parks the editor subtree (.app.pv-exporting); any layout
     // read here would force the parked document to re-lay out per print chunk
     if (view.dom.closest('.app.pv-exporting')) {

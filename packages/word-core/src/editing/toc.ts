@@ -91,10 +91,20 @@ export function followWordToc(editor: Editor, parsed: ParsedDocFull, lineIndex: 
   if (!target) return false;
   // 功能：Word 的 TOC 链接常指向普通段落的隐藏 _Toc 书签，不能要求所有目标都有标题样式；时间：2026-11-11；作者：lq。
   let position: number | undefined;
-  if (target.anchor) editor.state.doc.descendants((node, pos) => {
-    if (position !== undefined || node.attrs.fieldDisplay?.kind === 'tocLine') return false;
-    if ([...(node.attrs.bookmarks ?? []), ...(node.attrs.hiddenBookmarks ?? [])].includes(target!.anchor)) position = pos;
-  });
+  if (target.anchor) {
+    // 功能：同时检查 bookmarks 和 hiddenBookmarks，以及直接比较锚点名；时间：2026-11-13；作者：lq。
+    // 在闭包外固定 anchor 值，避免 TypeScript 无法在回调内收窄 target.anchor 的 undefined 类型；
+    const anchor = target.anchor;
+    const anchorNorm = anchor.replace(/^_/, '').toLowerCase();
+    editor.state.doc.descendants((node, pos) => {
+      if (position !== undefined || node.attrs.fieldDisplay?.kind === 'tocLine') return false;
+      const bookmarks: string[] = [...(node.attrs.bookmarks ?? []), ...(node.attrs.hiddenBookmarks ?? [])];
+      // 精确匹配优先
+      if (bookmarks.includes(anchor)) { position = pos; return false; }
+      // 容错：忽略前缀下划线和大小写差异（某些 doc2docx 转换可能改变格式）
+      if (bookmarks.some(b => b.replace(/^_/, '').toLowerCase() === anchorNorm)) { position = pos; return false; }
+    });
+  }
   if (position === undefined) {
     const normalize = (text: string) => text.replace(/\s+/gu, '').normalize('NFKC');
     const heading = collectHeadings(editor.state.doc, parsed.styles).filter(item => normalize(item.text) === normalize(target!.text) && item.level === target!.level)[target.nth];

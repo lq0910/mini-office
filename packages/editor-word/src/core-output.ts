@@ -13,12 +13,18 @@ export async function mountCoreWordReport(input: Uint8Array | WordCoreSession, i
   document.body.append(host); let surface: WordCoreSurface | undefined; let disposed = false; let ownsSurface = false;
   const check = () => { if (isCancelled()) throw new Error('已取消输出。'); };
   const dispose = () => { if (disposed) return; disposed = true; if (ownsSurface) surface?.dispose(); host.remove(); };
+  let releaseRendering: (() => void) | undefined;
   try {
+    // 功能：复用正文或读取只读来源前先等待完整加载，预览/PDF 不得截取首屏半份文档；时间：2026-11-13；作者：lq。
+    if (!(input instanceof Uint8Array)) await input.whenContentReady();
     // 功能：已有正文直接冻结当前排版，只为合并报告/未挂载字节创建独立只读宿主；时间：2026-11-11；作者：lq。
     check(); surface = input instanceof Uint8Array ? undefined : WordCoreSurface.current(input);
     // 功能：刚切换标签或隐藏正文尚无可用纸面时，采用独立只读测量，不捕获零宽度半成品；时间：2026-11-11；作者：lq。
     if (surface && (!surface.layout.current()?.frames.length || surface.session.editor.view.dom.getBoundingClientRect().width <= 0)) surface = undefined;
     if (!surface) { ownsSurface = true; surface = await WordCoreSurface.mount(host, input instanceof Uint8Array ? input : await coreWordOutputBytes(input), { readonly: true }); }
+    await surface.session.whenContentReady();
+    // 功能：捕获页面全过程使用完整正文，不能把视窗外占位带入打印和 PDF；时间：2026-11-14；作者：lq。
+    releaseRendering = surface.acquireFullRendering();
     check(); const revision = surface.session.state().revision;
     if (ownsSurface) {
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -51,6 +57,7 @@ export async function mountCoreWordReport(input: Uint8Array | WordCoreSession, i
     const captures = document.createElement('div'); captures.dataset.coreOutputCaptures = 'true'; captures.append(...pages); host.append(captures);
     return { pages, frames: state.frames, surface, captures, style, dispose };
   } catch (error) { dispose(); throw error; }
+  finally { releaseRendering?.(); }
 }
 /** 功能：克隆同源自然流和已提交装饰，按真实纸张裁出每页；页间空白、重复表头和跨页行不再重新推算；时间：2026-11-11；作者：lq。 */
 export async function cloneCoreWordPages(surface: WordCoreSurface, check: () => void = () => {}): Promise<HTMLElement[]> {

@@ -64,6 +64,8 @@ function replacesWholeDocument(tr: Transaction): boolean {
 export const StreamingTailGuardExtension = Extension.create({
   name: 'streamingTailGuard',
   addProseMirrorPlugins() {
+    // 功能：尾部保护只检查当前编辑器，避免其他标签加载时误拒绝输入；时间：2026-11-13；作者：lq。
+    const editor = this.editor
     // per editor: held text belongs to one document, never to two
     let held: HeldText | null = null
     const insertHeld = (view: EditorView): void => {
@@ -77,7 +79,7 @@ export const StreamingTailGuardExtension = Extension.create({
     }
     return [
       new Plugin({
-        filterTransaction: (tr) => !isPhasedContentPending() || !touchesStreamingTail(tr),
+        filterTransaction: (tr) => !isPhasedContentPending(editor.view.dom) || !touchesStreamingTail(tr),
         appendTransaction: (trs) => {
           if (!held) return null
           for (const tr of trs) {
@@ -95,7 +97,7 @@ export const StreamingTailGuardExtension = Extension.create({
         },
         props: {
           handleTextInput: (view, from, to, text) => {
-            if (!isPhasedContentPending()) {
+            if (!isPhasedContentPending(view.dom)) {
               // a cancelled stream never announces itself, so release what it
               // held the next time the user types in this editor
               insertHeld(view)
@@ -112,7 +114,7 @@ export const StreamingTailGuardExtension = Extension.create({
           },
         },
         view: (view) => {
-          const onSettled = (): void => insertHeld(view)
+          const onSettled = (): void => { if (!isPhasedContentPending(view.dom)) insertHeld(view) }
           document.addEventListener(PHASED_CONTENT_SETTLED_EVENT, onSettled)
           return {
             destroy: () => document.removeEventListener(PHASED_CONTENT_SETTLED_EVENT, onSettled),

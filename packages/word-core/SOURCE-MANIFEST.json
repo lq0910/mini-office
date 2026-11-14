@@ -7,9 +7,10 @@
       "upstreamPath": "apps/docs/src/renderer/styles.css",
       "localPath": "packages/word-core/src/styles/document.css",
       "upstreamSha256": "61feb03766feb2b3c537e1915086211a0cd11aec6fa97b265f7a71e8e70932be",
-      "localSha256": "306e8da0e57984123f589ccd3a0711a85413b8cef5b2a2b977d7a62ec777e861",
+      "localSha256": "fc026bc7d319da1a6a333e120933d0f85cde3a84fd77b3e17a9e1b5e36d6a8ef",
       "modifications": [
-        "仅保留文档排版规则并加 .mo-word-core 范围；排除产品界面样式"
+        "仅保留文档排版规则并加 .mo-word-core 范围；排除产品界面样式",
+        "2026-11-14：产品外层统一滚动，独立宿主保留上游滚动；页面边缘统一由宿主活动页/快照页显示"
       ]
     },
     {
@@ -240,10 +241,11 @@
       "upstreamPath": "apps/docs/src/renderer/editor/cjk-punct-shrink.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/cjk-punct-shrink.ts",
       "upstreamSha256": "d65e1c3af4cfd3a7508236dd763c9accef82d59ccd6ef26ab109fd09f4d34727",
-      "localSha256": "45819cfe64f1b1724084061e831ef7213135536d10440514fce2d0d1e67e8509",
+      "localSha256": "0b3bd1b08d82eb81f47a20122a7a6ea37a789d925dc08a72e88fbabaea3048e3",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
-        "字符压缩合并到帧调度并按 8ms 预算分批，原模型完整，原子提交装饰且失效可取消"
+        "字符压缩合并到帧调度并按 8ms 预算分批，原模型完整，原子提交装饰且失效可取消",
+        "2026-11-13：字符和制表位测量读取当前编辑器的分批加载状态"
       ]
     },
     {
@@ -303,10 +305,11 @@
       "upstreamPath": "apps/docs/src/renderer/editor/decoration-extensions.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/decoration-extensions.ts",
       "upstreamSha256": "eac51689a8e2565cd7477d34a5622ec5926c3aa4aa9b88b8974e24d3dd7a27ce",
-      "localSha256": "f22cef31ce79e1b27c6687df7bda6200910c33b8e9f5da24ee21d8089115b201",
+      "localSha256": "3a5ab9baca438f562100df1f34b18a29b40563f502860478ebba6156000b421f",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
-        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index"
+        "导入 @genoffice/docx-engine → ../../../../../packages/docx-engine/src/index",
+        "2026-11-13：字符和制表位测量读取当前编辑器的分批加载状态"
       ]
     },
     {
@@ -474,10 +477,11 @@
       "upstreamPath": "apps/docs/src/renderer/editor/justify-shrink.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/justify-shrink.ts",
       "upstreamSha256": "b4c5072a1bbc937e55e8d1998f3ec64649a8185dfd52a31ae774ce2ca3ece107",
-      "localSha256": "bc6bcc3cdf54a532035a394e3396c17e507ba2fb5130e7dc4f639282b6a5a458",
+      "localSha256": "6095a2063326a5965bf5aea3f422bf18664e13497816c19ccd192469119cce6a",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
-        "字符压缩合并到帧调度并按 8ms 预算分批，原模型完整，原子提交装饰且失效可取消"
+        "字符压缩合并到帧调度并按 8ms 预算分批，原模型完整，原子提交装饰且失效可取消",
+        "2026-11-13：字符和制表位测量读取当前编辑器的分批加载状态"
       ]
     },
     {
@@ -820,9 +824,10 @@
       "upstreamPath": "apps/docs/src/renderer/editor/streaming-tail-guard.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/streaming-tail-guard.ts",
       "upstreamSha256": "dd89d7c96828391fa9b2df9f5f787ce4e1b5646be202885ef0954f971e6a9814",
-      "localSha256": "90925cd0313a4b459bd3b384540b9ce38832b9955c26c503161a83ec113d6245",
+      "localSha256": "d423cd7b7e775dcaf653ac132d9e36d2ce87a0a40f0a9dbddb4a7504989b785d",
       "modifications": [
-        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "2026-11-13：尾部保护读取当前编辑器加载状态"
       ]
     },
     {
@@ -2279,9 +2284,10 @@
       "upstreamPath": "apps/docs/src/renderer/phased-content.ts",
       "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/phased-content.ts",
       "upstreamSha256": "df3f8a8659498b4a7a2d2cd01e53ce8d83871ebc43091745cc2945932cc32dbd",
-      "localSha256": "4083c726049c83065cd6f7919190e9041d8c8c570c38bdfa16a0776d8aa41566",
+      "localSha256": "4025592e5103ba8f4b870e346210fb08ec989e10fa9a1a1d34989c2f663879f4",
       "modifications": [
-        "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+        "增加本地集成功能、日期与作者注释；保留原作者及源码注释",
+        "2026-11-13：加载、等待、取消按编辑器隔离；保护编辑历史、组合输入及加载失败保存"
       ]
     },
     {
@@ -3027,6 +3033,24 @@
       "localSha256": "4feed19617d96a6f5eee6508829d7842132693a82a4238fb82f36557980f95fd",
       "modifications": [
         "增加本地集成功能、日期与作者注释；保留原作者及源码注释"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/App.tsx",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/anchor-navigation.ts",
+      "upstreamSha256": "2632e01c4a033b0f8107ebb436e645949c95943fcaa55429d831b49a946004d7",
+      "localSha256": "6c45cadccba68549f9f6ca632db624344f2e5f1736a6a5cec5777246f2c4a8a9",
+      "modifications": [
+        "从固定 App.tsx 提取 jumpToAnchor 原函数体，仅注入文档和查询根并返回命中节点"
+      ]
+    },
+    {
+      "upstreamPath": "apps/docs/src/renderer/editor/pagination-fast-path.ts",
+      "localPath": "packages/word-core/src/upstream/apps/docs/src/renderer/editor/pagination-fast-path.ts",
+      "upstreamSha256": "b8878d2b6d5f56545b1ccb02cf3f92b6741c30f6315951864619dc7e5de04874",
+      "localSha256": "82f4a612befd43eeb2bef4f5632cdc153bce3af28cd1401f861106f9969a2e01",
+      "modifications": [
+        "2026-11-13：提取固定版本等高段落分页与脏块定位原算法，仅增加集成注释"
       ]
     }
   ],

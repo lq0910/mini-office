@@ -5,7 +5,13 @@ import { Plugin } from '@tiptap/pm/state';
 import { wordHeadings, wordTocSnapshot, type WordHeadingPages } from '../editing/toc';
 import type { Node as WordNode } from '@tiptap/pm/model';
 import { parseDocx, buildBlankDocx, readSections, type ParsedDocFull, type SaveOptions, type BlankDocxOptions } from '../upstream/packages/docx-engine/src/index';
-import { editorExtensions } from '../upstream/apps/docs/src/renderer/editor/extensions';
+import { editorExtensions, TABLE_TRAILING_SKIP } from '../upstream/apps/docs/src/renderer/editor/extensions';
+// 功能：直接承接 GenOffice 的分批加载、尾部输入保护及修订忽略约定；时间：2026-11-13；作者：lq。
+import { PHASE1_BLOCKS, PHASED_MIN_BLOCKS, setContentPhased, waitForFullContent, cancelPhasedContent, isPhasedContentPending, assertPhasedContentComplete } from '../upstream/apps/docs/src/renderer/phased-content';
+import { PHASED_APPEND } from '../upstream/apps/docs/src/renderer/editor/streaming-tail-guard';
+import { TRACK_IGNORE } from '../upstream/apps/docs/src/renderer/editor/revisions';
+// 功能：保持同源分批正文和完整样式，尾部 DOM 使用一次片段提交；时间：2026-11-14；作者：lq。
+import { batchWordTailDom } from '../layout/dom-batch';
 import { blocksToPmDoc, pmDocOptions, type PmNode } from '../upstream/apps/docs/src/renderer/editor/convert';
 import { setActiveSubEditor, getActiveSubEditor, subscribeSubEditorState } from '../upstream/apps/docs/src/renderer/editor/active-editor';
 // 功能：文本框跟随主样式目录，不将回填记为新操作；时间：2026-11-11；作者：lq。
@@ -17,6 +23,8 @@ import { docStyleCss } from '../upstream/apps/docs/src/renderer/doc-style-css';
 import { setDocFontTable, loadBundledStandIns } from '../upstream/apps/docs/src/renderer/line-metrics';
 import { applyDocLayoutSettings } from '../upstream/apps/docs/src/renderer/document-settings';
 import { parseDocxOffThread, disposeParseWorker } from '../upstream/apps/docs/src/renderer/parse-off-thread';
+// 功能：旧 DOC 恢复数据在进入编辑 schema 前补充同源目录模型，开发和安装版本走同一路径；时间：2026-11-14；作者：lq。
+import { adoptLegacyTocDisplay } from '../editing/legacy-toc';
 import { serializeWordDocument } from '../serialization/document';
 // 功能：会话管理列表资源，正文及历史仍由原生事务唯一持有；时间：2026-11-10；作者：lq。
 import { WordListDefinitions } from '../editing/lists';
@@ -38,7 +46,7 @@ import { wordCellGaps } from '../layout/cell-gaps';
 import { patchWordMergeSettings, type WordMergeSettings } from '../serialization/mail-merge-settings';
 
 /** 功能：工作区只消费会话摘要，不复制原始包、DOM 或第二份正文；时间：2026-11-08；作者：lq。 */
-export interface WordSessionState { revision: number; savedRevision: number; dirty: boolean; canUndo: boolean; canRedo: boolean; }
+export interface WordSessionState { revision: number; savedRevision: number; dirty: boolean; canUndo: boolean; canRedo: boolean; loading: boolean; }
 /** 功能：记录待写盘的确切版本；只有外部写盘成功后才允许确认；时间：2026-11-08；作者：lq。 */
 export interface PreparedWordSave { readonly revision: number; readonly bytes: Uint8Array; }
 /** 功能：挂载和事件回调仅绑定我们自己的 UI；时间：2026-11-08；作者：lq。 */
@@ -86,6 +94,7 @@ export class WordCoreSession {
     runtimeUsers++;
     try {
       const parsed = await parseDocxOffThread(bytes.slice(), { owned: true });
+      await adoptLegacyTocDisplay(parsed);
       // 功能：模型转编辑 schema 前先采用本文档字体，避免上一会话的字体提示进入新 DOM；时间：2026-11-08；作者：lq。
       setDocFontTable(parsed.fontTable);
       if (!await adoptEmbeddedFonts(parsed.embeddedFonts)) throw new Error('Word 打开被较新的字体激活替代');
@@ -106,11 +115,15 @@ export class WordCoreSession {
     if (options.onChange) this.listeners.add(options.onChange);
     // 功能：只读在事务层生效，防止外部命令绕过 UI 的禁用状态；时间：2026-11-08；作者：lq。
     const readonly = this.viewOnly;
-    const readonlyGuard = Extension.create({ name: 'miniOfficeReadonlyGuard', addProseMirrorPlugins: () => [new Plugin({ filterTransaction: transaction => !readonly || !transaction.docChanged })] });
+    // 功能：只读文档也允许系统装载来源正文；用户事务仍不能绕过只读；时间：2026-11-13；作者：lq。
+    const readonlyGuard = Extension.create({ name: 'miniOfficeReadonlyGuard', addProseMirrorPlugins: () => [new Plugin({ filterTransaction: transaction => !readonly || !transaction.docChanged || transaction.getMeta(PHASED_APPEND) === true })] });
+    const fullContent = blocksToPmDoc(parsed.blocks, readSections(parsed), pmDocOptions(parsed));
+    const phased = (fullContent.content?.length ?? 0) > PHASED_MIN_BLOCKS;
     this.editor = new Editor({
       element: options.element ?? document.createElement('div'),
       extensions: [...editorExtensions, readonlyGuard, wordStyleCatalog, wordPageLayout, wordTableSource, wordPaste, wordSectionWidths(parsed), wordCellGaps],
-      content: blocksToPmDoc(parsed.blocks, readSections(parsed), pmDocOptions(parsed)) as JSONContent,
+      // 功能：首屏只创建上游规定的 64 个块，剩余正文由同一模型分帧追加；时间：2026-11-13；作者：lq。
+      content: (phased ? { ...fullContent, content: fullContent.content!.slice(0, PHASE1_BLOCKS) } : fullContent) as JSONContent,
       editable: !this.viewOnly,
       // 功能：首个 NodeView 绘制前采用原始编号与样式定义，不能等第一次编辑才修正列表；时间：2026-11-08；作者：lq。
       onBeforeCreate: ({ editor }) => {
@@ -120,6 +133,8 @@ export class WordCoreSession {
       },
       editorProps: { attributes: { class: 'doc-page', spellcheck: 'false' } },
       onTransaction: ({ transaction, editor }) => {
+        // 功能：来源追加不算编辑，不逐块刷新工具栏、样式投影或自动保存；时间：2026-11-13；作者：lq。
+        if (transaction.getMeta(PHASED_APPEND)) return;
         // 功能：样式改名、撤销与重做即时更新渲染目录，不改原始样式定义；时间：2026-11-10；作者：lq。
         if (transaction.docChanged) { this.revision++; editor.storage.listNumbering.styles = wordStyles(editor.state.doc, parsed); syncWordRegionStyles(editor); }
         restoreWordRegionRefresh(editor);
@@ -127,8 +142,8 @@ export class WordCoreSession {
         if (transaction.docChanged || transaction.selectionSet || transaction.storedMarksSet) this.emit();
       },
     });
-    this.editor.on('beforeTransaction', ({ editor }) => captureWordRegionRefresh(editor));
-    this.initialDocument = this.editor.state.doc;
+    this.editor.on('beforeTransaction', ({ editor, transaction }) => { if (!transaction.getMeta(PHASED_APPEND)) captureWordRegionRefresh(editor); });
+    this.initialDocument = phased ? this.editor.schema.nodeFromJSON(fullContent) : this.editor.state.doc;
     applyDocLayoutSettings(this.editor, parsed);
     this.editor.view.dom.addEventListener('focusin', this.focusMain);
     this.unsubscribeSubEditor = subscribeSubEditorState(changed => {
@@ -138,6 +153,29 @@ export class WordCoreSession {
       if (changed) this.revision++;
       this.emit();
     });
+    if (phased) {
+      let first = true;
+      const replace = (nodes: PmNode[], from: number, to: number) => {
+        const tr = this.editor.state.tr.replaceWith(from, to, nodes.map(node => this.editor.schema.nodeFromJSON(node)))
+          .setMeta('addToHistory', false).setMeta(PHASED_APPEND, true).setMeta(TRACK_IGNORE, true).setMeta(TABLE_TRAILING_SKIP, true);
+        if (from === to) batchWordTailDom(this.editor.view.dom, nodes.length, () => this.editor.view.dispatch(tr));
+        else this.editor.view.dispatch(tr);
+        if (this.editor.state.doc !== tr.doc) throw new Error('Word 正文分批加载被拒绝');
+      };
+      setContentPhased({
+        // 功能：构造时已装载首屏；上游失败回退仍可完整替换正文；时间：2026-11-13；作者：lq。
+        setContent: doc => { if (first) { first = false; return; } replace(doc.content ?? [], 0, this.editor.state.doc.content.size); },
+        appendNodes: nodes => replace(nodes, this.editor.state.doc.content.size, this.editor.state.doc.content.size),
+        isDestroyed: () => this.disposed || this.editor.isDestroyed,
+        isComposing: () => this.editor.view.composing || this.commandEditor().view.composing || [...this.regions].some(region => !region.isDestroyed && region.view.composing),
+        // 功能：新会话历史本为空且所有追加排除历史，无需重建插件；用户首屏编辑历史保持原样；时间：2026-11-13；作者：lq。
+        resetHistory: () => {},
+        setLoading: () => this.emit(),
+        getDirty: () => this.revision !== this.savedRevision,
+        // 功能：追加事务从源头不增加修订号，不能覆盖加载期间的用户编辑版本；时间：2026-11-13；作者：lq。
+        setDirty: () => {},
+      }, fullContent, undefined, this.editor.view.dom);
+    }
   }
   /** 功能：激活文档时使用其字体表和嵌入字体，等待真实字体度量，再生成当前文档 CSS；时间：2026-11-08；作者：lq。 */
   async activate(): Promise<string> {
@@ -164,8 +202,11 @@ export class WordCoreSession {
   state(): WordSessionState {
     // 功能：历史按钮跟随当前活动编辑区，其他文档的全局子编辑器不能串入本会话；时间：2026-11-10；作者：lq。
     const editor = this.commandEditor();
-    return { revision: this.revision, savedRevision: this.savedRevision, dirty: this.revision !== this.savedRevision, canUndo: editor.can().undo(), canRedo: editor.can().redo() };
+    return { revision: this.revision, savedRevision: this.savedRevision, dirty: this.revision !== this.savedRevision, canUndo: editor.can().undo(), canRedo: editor.can().redo(), loading: this.contentPending() };
   }
+  /** 功能：保存、查找和输出可等待本会话的完整来源，取消/关闭后拒绝半份正文；时间：2026-11-13；作者：lq。 */
+  contentPending(): boolean { return !this.disposed && isPhasedContentPending(this.editor.view.dom); }
+  async whenContentReady(): Promise<void> { this.assertOpen(); await waitForFullContent(this.editor.view.dom); this.assertOpen(); }
   /** 功能：工具栏只操作属于当前文档的活动子编辑器，其余情况使用正文；时间：2026-11-10；作者：lq。 */
   commandEditor(): Editor {
     const active = getActiveSubEditor();
@@ -210,6 +251,9 @@ export class WordCoreSession {
   /** 功能：保存/快照只序列化当前不可变事务快照，不清除 dirty 或提前重置来源锚点；时间：2026-11-08；作者：lq。 */
   async prepareSave(): Promise<PreparedWordSave> {
     this.assertEditable();
+    // 功能：分帧加载未结束时不得序列化截断正文；小文档保持同步捕获版本的原有语义；时间：2026-11-13；作者：lq。
+    if (this.contentPending()) { await this.whenContentReady(); this.assertEditable(); }
+    assertPhasedContentComplete(this.editor.view.dom);
     // 功能：受控页眉页脚及活动文本框的未确认输入也不能进入保存快照；时间：2026-11-11；作者：lq。
     if (this.editor.view.composing || [...this.regions].some(region => !region.isDestroyed && region.view.composing) || this.commandEditor().view.composing) throw new Error('中文输入尚未确认，请在组合输入结束后保存');
     const revision = this.revision;
@@ -255,6 +299,8 @@ export class WordCoreSession {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    // 功能：仅取消本标签的待追加帧，唤醒等待方后由已关闭检查拒绝保存；时间：2026-11-13；作者：lq。
+    cancelPhasedContent(this.editor.view.dom);
     this.unsubscribeSubEditor();
     for (const region of this.regions) { if (getActiveSubEditor() === region) setActiveSubEditor(null); if (!region.isDestroyed) region.destroy(); }
     this.regions.clear();

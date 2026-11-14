@@ -33,8 +33,9 @@ uuid.workspace = true
 chrono.workspace = true
 
 # 功能：macOS 原生位图及富文本剪贴板桥，不引入 Electron；时间：2026-11-11；作者：lq。
+# 功能：NSRunningApplication 仅供显式调试验收请求应用激活，正常启动不执行验收逻辑；时间：2026-11-14；作者：lq。
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSPasteboard"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSPasteboard", "NSRunningApplication"] }
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSData", "NSString"] }
 
 # 功能：Windows/Linux 双击文件或拖拽到图标可能启动第二个进程，用单实例插件转发文件参数；时间：2026-10-29；作者：lq。
